@@ -1,0 +1,10 @@
+﻿//HintName: Splat.DI.Extensions.Registrations.SourceGenerated.cs
+namespace Splat
+{
+    internal static partial class SplatRegistrations
+    {
+        static SplatRegistrations()
+            {
+                Splat.Locator.CurrentMutable.RegisterLazySingleton(() => new System.Lazy<global::Test.TestConcrete>(() => new global::Test.TestConcrete()), typeof(global::Test.ITest));
+            }
+    }}
