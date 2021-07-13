@@ -1,0 +1,13 @@
+﻿{
+  Diagnostics: [
+    {
+      Id: SPLATDI002,
+      Title: Property must be public/internal settable,
+      Severity: Error,
+      WarningLevel: 0,
+      Location: : (22,63)-(22,66),
+      MessageFormat: DependencyInjectionPropertyAttribute property must have a public or internal setter,
+      Category: Compiler
+    }
+  ]
+}
