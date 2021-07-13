@@ -1,15 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// Copyright (c) 2019-2021 ReactiveUI Association Incorporated. All rights reserved.
+// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-
-using ReactiveMarbles.RoslynHelpers;
 
 namespace Splat.DependencyInjection.SourceGenerator
 {
@@ -19,6 +17,7 @@ namespace Splat.DependencyInjection.SourceGenerator
     [Generator]
     public class Generator : ISourceGenerator
     {
+        /// <inheritdoc/>
         public void Execute(GeneratorExecutionContext context)
         {
             // add the attribute text.
@@ -39,6 +38,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             context.AddSource("Splat.DI.Extensions.Registrations.SourceGenerated.cs", SourceText.From(outputText, Encoding.UTF8));
         }
 
+        /// <inheritdoc/>
         public void Initialize(GeneratorInitializationContext context) => context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
     }
 }

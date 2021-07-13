@@ -5,6 +5,7 @@
 
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);SA1600</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,13 +19,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Verify.SourceGenerators" Version="0.3.0" />
+    <PackageReference Include="Verify.SourceGenerators" Version="1.0.0" />
     <PackageReference Include="ReactiveMarbles.SourceGenerator.TestNuGetHelper" Version="1.0.8" />
-    <PackageReference Include="Verify.Xunit" Version="11.19.2" />
+    <PackageReference Include="Verify.Xunit" Version="11.20.3" />
     <PackageRefernece Include="Microsoft.CodeAnalysis.CSharp" Version="3.10.0" PrivateAssets="all" />
-
   </ItemGroup>
-
+  
   <ItemGroup>
     <ProjectReference Include="..\Splat.DependencyInjection.SourceGenerator\Splat.DependencyInjection.SourceGenerator.csproj" />
   </ItemGroup>

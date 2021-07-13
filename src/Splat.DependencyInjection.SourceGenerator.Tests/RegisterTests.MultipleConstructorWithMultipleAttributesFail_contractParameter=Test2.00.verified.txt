@@ -1,0 +1,13 @@
+﻿{
+  Diagnostics: [
+    {
+      Id: SPLATDI003,
+      Title: Multiple constructors have DependencyInjectionConstructorAttribute,
+      Severity: Error,
+      WarningLevel: 0,
+      Location: : (23,15)-(23,27),
+      MessageFormat: One one constructor should be marked with the DependencyInjectionConstructorAttribute attribute,
+      Category: Compiler
+    }
+  ]
+}

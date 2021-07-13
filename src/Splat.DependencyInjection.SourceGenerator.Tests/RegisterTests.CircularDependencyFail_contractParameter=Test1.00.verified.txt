@@ -1,0 +1,22 @@
+﻿{
+  Diagnostics: [
+    {
+      Id: SPLATDI005,
+      Title: Constructors must not have a circular dependency,
+      Severity: Error,
+      WarningLevel: 0,
+      Location: : (26,36)-(26,44),
+      MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
+      Category: Compiler
+    },
+    {
+      Id: SPLATDI005,
+      Title: Constructors must not have a circular dependency,
+      Severity: Error,
+      WarningLevel: 0,
+      Location: : (18,36)-(18,44),
+      MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
+      Category: Compiler
+    }
+  ]
+}

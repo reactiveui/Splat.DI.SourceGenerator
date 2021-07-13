@@ -5,7 +5,19 @@ VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Splat.DependencyInjection.SourceGenerator", "Splat.DependencyInjection.SourceGenerator\Splat.DependencyInjection.SourceGenerator.csproj", "{3BD91F34-54B0-4E7C-B933-D16C0A054FE9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Splat.DependencyInjection.SourceGenerator.Tests", "Splat.DependencyInjection.SourceGenerator.Tests\Splat.DependencyInjection.SourceGenerator.Tests.csproj", "{09554D3F-6277-479E-BBA6-3E4806C7ED85}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Splat.DependencyInjection.SourceGenerator.Tests", "Splat.DependencyInjection.SourceGenerator.Tests\Splat.DependencyInjection.SourceGenerator.Tests.csproj", "{09554D3F-6277-479E-BBA6-3E4806C7ED85}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{43FD3021-45AA-4849-BFD7-46363EE0C6B7}"
+	ProjectSection(SolutionItems) = preProject
+		..\.editorconfig = ..\.editorconfig
+		..\.gitignore = ..\.gitignore
+		Directory.Build.props = Directory.Build.props
+		Directory.build.targets = Directory.build.targets
+		..\LICENSE = ..\LICENSE
+		..\README.md = ..\README.md
+		stylecop.json = stylecop.json
+		..\version.json = ..\version.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

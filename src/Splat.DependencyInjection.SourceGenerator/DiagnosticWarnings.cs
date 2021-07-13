@@ -40,5 +40,12 @@ namespace Splat.DependencyInjection.SourceGenerator
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        internal static readonly DiagnosticDescriptor ConstructorsMustNotHaveCircularDependency = new(
+            id: "SPLATDI005",
+            title: "Constructors must not have a circular dependency",
+            messageFormat: "Constructor parameters must not have a circular dependency to another registered resource",
+            category: "Compiler",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }
