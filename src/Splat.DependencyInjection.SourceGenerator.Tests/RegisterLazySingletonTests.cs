@@ -2,7 +2,6 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,7 +9,6 @@ using VerifyXunit;
 
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests
 {
@@ -34,14 +32,14 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
         [InlineData(LazyThreadSafetyMode.None, "Test2")]
         public Task ConstructionAndMultiplePropertyInjectionWithLazyMode(LazyThreadSafetyMode mode, string contract)
         {
-            string arguments = string.Empty;
+            string arguments;
             if (string.IsNullOrWhiteSpace(contract))
             {
-                arguments = "LazyThreadSafetyMode." + mode.ToString();
+                arguments = $"LazyThreadSafetyMode.{mode}";
             }
             else
             {
-                arguments = '"' + contract + '"' + ", LazyThreadSafetyMode." + mode.ToString();
+                arguments = $"\"{contract}\", LazyThreadSafetyMode.{mode}";
             }
 
             var source = @$"

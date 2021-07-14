@@ -11,9 +11,9 @@ namespace Splat.DependencyInjection.SourceGenerator
 {
     internal class SyntaxReceiver : ISyntaxReceiver
     {
-        public List<InvocationExpressionSyntax> Register { get; } = new List<InvocationExpressionSyntax>();
+        public List<InvocationExpressionSyntax> Register { get; } = new();
 
-        public List<InvocationExpressionSyntax> RegisterLazySingleton { get; } = new List<InvocationExpressionSyntax>();
+        public List<InvocationExpressionSyntax> RegisterLazySingleton { get; } = new();
 
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
         {
@@ -35,11 +35,6 @@ namespace Splat.DependencyInjection.SourceGenerator
 
         private void HandleSimpleName(SimpleNameSyntax simpleName, InvocationExpressionSyntax invocationExpression)
         {
-            if (simpleName is null)
-            {
-                return;
-            }
-
             var methodName = simpleName.Identifier.Text;
 
             if (string.Equals(methodName, nameof(Register)))

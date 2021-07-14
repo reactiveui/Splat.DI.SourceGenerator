@@ -29,7 +29,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             methods = MetadataDependencyChecker.CheckMetadata(context, methods);
 
-            var invocations = Generate(compilation, methods);
+            var invocations = Generate(methods);
 
             var staticConstructor = ConstructorDeclaration(default, new[] { SyntaxKind.StaticKeyword }, Array.Empty<ParameterSyntax>(), Constants.ClassName, Block(invocations.ToList(), 2), 1);
 
@@ -42,12 +42,10 @@ namespace Splat.DependencyInjection.SourceGenerator
             return compilationUnit.ToFullString();
         }
 
-        private static IEnumerable<StatementSyntax> Generate(Compilation compilation, IEnumerable<MethodMetadata> methodMetadatas)
+        private static IEnumerable<StatementSyntax> Generate(IEnumerable<MethodMetadata> methodMetadatas)
         {
             foreach (var methodMetadata in methodMetadatas)
             {
-                var semanticModel = compilation.GetSemanticModel(methodMetadata.MethodInvocation.SyntaxTree);
-
                 var typeConstructorArguments = new List<ArgumentSyntax>();
 
                 foreach (var parameter in methodMetadata.ConstructorDependencies)
@@ -111,13 +109,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             const string lazyTypeValueProperty = "Value";
             const string lazyVariableName = "lazy";
 
-            var lambdaArguments = new ArgumentSyntax[]
-            {
-                Argument(ParenthesizedLambdaExpression(MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, lazyVariableName, lazyTypeValueProperty))),
-                Argument($"typeof({methodMetadata.InterfaceTypeName})")
-            };
-
-            var lazyArguments = new List<ArgumentSyntax>()
+            var lazyArguments = new List<ArgumentSyntax>
             {
                 Argument(ParenthesizedLambdaExpression(call))
             };

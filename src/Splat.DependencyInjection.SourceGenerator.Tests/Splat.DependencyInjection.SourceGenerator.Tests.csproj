@@ -24,7 +24,7 @@
     <PackageReference Include="Verify.Xunit" Version="11.20.3" />
     <PackageRefernece Include="Microsoft.CodeAnalysis.CSharp" Version="3.10.0" PrivateAssets="all" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Splat.DependencyInjection.SourceGenerator\Splat.DependencyInjection.SourceGenerator.csproj" />
   </ItemGroup>

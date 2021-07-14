@@ -7,8 +7,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-using ICSharpCode.Decompiler.Metadata;
-
 using Microsoft.CodeAnalysis;
 
 using NuGet.LibraryModel;
@@ -51,7 +49,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
             var inputGroup = await NuGetPackageHelper.DownloadPackageFilesAndFolder(_splatLibrary, targetFrameworks, packageOutputDirectory: null).ConfigureAwait(false);
 
             var framework = targetFrameworks[0];
-            EventCompiler = new EventBuilderCompiler(inputGroup, inputGroup, framework);
+            EventCompiler = new(inputGroup, inputGroup, framework);
         }
 
         public Task DisposeAsync()
@@ -120,7 +118,7 @@ namespace Test
         static DIRegister()
         {{
             SplatRegistrations.{_testMethod}<ITest1, TestConcrete1>({arguments});
-            SplatRegistrations.{_testMethod}<ITest2, TestConcrete2>();        
+            SplatRegistrations.{_testMethod}<ITest2, TestConcrete2>();
         }}
     }}
 
@@ -642,7 +640,7 @@ namespace Test
 
             GeneratorDriver? driver = null;
 
-            Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out var _, out var _, out driver, source));
+            Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out _, out _, out driver, source));
 
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
@@ -686,7 +684,7 @@ namespace Test
 
             var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
 
-            utility.RunGenerator<Generator>(EventCompiler, out var _, out var _, out var driver, source);
+            utility.RunGenerator<Generator>(EventCompiler, out _, out _, out var driver, source);
 
             return driver;
         }
