@@ -625,7 +625,6 @@ namespace Test
             var driver = Generate(source);
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
-            settings.AutoVerify();
 
             return Verifier.Verify(driver, settings, sourceFile: file);
         }

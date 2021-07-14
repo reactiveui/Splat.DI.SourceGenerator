@@ -140,7 +140,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                     {
                         if (returnConstructor != null)
                         {
-                            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault()));
+                            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
                         }
 
                         returnConstructor = constructor;
@@ -150,12 +150,12 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             if (returnConstructor is null)
             {
-                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ExpressionMustBeInline, invocationExpression.GetLocation()));
+                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorNeedAttribute, invocationExpression.GetLocation(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
             }
 
             if (returnConstructor.DeclaredAccessibility < Accessibility.Internal)
             {
-                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault()));
+                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
             }
 
             return returnConstructor.Parameters.Select(x => new ConstructorDependencyMetadata(x, x.Type));
@@ -174,7 +174,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             {
                 if (property.SetMethod?.DeclaredAccessibility < Accessibility.Internal)
                 {
-                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault()));
+                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(), property.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
                 }
 
                 yield return new PropertyDependencyMetadata(property);

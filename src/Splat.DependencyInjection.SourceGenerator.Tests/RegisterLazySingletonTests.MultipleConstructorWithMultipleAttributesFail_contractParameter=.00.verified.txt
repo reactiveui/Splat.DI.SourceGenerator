@@ -6,7 +6,7 @@
       Severity: Error,
       WarningLevel: 0,
       Location: : (23,15)-(23,27),
-      MessageFormat: One one constructor should be marked with the DependencyInjectionConstructorAttribute attribute,
+      MessageFormat: {0} has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked,
       Category: Compiler
     }
   ]

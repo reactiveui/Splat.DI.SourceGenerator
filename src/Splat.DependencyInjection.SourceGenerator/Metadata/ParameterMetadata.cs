@@ -8,5 +8,5 @@ using System.Text;
 
 namespace Splat.DependencyInjection.SourceGenerator.Metadata
 {
-    public record ParameterMetadata(string ParameterName, string ParameterValue);
+    internal record ParameterMetadata(string ParameterName, string ParameterValue);
 }
