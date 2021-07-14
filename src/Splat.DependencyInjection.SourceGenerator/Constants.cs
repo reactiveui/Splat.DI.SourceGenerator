@@ -8,11 +8,8 @@ namespace Splat.DependencyInjection.SourceGenerator
     {
         public const string ClassName = "SplatRegistrations";
         public const string NamespaceName = "Splat";
-        public const string Locator = "Splat.Locator";
         public const string LocatorCurrent = "Splat.Locator.Current";
         public const string LocatorGetService = "GetService";
-
-        public const string LazyModeType = "global::System.Threading.LazyThreadSafetyMode";
 
         public const string ConstructorAttribute = "global::Splat.DependencyInjectionConstructorAttribute";
         public const string PropertyAttribute = "global::Splat.DependencyInjectionPropertyAttribute";

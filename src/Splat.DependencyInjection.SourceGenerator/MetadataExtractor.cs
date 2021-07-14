@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -96,14 +95,14 @@ namespace Splat.DependencyInjection.SourceGenerator
         private static IEnumerable<ParameterMetadata> GetRegisterParameters(IMethodSymbol methodSymbol, SemanticModel semanticModel, InvocationExpressionSyntax invocationExpression)
         {
             for (int i = 0; i < invocationExpression.ArgumentList.Arguments.Count; ++i)
-{
+            {
                 var argument = invocationExpression.ArgumentList.Arguments[i];
                 var argumentName = methodSymbol.Parameters[i].Name;
                 var expression = argument.Expression;
 
                 if (expression is LiteralExpressionSyntax literal)
                 {
-                    yield return new ParameterMetadata(argumentName, literal.ToString());
+                    yield return new(argumentName, literal.ToString());
                 }
                 else
                 {
@@ -111,7 +110,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                     if (mode.Symbol is not null)
                     {
-                        yield return new ParameterMetadata(argumentName, mode.Symbol.ToDisplayString());
+                        yield return new(argumentName, mode.Symbol.ToDisplayString());
                     }
                 }
             }
@@ -177,7 +176,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                     throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(), property.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
                 }
 
-                yield return new PropertyDependencyMetadata(property);
+                yield return new(property);
             }
         }
     }
