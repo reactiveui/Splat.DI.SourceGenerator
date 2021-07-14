@@ -644,7 +644,6 @@ namespace Test
 
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
-
             return Verifier.Verify(driver, settings, sourceFile: file);
         }
 
@@ -653,7 +652,6 @@ namespace Test
             var driver = Generate(source);
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
-
             return Verifier.Verify(driver, settings, sourceFile: file);
         }
 
@@ -663,7 +661,6 @@ namespace Test
 
             VerifySettings settings = new();
             settings.UseParameters(contractParameter, mode);
-
             return Verifier.Verify(driver, settings, sourceFile: file);
         }
 
