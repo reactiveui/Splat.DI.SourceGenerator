@@ -7,10 +7,10 @@
     <Authors>Glenn Watson</Authors>
     <Copyright>Copyright (c) 2021 ReactiveUI Association Inc</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/reactivemarbles/ObservableEvents</PackageProjectUrl>
     <PackageDescription>Generates source for Splat dependency injection registrations with constructor and property injection.</PackageDescription>
     <Owners>glennawatson</Owners>
     <PackageTags>system.reactive;splat;dependency injection</PackageTags>
+    <PackageProjectUrl>https://github.com/reactivemarbles/Splat.DI.SourceGenerator</PackageProjectUrl>
     <PackageReleaseNotes>https://github.com/reactivemarbles/Splat.DI.SourceGenerator/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/reactivemarbles/Splat.DI.SourceGenerator</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
