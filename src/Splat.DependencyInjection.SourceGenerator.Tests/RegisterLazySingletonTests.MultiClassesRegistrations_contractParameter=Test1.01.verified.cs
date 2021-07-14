@@ -5,7 +5,7 @@ namespace Splat
 {
     internal static partial class SplatRegistrations
     {
-        static SplatRegistrations()
+        static partial void SetupIOCInternal()
         {
             {
                 global::System.Lazy<Test.ITest1> lazy = new global::System.Lazy<Test.ITest1>(() => new global::Test.TestConcrete1((global::Test.IService1)Splat.Locator.Current.GetService(typeof(global::Test.IService1)), (global::Test.IService2)Splat.Locator.Current.GetService(typeof(global::Test.IService2))));

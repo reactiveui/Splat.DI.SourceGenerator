@@ -13,15 +13,15 @@ namespace Splat.DependencyInjection.SourceGenerator.Metadata
 {
     internal abstract record MethodMetadata
     {
-        public MethodMetadata(IMethodSymbol method, InvocationExpressionSyntax methodInvocation, bool isLazy, IReadOnlyList<ConstructorDependencyMetadata> constructorDependencies, IReadOnlyList<PropertyDependencyMetadata> properties, IReadOnlyList<ParameterMetadata> registerParameterValues)
+        public MethodMetadata(IMethodSymbol method, ITypeSymbol interfaceType, ITypeSymbol concreteType, InvocationExpressionSyntax methodInvocation, bool isLazy, IReadOnlyList<ConstructorDependencyMetadata> constructorDependencies, IReadOnlyList<PropertyDependencyMetadata> properties, IReadOnlyList<ParameterMetadata> registerParameterValues)
         {
             Method = method;
             MethodInvocation = methodInvocation;
             IsLazy = isLazy;
             ConstructorDependencies = constructorDependencies;
             Properties = properties;
-            ConcreteType = Method.TypeArguments[1];
-            InterfaceType = Method.TypeArguments[0];
+            ConcreteType = concreteType;
+            InterfaceType = interfaceType;
             ConcreteTypeName = ConcreteType.ToDisplayString(RoslynCommonHelpers.TypeFormat);
             InterfaceTypeName = InterfaceType.ToDisplayString(RoslynCommonHelpers.TypeFormat);
             RegisterParameterValues = registerParameterValues;

@@ -8,6 +8,11 @@ namespace Splat
     /// </summary>
     internal static partial class SplatRegistrations
     {
+        static SplatRegistrations()
+        {
+            SetupIOCInternal();
+        }
+
         /// <summary>
         /// Registers a class with its concrete class.
         /// </summary>
@@ -54,6 +59,59 @@ namespace Splat
         public static void RegisterLazySingleton<TInterface, TConcrete>(string contract, System.Threading.LazyThreadSafetyMode mode)
         {
         }
+
+        /// <summary>
+        /// Registers a class with its concrete class.
+        /// </summary>
+        public static void Register<T>()
+        {
+        }
+
+
+        /// <summary>
+        /// Registers a class with its concrete class.
+        /// </summary>
+        /// <param name="contract">Optional contract.</param>
+        public static void Register<T>(string contract)
+        {
+        }
+
+        /// <summary>
+        /// Registers a lazy class with its concrete class.
+        /// </summary>
+        public static void RegisterLazySingleton<T>()
+        {
+        }
+
+
+        /// <summary>
+        /// Registers a lazy class with its concrete class.
+        /// </summary>
+        /// <param name="contract">Optional contract.</param>
+        public static void RegisterLazySingleton<T>(string contract)
+        {
+        }
+
+        /// <summary>
+        /// Proxy for the Splat SetService.
+        /// </summary>
+        public static void RegisterConstant<T>(T instance) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance);
+
+        /// <summary>
+        /// Proxy for the Splat SetService.
+        /// </summary>
+        /// <param name="contract">Optional contract.</param>
+        public static void RegisterConstant<T>(T instance, string contract) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
+
+        /// <summary>
+        /// Runs the source generated code.
+        /// </summary>
+        public static void SetupIOC()
+        {
+            SetupIOCInternal();
+        }
+
+        static partial void SetupIOCInternal();
     }
 
     /// <summary>

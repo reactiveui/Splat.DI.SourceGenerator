@@ -363,6 +363,46 @@ namespace Test
         [InlineData("")]
         [InlineData("Test1")]
         [InlineData("Test2")]
+        public Task ConstructionAndInternalPropertyInjectionTypeArgument(string contractParameter)
+        {
+            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+            var source = @$"
+using System;
+using Splat;
+
+namespace Test
+{{
+    public static class DIRegister
+    {{
+        static DIRegister()
+        {{
+            SplatRegistrations.{_testMethod}<TestConcrete>({arguments});
+        }}
+    }}
+
+    public interface ITest {{ }}
+    public class TestConcrete : ITest
+    {{
+        public TestConcrete(IService1 service1, IService2 service)
+        {{
+        }}
+
+        [DependencyInjectionProperty]
+        internal IServiceProperty ServiceProperty {{ get; set; }}
+    }}
+
+    public interface IService1 {{ }}
+    public interface IService2 {{ }}
+    public interface IServiceProperty {{ }}
+}}";
+
+            return TestPass(source, contractParameter);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("Test1")]
+        [InlineData("Test2")]
         public Task ConstructionAndInternalSetterPropertyInjection(string contractParameter)
         {
             var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';

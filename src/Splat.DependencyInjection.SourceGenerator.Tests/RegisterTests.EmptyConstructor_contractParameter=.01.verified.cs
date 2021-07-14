@@ -5,7 +5,7 @@ namespace Splat
 {
     internal static partial class SplatRegistrations
     {
-        static SplatRegistrations()
+        static partial void SetupIOCInternal()
         {
             Splat.Locator.CurrentMutable.Register(() => new global::Test.TestConcrete(), typeof(global::Test.ITest));
         }
