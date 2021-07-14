@@ -15,7 +15,23 @@ namespace Splat.DependencyInjection.SourceGenerator
     {
         public static List<MethodMetadata> CheckMetadata(GeneratorExecutionContext context, IList<MethodMetadata> metadataMethods)
         {
-            var metadataDependencies = metadataMethods.ToDictionary(x => x.InterfaceTypeName);
+            var metadataDependencies = new Dictionary<string, MethodMetadata>();
+            foreach (var metadataMethod in metadataMethods)
+            {
+                try
+                {
+                    if (metadataDependencies.ContainsKey(metadataMethod.InterfaceTypeName))
+                    {
+                        throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.InterfaceRegisteredMultipleTimes, metadataMethod.MethodInvocation.GetLocation(), metadataMethod.InterfaceTypeName));
+                    }
+
+                    metadataDependencies[metadataMethod.InterfaceTypeName] = metadataMethod;
+                }
+                catch (ContextDiagnosticException ex)
+                {
+                    context.ReportDiagnostic(ex.Diagnostic);
+                }
+            }
 
             var methods = new List<MethodMetadata>();
 

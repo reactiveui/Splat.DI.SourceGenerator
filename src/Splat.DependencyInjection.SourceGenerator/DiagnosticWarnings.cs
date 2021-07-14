@@ -47,5 +47,13 @@ namespace Splat.DependencyInjection.SourceGenerator
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+
+        internal static readonly DiagnosticDescriptor InterfaceRegisteredMultipleTimes = new(
+            id: "SPLATDI006",
+            title: "Interface has been registered before",
+            messageFormat: "{0} has been registered in multiple places",
+            category: "Compiler",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
     }
 }

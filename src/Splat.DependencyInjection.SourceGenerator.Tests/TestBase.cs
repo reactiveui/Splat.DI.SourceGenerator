@@ -601,6 +601,36 @@ namespace Test
             return TestPass(source, contractParameter);
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData("Test1")]
+        [InlineData("Test2")]
+        public Task InterfaceRegisteredMultipleTimes(string contractParameter)
+        {
+            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+            var source = @$"
+using System;
+using Splat;
+
+namespace Test
+{{
+    public static class DIRegister
+    {{
+        static DIRegister()
+        {{
+            SplatRegistrations.{_testMethod}<ITest, TestConcrete1>({arguments});
+            SplatRegistrations.{_testMethod}<ITest, TestConcrete2>({arguments});
+        }}
+    }}
+
+    public interface ITest {{ }}
+    public class TestConcrete1 : ITest {{ }}
+    public class TestConcrete2 : ITest {{ }}
+}}";
+
+            return TestFail(source, contractParameter);
+        }
+
         protected Task TestFail(string source, string contractParameter, [CallerFilePath] string file = "")
         {
             if (EventCompiler is null)
