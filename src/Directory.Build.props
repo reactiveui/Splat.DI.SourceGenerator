@@ -13,7 +13,6 @@
     <PackageTags>system.reactive;splat;dependency injection</PackageTags>
     <PackageReleaseNotes>https://github.com/reactivemarbles/Splat.DI.SourceGenerator/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/reactivemarbles/Splat.DI.SourceGenerator</RepositoryUrl>
-    <PackageIconUrl>https://github.com/reactiveui/styleguide/blob/master/logo_splat/logo.png?raw=true</PackageIconUrl>
     <RepositoryType>git</RepositoryType>
 
     <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
@@ -22,10 +21,15 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <!-- Include PDB in the built .nupkg -->
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\logo.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
    <PropertyGroup>

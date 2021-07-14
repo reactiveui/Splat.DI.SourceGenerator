@@ -6,7 +6,7 @@
       Severity: Error,
       WarningLevel: 0,
       Location: : (22,63)-(22,66),
-      MessageFormat: DependencyInjectionPropertyAttribute property must have a public or internal setter,
+      MessageFormat: {0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter,
       Category: Compiler
     }
   ]

@@ -8,10 +8,10 @@ namespace Splat.DependencyInjection.SourceGenerator
 {
     internal static class DiagnosticWarnings
     {
-        internal static readonly DiagnosticDescriptor ExpressionMustBeInline = new(
+        internal static readonly DiagnosticDescriptor MultipleConstructorNeedAttribute = new(
             id: "SPLATDI001",
             title: "Can't find valid constructor",
-            messageFormat: "There are more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute",
+            messageFormat: "{0} has more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute",
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
@@ -19,7 +19,7 @@ namespace Splat.DependencyInjection.SourceGenerator
         internal static readonly DiagnosticDescriptor PropertyMustPublicBeSettable = new(
             id: "SPLATDI002",
             title: "Property must be public/internal settable",
-            messageFormat: "DependencyInjectionPropertyAttribute property must have a public or internal setter",
+            messageFormat: "{0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter",
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
@@ -27,7 +27,7 @@ namespace Splat.DependencyInjection.SourceGenerator
         internal static readonly DiagnosticDescriptor MultipleConstructorsMarked = new(
             id: "SPLATDI003",
             title: "Multiple constructors have DependencyInjectionConstructorAttribute",
-            messageFormat: "One one constructor should be marked with the DependencyInjectionConstructorAttribute attribute",
+            messageFormat: "{0} has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked",
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
@@ -35,7 +35,7 @@ namespace Splat.DependencyInjection.SourceGenerator
         internal static readonly DiagnosticDescriptor ConstructorsMustBePublic = new(
             id: "SPLATDI004",
             title: "Constructors not public or internal",
-            messageFormat: "Constructor declared with DependencyInjectionConstructorAttribute attribute must be public or internal",
+            messageFormat: "{0} constructor declared with DependencyInjectionConstructorAttribute attribute must be public or internal",
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
