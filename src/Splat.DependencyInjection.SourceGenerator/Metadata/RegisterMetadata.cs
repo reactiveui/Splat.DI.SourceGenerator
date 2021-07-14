@@ -9,6 +9,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Splat.DependencyInjection.SourceGenerator.Metadata
 {
-    internal record RegisterMetadata(IMethodSymbol Method, InvocationExpressionSyntax MethodInvocation, IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies, IReadOnlyList<PropertyDependencyMetadata> Properties, IReadOnlyList<ParameterMetadata> RegisterParameterValues)
-        : MethodMetadata(Method, MethodInvocation, false, ConstructorDependencies, Properties, RegisterParameterValues);
+    internal record RegisterMetadata(IMethodSymbol Method, ITypeSymbol InterfaceType, ITypeSymbol ConcreteType, InvocationExpressionSyntax MethodInvocation, IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies, IReadOnlyList<PropertyDependencyMetadata> Properties, IReadOnlyList<ParameterMetadata> RegisterParameterValues)
+        : MethodMetadata(Method, InterfaceType, ConcreteType, MethodInvocation, false, ConstructorDependencies, Properties, RegisterParameterValues);
 }

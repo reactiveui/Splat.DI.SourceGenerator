@@ -21,8 +21,8 @@ namespace Splat.DependencyInjection.SourceGenerator
         {
             foreach (var invocationExpression in syntaxReceiver.Register)
             {
-                var methodMetadata = GetValidMethod(context, invocationExpression, compilation, (method, invocation, constructors, properties, registerProperties) =>
-                    new RegisterMetadata(method, invocation, constructors, properties, registerProperties));
+                var methodMetadata = GetValidMethod(context, invocationExpression, compilation, (method, interfaceType, concreteType, invocation, constructors, properties, registerProperties) =>
+                    new RegisterMetadata(method, interfaceType, concreteType, invocation, constructors, properties, registerProperties));
 
                 if (methodMetadata != null)
                 {
@@ -32,8 +32,8 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             foreach (var invocationExpression in syntaxReceiver.RegisterLazySingleton)
             {
-                var methodMetadata = GetValidMethod(context, invocationExpression, compilation, (method, invocation, constructors, properties, registerProperties) =>
-                    new RegisterLazySingletonMetadata(method, invocation, constructors, properties, registerProperties));
+                var methodMetadata = GetValidMethod(context, invocationExpression, compilation, (method, interfaceType, concreteType, invocation, constructors, properties, registerProperties) =>
+                    new RegisterLazySingletonMetadata(method, interfaceType, concreteType, invocation, constructors, properties, registerProperties));
 
                 if (methodMetadata != null)
                 {
@@ -46,7 +46,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             GeneratorExecutionContext context,
             InvocationExpressionSyntax invocationExpression,
             Compilation compilation,
-            Func<IMethodSymbol, InvocationExpressionSyntax, IReadOnlyList<ConstructorDependencyMetadata>, IReadOnlyList<PropertyDependencyMetadata>, IReadOnlyList<ParameterMetadata>, T> createFunc)
+            Func<IMethodSymbol, ITypeSymbol, ITypeSymbol, InvocationExpressionSyntax, IReadOnlyList<ConstructorDependencyMetadata>, IReadOnlyList<PropertyDependencyMetadata>, IReadOnlyList<ParameterMetadata>, T> createFunc)
             where T : MethodMetadata
         {
             try
@@ -58,7 +58,9 @@ namespace Splat.DependencyInjection.SourceGenerator
                     return null;
                 }
 
-                if (methodSymbol.TypeParameters.Length != 2)
+                var numberTypeParameters = methodSymbol.TypeArguments.Length;
+
+                if (numberTypeParameters == 0 || numberTypeParameters > 2)
                 {
                     return null;
                 }
@@ -73,8 +75,19 @@ namespace Splat.DependencyInjection.SourceGenerator
                     return null;
                 }
 
-                var interfaceTarget = methodSymbol.TypeArguments[0];
-                var concreteTarget = methodSymbol.TypeArguments[1];
+                ITypeSymbol interfaceTarget;
+                ITypeSymbol concreteTarget;
+
+                if (numberTypeParameters == 1)
+                {
+                    interfaceTarget = methodSymbol.TypeArguments[0];
+                    concreteTarget = interfaceTarget;
+                }
+                else
+                {
+                    interfaceTarget = methodSymbol.TypeArguments[0];
+                    concreteTarget = methodSymbol.TypeArguments[1];
+                }
 
                 var constructorDependencies = GetConstructorDependencies(concreteTarget, invocationExpression).ToList();
 
@@ -82,7 +95,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                 var registerParameters = GetRegisterParameters(methodSymbol, semanticModel, invocationExpression).ToList();
 
-                return createFunc(methodSymbol, invocationExpression, constructorDependencies, properties, registerParameters);
+                return createFunc(methodSymbol, interfaceTarget, concreteTarget, invocationExpression, constructorDependencies, properties, registerParameters);
             }
             catch (ContextDiagnosticException ex)
             {

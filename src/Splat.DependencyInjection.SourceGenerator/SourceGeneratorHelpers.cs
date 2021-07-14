@@ -31,9 +31,8 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             var invocations = Generate(methods);
 
-            var staticConstructor = ConstructorDeclaration(default, new[] { SyntaxKind.StaticKeyword }, Array.Empty<ParameterSyntax>(), Constants.ClassName, Block(invocations.ToList(), 2), 1);
-
-            var registrationClass = ClassDeclaration(Constants.ClassName, new[] { SyntaxKind.InternalKeyword, SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword }, new[] { staticConstructor }, 1);
+            var constructIoc = MethodDeclaration(new[] { SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword }, "void", Constants.IocMethod, Array.Empty<ParameterSyntax>(), 1, Block(invocations.ToList(), 2));
+            var registrationClass = ClassDeclaration(Constants.ClassName, new[] { SyntaxKind.InternalKeyword, SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword }, new[] { constructIoc }, 1);
 
             var namespaceDeclaration = NamespaceDeclaration(Constants.NamespaceName, new[] { registrationClass }, false);
 
