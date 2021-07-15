@@ -60,7 +60,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                 var numberTypeParameters = methodSymbol.TypeArguments.Length;
 
-                if (numberTypeParameters == 0 || numberTypeParameters > 2)
+                if (numberTypeParameters is 0 or > 2)
                 {
                     return null;
                 }

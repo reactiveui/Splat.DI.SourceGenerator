@@ -1,8 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
     <DevelopmentDependency>true</DevelopmentDependency>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- forces SDK to copy dependencies into build output to make packing easier -->
