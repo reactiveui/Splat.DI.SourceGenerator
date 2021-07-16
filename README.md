@@ -52,6 +52,10 @@ There are two methods.
     SplatRegistrations.RegisterLazySingleton<IMessagesSqlDataSource, MessagesSqlDataSource>();
 ```
 
+You must call either `SplatRegistrations.SetupIOC()` or with the specialisation `SplatRegistrations.SetupIOC(resolver)` once during your application start. This must be done in each assembly where you use SplatRegistrations.
+
+The resolver version of `SetupIOC` is used mainly for unit tests.
+
 ### Constructor Injection
 If there are more than one constructor use the `[DependencyInjectionConstructor]` attribute to signify which one should be used.
 
