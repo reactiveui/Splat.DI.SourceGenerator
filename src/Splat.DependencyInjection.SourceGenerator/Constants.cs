@@ -8,11 +8,13 @@ namespace Splat.DependencyInjection.SourceGenerator
     {
         public const string ClassName = "SplatRegistrations";
         public const string NamespaceName = "Splat";
-        public const string LocatorCurrent = "Splat.Locator.Current";
         public const string LocatorGetService = "GetService";
 
         public const string ConstructorAttribute = "global::Splat.DependencyInjectionConstructorAttribute";
         public const string PropertyAttribute = "global::Splat.DependencyInjectionPropertyAttribute";
+
+        public const string ResolverType = "Splat.IDependencyResolver";
+        public const string ResolverParameterName = "resolver";
 
         public const string IocMethod = "SetupIOCInternal";
 
@@ -25,11 +27,6 @@ namespace {NamespaceName}
     /// </summary>
     internal static partial class {ClassName}
     {{
-        static {ClassName}()
-        {{
-            SetupIOCInternal();
-        }}
-
         /// <summary>
         /// Registers a class with its concrete class.
         /// </summary>
@@ -121,14 +118,24 @@ namespace {NamespaceName}
         public static void RegisterConstant<T>(T instance, string contract) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
 
         /// <summary>
-        /// Runs the source generated code.
+        /// Registers the registrations.
         /// </summary>
         public static void SetupIOC()
         {{
-            SetupIOCInternal();
+            SetupIOCInternal(Splat.Locator.GetLocator());
         }}
 
-        static partial void SetupIOCInternal();
+        /// <summary>
+        /// Registers the registrations.
+        /// </summary>
+        /// <param name=""resolver"">The resolver to register with.</param>
+        public static void SetupIOC(Splat.IDependencyResolver resolver)
+        {{
+            SetupIOCInternal(resolver);
+        }}
+
+
+        static partial void SetupIOCInternal(Splat.IDependencyResolver resolver);
     }}
 
     /// <summary>

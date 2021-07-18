@@ -8,11 +8,6 @@ namespace Splat
     /// </summary>
     internal static partial class SplatRegistrations
     {
-        static SplatRegistrations()
-        {
-            SetupIOCInternal();
-        }
-
         /// <summary>
         /// Registers a class with its concrete class.
         /// </summary>
@@ -104,14 +99,24 @@ namespace Splat
         public static void RegisterConstant<T>(T instance, string contract) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
 
         /// <summary>
-        /// Runs the source generated code.
+        /// Registers the registrations.
         /// </summary>
         public static void SetupIOC()
         {
-            SetupIOCInternal();
+            SetupIOCInternal(Splat.Locator.GetLocator());
         }
 
-        static partial void SetupIOCInternal();
+        /// <summary>
+        /// Registers the registrations.
+        /// </summary>
+        /// <param name="resolver">The resolver to register with.</param>
+        public static void SetupIOC(Splat.IDependencyResolver resolver)
+        {
+            SetupIOCInternal(resolver);
+        }
+
+
+        static partial void SetupIOCInternal(Splat.IDependencyResolver resolver);
     }
 
     /// <summary>

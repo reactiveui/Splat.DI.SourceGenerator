@@ -31,7 +31,14 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             var invocations = Generate(methods);
 
-            var constructIoc = MethodDeclaration(new[] { SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword }, "void", Constants.IocMethod, Array.Empty<ParameterSyntax>(), 1, Block(invocations.ToList(), 2));
+            var constructIoc = MethodDeclaration(
+                new[] { SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword },
+                "void",
+                Constants.IocMethod,
+                new[] { Parameter(Constants.ResolverType, Constants.ResolverParameterName) },
+                1,
+                Block(invocations.ToList(), 2));
+
             var registrationClass = ClassDeclaration(Constants.ClassName, new[] { SyntaxKind.InternalKeyword, SyntaxKind.StaticKeyword, SyntaxKind.PartialKeyword }, new[] { constructIoc }, 1);
 
             var namespaceDeclaration = NamespaceDeclaration(Constants.NamespaceName, new[] { registrationClass }, false);
@@ -97,7 +104,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             CastExpression(
                 parameterTypeName,
                 InvocationExpression(
-                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, Constants.LocatorCurrent, Constants.LocatorGetService),
+                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, Constants.ResolverParameterName, Constants.LocatorGetService),
                     new[]
                     {
                         Argument($"typeof({parameterTypeName})"),

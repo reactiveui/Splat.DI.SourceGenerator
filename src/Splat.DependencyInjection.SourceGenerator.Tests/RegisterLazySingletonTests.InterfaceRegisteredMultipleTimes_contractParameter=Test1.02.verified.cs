@@ -5,7 +5,7 @@ namespace Splat
 {
     internal static partial class SplatRegistrations
     {
-        static partial void SetupIOCInternal()
+        static partial void SetupIOCInternal( Splat.IDependencyResolver resolver) 
         {
             {
                 global::System.Lazy<Test.ITest> lazy = new global::System.Lazy<Test.ITest>(() => new global::Test.TestConcrete1());
