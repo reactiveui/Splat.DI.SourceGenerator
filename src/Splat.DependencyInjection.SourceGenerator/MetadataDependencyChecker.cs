@@ -20,18 +20,13 @@ namespace Splat.DependencyInjection.SourceGenerator
             var metadataDependencies = new Dictionary<string, MethodMetadata>();
             foreach (var metadataMethod in metadataMethods)
             {
-                try
+                if (metadataDependencies.ContainsKey(metadataMethod.InterfaceTypeName))
                 {
-                    if (metadataDependencies.ContainsKey(metadataMethod.InterfaceTypeName))
-                    {
-                        throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.InterfaceRegisteredMultipleTimes, metadataMethod.MethodInvocation.GetLocation(), metadataMethod.InterfaceTypeName));
-                    }
-
-                    metadataDependencies[metadataMethod.InterfaceTypeName] = metadataMethod;
+                    context.ReportDiagnostic(Diagnostic.Create(DiagnosticWarnings.InterfaceRegisteredMultipleTimes, metadataMethod.MethodInvocation.GetLocation(), metadataMethod.InterfaceTypeName));
                 }
-                catch (ContextDiagnosticException ex)
+                else
                 {
-                    context.ReportDiagnostic(ex.Diagnostic);
+                    metadataDependencies[metadataMethod.InterfaceTypeName] = metadataMethod;
                 }
             }
 
@@ -39,55 +34,51 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             foreach (var metadataMethod in metadataMethods)
             {
-                try
+                var isError = false;
+                foreach (var constructorDependency in metadataMethod.ConstructorDependencies)
                 {
-                    foreach (var constructorDependency in metadataMethod.ConstructorDependencies)
+                    if (metadataDependencies.TryGetValue(constructorDependency.TypeName, out var dependencyMethod))
                     {
-                        if (metadataDependencies.TryGetValue(constructorDependency.TypeName, out var dependencyMethod))
+                        foreach (var childConstructor in dependencyMethod.ConstructorDependencies)
                         {
-                            foreach (var childConstructor in dependencyMethod.ConstructorDependencies)
+                            if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
                             {
-                                if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
-                                {
-                                    throw new ContextDiagnosticException(
-                                        Diagnostic.Create(
-                                            DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
-                                            childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
-                                }
-                            }
-                        }
-
-                        if (constructorDependency.Type.Name == "Lazy" && constructorDependency.Type is INamedTypeSymbol namedTypeSymbol)
-                        {
-                            var typeArguments = namedTypeSymbol.TypeArguments;
-
-                            if (typeArguments.Length != 1)
-                            {
-                                continue;
-                            }
-
-                            var lazyType = namedTypeSymbol.TypeArguments[0];
-
-                            if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod))
-                            {
-                                if (!dependencyMethod.IsLazy)
-                                {
-                                    throw new ContextDiagnosticException(
-                                        Diagnostic.Create(
-                                            DiagnosticWarnings.LazyParameterNotRegisteredLazy,
-                                            constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(),
-                                            metadataMethod.ConcreteTypeName,
-                                            constructorDependency.Parameter.Name));
-                                }
+                                context.ReportDiagnostic(
+                                    Diagnostic.Create(
+                                        DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
+                                        childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
+                                isError = true;
                             }
                         }
                     }
 
-                    methods.Add(metadataMethod);
+                    if (constructorDependency.Type.Name == "Lazy" && constructorDependency.Type is INamedTypeSymbol namedTypeSymbol)
+                    {
+                        var typeArguments = namedTypeSymbol.TypeArguments;
+
+                        if (typeArguments.Length != 1)
+                        {
+                            continue;
+                        }
+
+                        var lazyType = namedTypeSymbol.TypeArguments[0];
+
+                        if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
+                        {
+                            context.ReportDiagnostic(
+                                Diagnostic.Create(
+                                    DiagnosticWarnings.LazyParameterNotRegisteredLazy,
+                                    constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(),
+                                    metadataMethod.ConcreteTypeName,
+                                    constructorDependency.Parameter.Name));
+                            isError = true;
+                        }
+                    }
                 }
-                catch (ContextDiagnosticException ex)
+
+                if (!isError)
                 {
-                    context.ReportDiagnostic(ex.Diagnostic);
+                    methods.Add(metadataMethod);
                 }
             }
 
