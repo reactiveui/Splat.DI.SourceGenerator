@@ -49,7 +49,10 @@ namespace Splat.DependencyInjection.SourceGenerator
                             {
                                 if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
                                 {
-                                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency, childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
+                                    throw new ContextDiagnosticException(
+                                        Diagnostic.Create(
+                                            DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
+                                            childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
                                 }
                             }
                         }
@@ -67,7 +70,15 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                             if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod))
                             {
-                                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.LazyParameterNotRegisteredLazy, constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(), metadataMethod.ConcreteTypeName, constructorDependency.Parameter.Name));
+                                if (!dependencyMethod.IsLazy)
+                                {
+                                    throw new ContextDiagnosticException(
+                                        Diagnostic.Create(
+                                            DiagnosticWarnings.LazyParameterNotRegisteredLazy,
+                                            constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(),
+                                            metadataMethod.ConcreteTypeName,
+                                            constructorDependency.Parameter.Name));
+                                }
                             }
                         }
                     }
