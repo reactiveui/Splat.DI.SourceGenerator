@@ -7,6 +7,8 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
+using ReactiveMarbles.RoslynHelpers;
+
 using Splat.DependencyInjection.SourceGenerator.Metadata;
 
 namespace Splat.DependencyInjection.SourceGenerator
@@ -49,6 +51,23 @@ namespace Splat.DependencyInjection.SourceGenerator
                                 {
                                     throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency, childConstructor.Parameter.Locations.FirstOrDefault()));
                                 }
+                            }
+                        }
+
+                        if (constructorDependency.Type.Name == "Lazy" && constructorDependency.Type is INamedTypeSymbol namedTypeSymbol)
+                        {
+                            var typeArguments = namedTypeSymbol.TypeArguments;
+
+                            if (typeArguments.Length != 1)
+                            {
+                                continue;
+                            }
+
+                            var lazyType = namedTypeSymbol.TypeArguments[0];
+
+                            if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod))
+                            {
+                                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.LazyParameterNotRegisteredLazy, constructorDependency.Parameter.Locations.FirstOrDefault(), metadataMethod.ConcreteTypeName));
                             }
                         }
                     }
