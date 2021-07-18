@@ -49,7 +49,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                             {
                                 if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
                                 {
-                                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency, childConstructor.Parameter.Locations.FirstOrDefault()));
+                                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency, childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
                                 }
                             }
                         }
@@ -67,7 +67,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                             if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod))
                             {
-                                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.LazyParameterNotRegisteredLazy, constructorDependency.Parameter.Locations.FirstOrDefault(), metadataMethod.ConcreteTypeName));
+                                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.LazyParameterNotRegisteredLazy, constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(), metadataMethod.ConcreteTypeName, constructorDependency.Parameter.Name));
                             }
                         }
                     }

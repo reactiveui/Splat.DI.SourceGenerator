@@ -59,7 +59,7 @@ namespace Splat.DependencyInjection.SourceGenerator
         internal static readonly DiagnosticDescriptor LazyParameterNotRegisteredLazy = new(
             id: "SPLATDI007",
             title: "Constructor has a lazy parameter",
-            messageFormat: "{0} constructor has a lazy parameter which is not registered with RegisterLazySingleton",
+            messageFormat: "{0} constructor has a lazy parameter {1} which is not registered with RegisterLazySingleton",
             category: "Compiler",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
