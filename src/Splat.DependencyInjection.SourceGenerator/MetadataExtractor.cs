@@ -107,7 +107,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
         private static IEnumerable<ParameterMetadata> GetRegisterParameters(IMethodSymbol methodSymbol, SemanticModel semanticModel, InvocationExpressionSyntax invocationExpression)
         {
-            for (int i = 0; i < invocationExpression.ArgumentList.Arguments.Count; ++i)
+            for (var i = 0; i < invocationExpression.ArgumentList.Arguments.Count; ++i)
             {
                 var argument = invocationExpression.ArgumentList.Arguments[i];
                 var argumentName = methodSymbol.Parameters[i].Name;
