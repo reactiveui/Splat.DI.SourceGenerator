@@ -152,7 +152,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                     {
                         if (returnConstructor != null)
                         {
-                            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+                            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
                         }
 
                         returnConstructor = constructor;
@@ -167,7 +167,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             if (returnConstructor.DeclaredAccessibility < Accessibility.Internal)
             {
-                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
             }
 
             return returnConstructor.Parameters.Select(x => new ConstructorDependencyMetadata(x, x.Type));
@@ -186,7 +186,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             {
                 if (property.SetMethod?.DeclaredAccessibility < Accessibility.Internal)
                 {
-                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(), property.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+                    throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(x => x is not null), property.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
                 }
 
                 yield return new(property);

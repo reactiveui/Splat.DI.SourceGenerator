@@ -46,7 +46,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                                 context.ReportDiagnostic(
                                     Diagnostic.Create(
                                         DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
-                                        childConstructor.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation()));
+                                        childConstructor.Parameter.Locations.FirstOrDefault(x => x is not null) ?? metadataMethod.MethodInvocation.GetLocation()));
                                 isError = true;
                             }
                         }
@@ -68,7 +68,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                             context.ReportDiagnostic(
                                 Diagnostic.Create(
                                     DiagnosticWarnings.LazyParameterNotRegisteredLazy,
-                                    constructorDependency.Parameter.Locations.FirstOrDefault() ?? metadataMethod.MethodInvocation.GetLocation(),
+                                    constructorDependency.Parameter.Locations.FirstOrDefault(x => x is not null) ?? metadataMethod.MethodInvocation.GetLocation(),
                                     metadataMethod.ConcreteTypeName,
                                     constructorDependency.Parameter.Name));
                             isError = true;
