@@ -16,7 +16,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Metadata
             Name = Property.Name;
         }
 
-        public IPropertySymbol Property { get; init; }
+        public IPropertySymbol Property { get; }
 
         public string Name { get; }
     }

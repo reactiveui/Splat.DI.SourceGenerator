@@ -50,19 +50,15 @@ namespace Splat.DependencyInjection.SourceGenerator
 {compilationUnit.ToFullString()}";
         }
 
-        private static IEnumerable<StatementSyntax> Generate(IEnumerable<MethodMetadata> methodMetadatas)
+        private static IEnumerable<StatementSyntax> Generate(IEnumerable<MethodMetadata> methodMetadataEnumerable)
         {
-            foreach (var methodMetadata in methodMetadatas)
+            foreach (var methodMetadata in methodMetadataEnumerable)
             {
-                var typeConstructorArguments = new List<ArgumentSyntax>();
-
-                foreach (var parameter in methodMetadata.ConstructorDependencies)
-                {
-                    var parameterType = parameter.Type;
-                    var parameterTypeName = parameterType.ToDisplayString(RoslynCommonHelpers.TypeFormat);
-
-                    typeConstructorArguments.Add(Argument(GetSplatService(parameterTypeName)));
-                }
+                var typeConstructorArguments = methodMetadata.ConstructorDependencies
+                    .Select(parameter => parameter.Type)
+                    .Select(parameterType => parameterType.ToDisplayString(RoslynCommonHelpers.TypeFormat))
+                    .Select(parameterTypeName => Argument(GetSplatService(parameterTypeName)))
+                    .ToList();
 
                 var contractParameter = methodMetadata.RegisterParameterValues.FirstOrDefault(x => x.ParameterName == "contract");
 
@@ -78,24 +74,27 @@ namespace Splat.DependencyInjection.SourceGenerator
                         ObjectCreationExpression(methodMetadata.ConcreteTypeName, typeConstructorArguments) :
                         ObjectCreationExpression(methodMetadata.ConcreteTypeName, typeConstructorArguments, initializer);
 
-                if (methodMetadata.IsLazy)
+                switch (methodMetadata)
                 {
-                    yield return GetLazyBlock(methodMetadata, call, contract);
-                }
-                else
-                {
-                    yield return GenerateLocatorSetService(Argument(ParenthesizedLambdaExpression(call)), methodMetadata.InterfaceTypeName, contract);
+                    case RegisterLazySingletonMetadata lazyMetadata:
+                        yield return GetLazyBlock(lazyMetadata, call, contract);
+                        break;
+                    case RegisterMetadata registerMetadata:
+                        yield return GenerateLocatorSetService(Argument(ParenthesizedLambdaExpression(call)), registerMetadata.InterfaceTypeName, contract);
+                        break;
                 }
             }
         }
 
         private static InitializerExpressionSyntax? GetPropertyInitializer(IEnumerable<PropertyDependencyMetadata> properties)
         {
-            var propertySet = new List<AssignmentExpressionSyntax>();
-            foreach (var property in properties)
-            {
-                propertySet.Add(AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, property.Name, GetSplatService(property.TypeName)));
-            }
+            var propertySet = properties
+                .Select(property =>
+                    AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        property.Name,
+                        GetSplatService(property.TypeName)))
+                .ToList();
 
             return propertySet.Count > 0 ? InitializerExpression(SyntaxKind.ObjectInitializerExpression, propertySet) : null;
         }

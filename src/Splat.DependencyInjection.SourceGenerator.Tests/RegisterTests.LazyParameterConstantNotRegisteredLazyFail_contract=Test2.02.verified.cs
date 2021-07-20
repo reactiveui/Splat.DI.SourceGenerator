@@ -7,7 +7,6 @@ namespace Splat
     {
         static partial void SetupIOCInternal( Splat.IDependencyResolver resolver) 
         {
-            Splat.Locator.CurrentMutable.Register(() => new global::Test.Service1(), typeof(global::Test.Service1));
         }
     }
 }

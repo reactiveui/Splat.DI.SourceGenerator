@@ -16,7 +16,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Metadata
             TypeName = type.ToDisplayString(RoslynCommonHelpers.TypeFormat);
         }
 
-        public ITypeSymbol Type { get; init; }
+        public ITypeSymbol Type { get; }
 
         public string TypeName { get; }
     }
