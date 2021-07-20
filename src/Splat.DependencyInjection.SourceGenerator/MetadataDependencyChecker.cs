@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using ReactiveMarbles.RoslynHelpers;
 
@@ -43,10 +44,12 @@ namespace Splat.DependencyInjection.SourceGenerator
                         {
                             if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
                             {
+                                var location = childConstructor.Parameter.GetLocation(metadataMethod.MethodInvocation);
+
                                 context.ReportDiagnostic(
                                     Diagnostic.Create(
                                         DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
-                                        childConstructor.Parameter.Locations.FirstOrDefault(x => x is not null) ?? metadataMethod.MethodInvocation.GetLocation()));
+                                        location));
                                 isError = true;
                             }
                         }
@@ -65,10 +68,12 @@ namespace Splat.DependencyInjection.SourceGenerator
 
                         if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
                         {
+                            var location = constructorDependency.Parameter.GetLocation(metadataMethod.MethodInvocation);
+
                             context.ReportDiagnostic(
                                 Diagnostic.Create(
                                     DiagnosticWarnings.LazyParameterNotRegisteredLazy,
-                                    constructorDependency.Parameter.Locations.FirstOrDefault(x => x is not null) ?? metadataMethod.MethodInvocation.GetLocation(),
+                                    location,
                                     metadataMethod.ConcreteTypeName,
                                     constructorDependency.Parameter.Name));
                             isError = true;
@@ -83,6 +88,18 @@ namespace Splat.DependencyInjection.SourceGenerator
             }
 
             return methods;
+        }
+
+        private static Location GetLocation(this ISymbol symbol, InvocationExpressionSyntax backupInvocation)
+        {
+            var location = symbol.Locations.FirstOrDefault();
+
+            if (location?.Kind != LocationKind.SourceFile)
+            {
+                location = backupInvocation.GetLocation();
+            }
+
+            return location;
         }
     }
 }
