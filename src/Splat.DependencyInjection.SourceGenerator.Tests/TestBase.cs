@@ -18,19 +18,16 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
         {
             _testMethod = testMethod;
 
-            TestHelper = new TestHelper(testOutputHelper);
+            TestHelper = new(testOutputHelper);
         }
 
         protected TestHelper TestHelper { get; }
 
-        public Task InitializeAsync()
-        {
-            return TestHelper.InitializeAsync();
-        }
+        public Task InitializeAsync() => TestHelper.InitializeAsync();
 
         public Task DisposeAsync()
         {
-            TestHelper?.Dispose();
+            TestHelper.Dispose();
             return Task.CompletedTask;
         }
 
@@ -649,7 +646,7 @@ namespace Test
         {
             if (isDisposing)
             {
-                TestHelper?.Dispose();
+                TestHelper.Dispose();
             }
         }
     }

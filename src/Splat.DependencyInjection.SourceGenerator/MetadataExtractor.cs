@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using ReactiveMarbles.RoslynHelpers;
@@ -62,13 +63,13 @@ namespace Splat.DependencyInjection.SourceGenerator
             try
             {
                 var semanticModel = compilation.GetSemanticModel(invocationExpression.SyntaxTree);
-                if (semanticModel.GetSymbolInfo(invocationExpression).Symbol is not IMethodSymbol methodSymbol)
+                if (ModelExtensions.GetSymbolInfo(semanticModel, invocationExpression).Symbol is not IMethodSymbol methodSymbol)
                 {
                     // Produce a diagnostic error.
                     return null;
                 }
 
-                if (methodSymbol.Parameters.Length == 0)
+                if (methodSymbol.Parameters.Length is 0 or > 2)
                 {
                     return null;
                 }
@@ -95,7 +96,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             try
             {
                 var semanticModel = compilation.GetSemanticModel(invocationExpression.SyntaxTree);
-                if (semanticModel.GetSymbolInfo(invocationExpression).Symbol is not IMethodSymbol methodSymbol)
+                if (ModelExtensions.GetSymbolInfo(semanticModel, invocationExpression).Symbol is not IMethodSymbol methodSymbol)
                 {
                     // Produce a diagnostic error.
                     return null;
@@ -162,7 +163,7 @@ namespace Splat.DependencyInjection.SourceGenerator
                 }
                 else
                 {
-                    var mode = semanticModel.GetSymbolInfo(expression);
+                    var mode = ModelExtensions.GetSymbolInfo(semanticModel, expression);
 
                     if (mode.Symbol is not null)
                     {
@@ -172,7 +173,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             }
         }
 
-        private static IEnumerable<ConstructorDependencyMetadata> GetConstructorDependencies(ITypeSymbol concreteTarget, InvocationExpressionSyntax invocationExpression)
+        private static IEnumerable<ConstructorDependencyMetadata> GetConstructorDependencies(INamespaceOrTypeSymbol concreteTarget, CSharpSyntaxNode invocationExpression)
         {
             var constructors = concreteTarget
                 .GetMembers()

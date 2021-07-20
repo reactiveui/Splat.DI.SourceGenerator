@@ -13,7 +13,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Metadata
 {
     internal abstract record MethodMetadata
     {
-        public MethodMetadata(IMethodSymbol method, ITypeSymbol interfaceType, ITypeSymbol concreteType, InvocationExpressionSyntax methodInvocation, bool isLazy, IReadOnlyList<ConstructorDependencyMetadata> constructorDependencies, IReadOnlyList<PropertyDependencyMetadata> properties, IReadOnlyList<ParameterMetadata> registerParameterValues)
+        protected MethodMetadata(IMethodSymbol method, ITypeSymbol interfaceType, ITypeSymbol concreteType, InvocationExpressionSyntax methodInvocation, bool isLazy, IReadOnlyList<ConstructorDependencyMetadata> constructorDependencies, IReadOnlyList<PropertyDependencyMetadata> properties, IReadOnlyList<ParameterMetadata> registerParameterValues)
         {
             Method = method;
             MethodInvocation = methodInvocation;
@@ -27,17 +27,17 @@ namespace Splat.DependencyInjection.SourceGenerator.Metadata
             RegisterParameterValues = registerParameterValues;
         }
 
-        public IMethodSymbol Method { get; init; }
+        public IMethodSymbol Method { get; }
 
-        public InvocationExpressionSyntax MethodInvocation { get; init; }
+        public InvocationExpressionSyntax MethodInvocation { get; }
 
-        public bool IsLazy { get; init; }
+        public bool IsLazy { get; }
 
-        public IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies { get; init; }
+        public IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies { get; }
 
-        public IReadOnlyList<PropertyDependencyMetadata> Properties { get; init; }
+        public IReadOnlyList<PropertyDependencyMetadata> Properties { get; }
 
-        public IReadOnlyList<ParameterMetadata> RegisterParameterValues { get; init; }
+        public IReadOnlyList<ParameterMetadata> RegisterParameterValues { get; }
 
         public ITypeSymbol ConcreteType { get; }
 

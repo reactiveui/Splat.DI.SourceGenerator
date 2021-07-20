@@ -9,59 +9,59 @@ namespace Splat.DependencyInjection.SourceGenerator
     internal static class DiagnosticWarnings
     {
         internal static readonly DiagnosticDescriptor MultipleConstructorNeedAttribute = new(
-            id: "SPLATDI001",
-            title: "Can't find valid constructor",
-            messageFormat: "{0} has more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI001",
+            "Can't find valid constructor",
+            "{0} has more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
 
         internal static readonly DiagnosticDescriptor PropertyMustPublicBeSettable = new(
-            id: "SPLATDI002",
-            title: "Property must be public/internal settable",
-            messageFormat: "{0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI002",
+            "Property must be public/internal settable",
+            "{0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
 
         internal static readonly DiagnosticDescriptor MultipleConstructorsMarked = new(
-            id: "SPLATDI003",
-            title: "Multiple constructors have DependencyInjectionConstructorAttribute",
-            messageFormat: "{0} has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI003",
+            "Multiple constructors have DependencyInjectionConstructorAttribute",
+            "{0} has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
 
         internal static readonly DiagnosticDescriptor ConstructorsMustBePublic = new(
-            id: "SPLATDI004",
-            title: "Constructors not public or internal",
-            messageFormat: "{0} constructor declared with DependencyInjectionConstructorAttribute attribute must be public or internal",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI004",
+            "Constructors not public or internal",
+            "{0} constructor declared with DependencyInjectionConstructorAttribute attribute must be public or internal",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
 
         internal static readonly DiagnosticDescriptor ConstructorsMustNotHaveCircularDependency = new(
-            id: "SPLATDI005",
-            title: "Constructors must not have a circular dependency",
-            messageFormat: "Constructor parameters must not have a circular dependency to another registered resource",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI005",
+            "Constructors must not have a circular dependency",
+            "Constructor parameters must not have a circular dependency to another registered resource",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
 
         internal static readonly DiagnosticDescriptor InterfaceRegisteredMultipleTimes = new(
-            id: "SPLATDI006",
-            title: "Interface has been registered before",
-            messageFormat: "{0} has been registered in multiple places",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Warning,
-            isEnabledByDefault: true);
+            "SPLATDI006",
+            "Interface has been registered before",
+            "{0} has been registered in multiple places",
+            "Compiler",
+            DiagnosticSeverity.Warning,
+            true);
 
         internal static readonly DiagnosticDescriptor LazyParameterNotRegisteredLazy = new(
-            id: "SPLATDI007",
-            title: "Constructor has a lazy parameter",
-            messageFormat: "{0} constructor has a lazy parameter {1} which is not registered with RegisterLazySingleton",
-            category: "Compiler",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
+            "SPLATDI007",
+            "Constructor has a lazy parameter",
+            "{0} constructor has a lazy parameter {1} which is not registered with RegisterLazySingleton",
+            "Compiler",
+            DiagnosticSeverity.Error,
+            true);
     }
 }

@@ -2,15 +2,12 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System;
 using System.Threading.Tasks;
 
 using VerifyXunit;
 
 using Xunit;
 using Xunit.Abstractions;
-
-using static ICSharpCode.Decompiler.IL.Transforms.Stepper;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests
 {
@@ -28,25 +25,13 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
         [InlineData("Test2")]
         public Task LazyParameterConstantNotRegisteredLazyFail(string contract)
         {
-            string arguments;
-            if (string.IsNullOrWhiteSpace(contract))
-            {
-                arguments = string.Empty;
-            }
-            else
-            {
-                arguments = $"\"{contract}\"";
-            }
+            string arguments = string.IsNullOrWhiteSpace(contract) ?
+                string.Empty :
+                $"\"{contract}\"";
 
-            string constantArguments;
-            if (string.IsNullOrWhiteSpace(contract))
-            {
-                constantArguments = "new Service1()";
-            }
-            else
-            {
-                constantArguments = $"new Service1(), \"{contract}\"";
-            }
+            string constantArguments = string.IsNullOrWhiteSpace(contract) ?
+                "new Service1()" :
+                $"new Service1(), \"{contract}\"";
 
             var source = @$"
 using System;
@@ -84,15 +69,9 @@ namespace Test
         [InlineData("Test2")]
         public Task LazyParameterNotRegisteredLazyFail(string contract)
         {
-            string arguments;
-            if (string.IsNullOrWhiteSpace(contract))
-            {
-                arguments = string.Empty;
-            }
-            else
-            {
-                arguments = $"\"{contract}\"";
-            }
+            string arguments = string.IsNullOrWhiteSpace(contract) ?
+                string.Empty :
+                $"\"{contract}\"";
 
             var source = @$"
 using System;

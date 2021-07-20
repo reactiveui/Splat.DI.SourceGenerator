@@ -32,15 +32,9 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
         [InlineData(LazyThreadSafetyMode.None, "Test2")]
         public Task ConstructionAndMultiplePropertyInjectionWithLazyMode(LazyThreadSafetyMode mode, string contract)
         {
-            string arguments;
-            if (string.IsNullOrWhiteSpace(contract))
-            {
-                arguments = $"LazyThreadSafetyMode.{mode}";
-            }
-            else
-            {
-                arguments = $"\"{contract}\", LazyThreadSafetyMode.{mode}";
-            }
+            string arguments = string.IsNullOrWhiteSpace(contract) ?
+                $"LazyThreadSafetyMode.{mode}" :
+                $"\"{contract}\", LazyThreadSafetyMode.{mode}";
 
             var source = @$"
 using System;
@@ -90,15 +84,9 @@ namespace Test
         [InlineData("Test2")]
         public Task LazyParameterRegisteredLazy(string contract)
         {
-            string arguments;
-            if (string.IsNullOrWhiteSpace(contract))
-            {
-                arguments = string.Empty;
-            }
-            else
-            {
-                arguments = $"\"{contract}\"";
-            }
+            string arguments = string.IsNullOrWhiteSpace(contract) ?
+                string.Empty :
+                $"\"{contract}\"";
 
             var source = @$"
 using System;

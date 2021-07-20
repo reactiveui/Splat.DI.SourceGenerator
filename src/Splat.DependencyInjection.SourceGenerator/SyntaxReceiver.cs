@@ -24,14 +24,14 @@ namespace Splat.DependencyInjection.SourceGenerator
                 return;
             }
 
-            if (invocationExpression.Expression is MemberAccessExpressionSyntax memberAccess)
+            switch (invocationExpression.Expression)
             {
-                HandleSimpleName(memberAccess.Name, invocationExpression);
-            }
-
-            if (invocationExpression.Expression is MemberBindingExpressionSyntax bindingAccess)
-            {
-                HandleSimpleName(bindingAccess.Name, invocationExpression);
+                case MemberAccessExpressionSyntax memberAccess:
+                    HandleSimpleName(memberAccess.Name, invocationExpression);
+                    break;
+                case MemberBindingExpressionSyntax bindingAccess:
+                    HandleSimpleName(bindingAccess.Name, invocationExpression);
+                    break;
             }
         }
 

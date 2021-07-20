@@ -3,10 +3,7 @@
 // See the LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -23,24 +20,20 @@ using VerifyXunit;
 
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests
 {
-    public class TestHelper : IDisposable
+    public sealed class TestHelper : IDisposable
     {
 #pragma warning disable CS0618 // Type or member is obsolete
         private static readonly LibraryRange _splatLibrary = new("Splat", VersionRange.AllStableFloating, LibraryDependencyTarget.Package);
 #pragma warning restore CS0618 // Type or member is obsolete
 
-        public TestHelper(ITestOutputHelper testOutput)
-        {
-            TestOutputHelper = testOutput ?? throw new ArgumentNullException(nameof(testOutput));
-        }
+        public TestHelper(ITestOutputHelper testOutput) => TestOutputHelper = testOutput ?? throw new ArgumentNullException(nameof(testOutput));
 
-        protected EventBuilderCompiler? EventCompiler { get; private set; }
+        private EventBuilderCompiler? EventCompiler { get; set; }
 
-        protected ITestOutputHelper TestOutputHelper { get; private set; }
+        private ITestOutputHelper TestOutputHelper { get; }
 
         public async Task InitializeAsync()
         {
@@ -67,8 +60,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
 
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
-            settings.AutoVerify();
-            return Verifier.Verify(driver, settings, sourceFile: file);
+            return Verifier.Verify(driver, settings, file);
         }
 
         public Task TestPass(string source, string contractParameter, [CallerFilePath] string file = "")
@@ -76,7 +68,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
             var driver = Generate(source);
             VerifySettings settings = new();
             settings.UseParameters(contractParameter);
-            return Verifier.Verify(driver, settings, sourceFile: file);
+            return Verifier.Verify(driver, settings, file);
         }
 
         public Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, [CallerFilePath] string file = "")
@@ -85,22 +77,10 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
 
             VerifySettings settings = new();
             settings.UseParameters(contractParameter, mode);
-            return Verifier.Verify(driver, settings, sourceFile: file);
+            return Verifier.Verify(driver, settings, file);
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool isDisposing)
-        {
-            if (isDisposing)
-            {
-                EventCompiler?.Dispose();
-            }
-        }
+        public void Dispose() => EventCompiler?.Dispose();
 
         private GeneratorDriver Generate(string source)
         {

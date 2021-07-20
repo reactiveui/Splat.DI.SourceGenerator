@@ -15,8 +15,5 @@ public static class ModuleInitializer
     /// Initializes the source generators.
     /// </summary>
     [ModuleInitializer]
-    public static void Init()
-    {
-        VerifySourceGenerators.Enable();
-    }
+    public static void Init() => VerifySourceGenerators.Enable();
 }
