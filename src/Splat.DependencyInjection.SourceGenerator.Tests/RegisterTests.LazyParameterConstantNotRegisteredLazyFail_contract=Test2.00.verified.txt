@@ -1,0 +1,13 @@
+﻿{
+  Diagnostics: [
+    {
+      Id: SPLATDI007,
+      Title: Constructor has a lazy parameter,
+      Severity: Error,
+      WarningLevel: 0,
+      Location: : (19,43)-(19,51),
+      MessageFormat: {0} constructor has a lazy parameter {1} which is not registered with RegisterLazySingleton,
+      Category: Compiler
+    }
+  ]
+}

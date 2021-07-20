@@ -15,6 +15,8 @@ namespace Splat.DependencyInjection.SourceGenerator
 
         public List<InvocationExpressionSyntax> RegisterLazySingleton { get; } = new();
 
+        public List<InvocationExpressionSyntax> RegisterConstant { get; } = new();
+
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
         {
             if (syntaxNode is not InvocationExpressionSyntax invocationExpression)
@@ -45,6 +47,11 @@ namespace Splat.DependencyInjection.SourceGenerator
             if (string.Equals(methodName, nameof(RegisterLazySingleton)))
             {
                 RegisterLazySingleton.Add(invocationExpression);
+            }
+
+            if (string.Equals(methodName, nameof(RegisterConstant)))
+            {
+                RegisterConstant.Add(invocationExpression);
             }
         }
     }

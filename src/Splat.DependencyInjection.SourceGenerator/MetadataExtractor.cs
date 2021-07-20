@@ -40,6 +40,49 @@ namespace Splat.DependencyInjection.SourceGenerator
                     yield return methodMetadata;
                 }
             }
+
+            foreach (var invocationExpression in syntaxReceiver.RegisterConstant)
+            {
+                var methodMetadata = GetValidRegisterConstant(context, invocationExpression, compilation, (method, interfaceType, concreteType, invocation) =>
+                    new RegisterConstantMetadata(method, interfaceType, concreteType, invocation));
+
+                if (methodMetadata != null)
+                {
+                    yield return methodMetadata;
+                }
+            }
+        }
+
+        private static RegisterConstantMetadata? GetValidRegisterConstant(
+            GeneratorExecutionContext context,
+            InvocationExpressionSyntax invocationExpression,
+            Compilation compilation,
+            Func<IMethodSymbol, ITypeSymbol, ITypeSymbol, InvocationExpressionSyntax, RegisterConstantMetadata> createFunc)
+        {
+            try
+            {
+                var semanticModel = compilation.GetSemanticModel(invocationExpression.SyntaxTree);
+                if (semanticModel.GetSymbolInfo(invocationExpression).Symbol is not IMethodSymbol methodSymbol)
+                {
+                    // Produce a diagnostic error.
+                    return null;
+                }
+
+                if (methodSymbol.Parameters.Length == 0)
+                {
+                    return null;
+                }
+
+                var concreteTarget = methodSymbol.Parameters[0].Type;
+
+                return createFunc(methodSymbol, concreteTarget, concreteTarget, invocationExpression);
+            }
+            catch (ContextDiagnosticException ex)
+            {
+                context.ReportDiagnostic(ex.Diagnostic);
+            }
+
+            return null;
         }
 
         private static T? GetValidMethod<T>(
