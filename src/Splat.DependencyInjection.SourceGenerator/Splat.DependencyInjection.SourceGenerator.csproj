@@ -18,7 +18,9 @@
 
   <Target Name="PackBuildOutputs">
     <ItemGroup>
-      <TfmSpecificPackageFile Include="$(OutputPath)\**\*" PackagePath="analyzers/dotnet/cs" Visible="false" />
+      <TfmSpecificPackageFile Include="$(OutputPath)\**\ReactiveMarbles*.dll" PackagePath="analyzers/dotnet/cs" Visible="false" />
+      <TfmSpecificPackageFile Include="$(OutputPath)\**\Splat*.dll" PackagePath="analyzers/dotnet/cs" Visible="false" />
+      <TfmSpecificPackageFile Include="$(OutputPath)\**\Splat*.pdb" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
   </Target>
 </Project>
