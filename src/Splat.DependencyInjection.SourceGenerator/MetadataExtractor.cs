@@ -45,7 +45,7 @@ namespace Splat.DependencyInjection.SourceGenerator
             foreach (var invocationExpression in syntaxReceiver.RegisterConstant)
             {
                 var methodMetadata = GetValidRegisterConstant(context, invocationExpression, compilation, (method, interfaceType, concreteType, invocation) =>
-                    new RegisterConstantMetadata(method, interfaceType, concreteType, invocation));
+                    new(method, interfaceType, concreteType, invocation));
 
                 if (methodMetadata != null)
                 {
