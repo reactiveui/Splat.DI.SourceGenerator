@@ -3,21 +3,7 @@
 // See the LICENSE file in the project root for full license information.
 
 using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-
-using Microsoft.CodeAnalysis;
-
-using NuGet.LibraryModel;
-using NuGet.Versioning;
-
-using ReactiveMarbles.NuGet.Helpers;
-using ReactiveMarbles.SourceGenerator.TestNuGetHelper.Compilation;
-
-using VerifyTests;
-
-using VerifyXunit;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -26,35 +12,25 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
 {
     public abstract class TestBase : IAsyncLifetime, IDisposable
     {
-#pragma warning disable CS0618 // Type or member is obsolete
-        private static readonly LibraryRange _splatLibrary = new("Splat", VersionRange.AllStableFloating, LibraryDependencyTarget.Package);
-#pragma warning restore CS0618 // Type or member is obsolete
-
         private readonly string _testMethod;
 
         protected TestBase(ITestOutputHelper testOutputHelper, string testMethod)
         {
-            TestOutputHelper = testOutputHelper;
             _testMethod = testMethod;
+
+            TestHelper = new TestHelper(testOutputHelper);
         }
 
-        protected ITestOutputHelper TestOutputHelper { get; }
+        protected TestHelper TestHelper { get; }
 
-        protected EventBuilderCompiler? EventCompiler { get; private set; }
-
-        public async Task InitializeAsync()
+        public Task InitializeAsync()
         {
-            var targetFrameworks = "netstandard2.0".ToFrameworks();
-
-            var inputGroup = await NuGetPackageHelper.DownloadPackageFilesAndFolder(_splatLibrary, targetFrameworks, packageOutputDirectory: null).ConfigureAwait(false);
-
-            var framework = targetFrameworks[0];
-            EventCompiler = new(inputGroup, inputGroup, framework);
+            return TestHelper.InitializeAsync();
         }
 
         public Task DisposeAsync()
         {
-            EventCompiler?.Dispose();
+            TestHelper?.Dispose();
             return Task.CompletedTask;
         }
 
@@ -97,7 +73,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -142,7 +118,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         [Theory]
@@ -196,7 +172,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -236,7 +212,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -276,7 +252,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         [Theory]
@@ -316,7 +292,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         [Theory]
@@ -356,7 +332,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -396,7 +372,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -436,7 +412,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -485,7 +461,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -525,7 +501,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         [Theory]
@@ -566,7 +542,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -608,7 +584,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         [Theory]
@@ -636,7 +612,7 @@ namespace Test
     public class TestConcrete : ITest {{ }}
 }}";
 
-            return TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter);
         }
 
         [Theory]
@@ -666,64 +642,15 @@ namespace Test
     public class TestConcrete2 : ITest {{ }}
 }}";
 
-            return TestFail(source, contractParameter);
-        }
-
-        protected Task TestFail(string source, string contractParameter, [CallerFilePath] string file = "")
-        {
-            if (EventCompiler is null)
-            {
-                throw new InvalidOperationException("Must have valid compiler instance.");
-            }
-
-            var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
-
-            GeneratorDriver? driver = null;
-
-            Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out _, out _, out driver, source));
-
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter);
-            return Verifier.Verify(driver, settings, sourceFile: file);
-        }
-
-        protected Task TestPass(string source, string contractParameter, [CallerFilePath] string file = "")
-        {
-            var driver = Generate(source);
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter);
-            return Verifier.Verify(driver, settings, sourceFile: file);
-        }
-
-        protected Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, [CallerFilePath] string file = "")
-        {
-            var driver = Generate(source);
-
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter, mode);
-            return Verifier.Verify(driver, settings, sourceFile: file);
+            return TestHelper.TestFail(source, contractParameter);
         }
 
         protected virtual void Dispose(bool isDisposing)
         {
             if (isDisposing)
             {
-                EventCompiler?.Dispose();
+                TestHelper?.Dispose();
             }
-        }
-
-        private GeneratorDriver Generate(string source)
-        {
-            if (EventCompiler is null)
-            {
-                throw new InvalidOperationException("Must have valid compiler instance.");
-            }
-
-            var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
-
-            utility.RunGenerator<Generator>(EventCompiler, out _, out _, out var driver, source);
-
-            return driver;
         }
     }
 }

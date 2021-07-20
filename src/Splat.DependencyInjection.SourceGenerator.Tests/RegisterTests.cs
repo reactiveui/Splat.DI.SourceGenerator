@@ -26,6 +26,62 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
         [InlineData("")]
         [InlineData("Test1")]
         [InlineData("Test2")]
+        public Task LazyParameterConstantNotRegisteredLazyFail(string contract)
+        {
+            string arguments;
+            if (string.IsNullOrWhiteSpace(contract))
+            {
+                arguments = string.Empty;
+            }
+            else
+            {
+                arguments = $"\"{contract}\"";
+            }
+
+            string constantArguments;
+            if (string.IsNullOrWhiteSpace(contract))
+            {
+                constantArguments = "new Service1()";
+            }
+            else
+            {
+                constantArguments = $"new Service1(), \"{contract}\"";
+            }
+
+            var source = @$"
+using System;
+using System.Threading;
+using Splat;
+
+namespace Test
+{{
+    public static class DIRegister
+    {{
+        static DIRegister()
+        {{
+            SplatRegistrations.Register<ITest, TestConcrete>({arguments});
+            SplatRegistrations.RegisterConstant({constantArguments});
+        }}
+    }}
+
+    public interface ITest {{ }}
+    public class TestConcrete : ITest
+    {{
+        public TestConcrete(Lazy<Service1> service1)
+        {{
+        }}
+    }}
+
+    public class Service1 {{ }}
+}}";
+
+            return TestHelper.TestFail(source, contract);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("Test1")]
+        [InlineData("Test2")]
         public Task LazyParameterNotRegisteredLazyFail(string contract)
         {
             string arguments;
@@ -81,7 +137,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestFail(source, contract);
+            return TestHelper.TestFail(source, contract);
         }
     }
 }
