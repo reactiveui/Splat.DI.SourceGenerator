@@ -68,6 +68,8 @@ If there are more than one constructor use the `[DependencyInjectionConstructor]
     }
 ```
 
+You don't need to decorate when there is only one constructor. 
+
 ### Property Injection
 
 Use the `[DependencyInjectionProperty]` above a property to be initialized. It must be `public` or `internal` setter.
