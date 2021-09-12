@@ -9,7 +9,7 @@ env:
   productNamespacePrefix: "Splat"
 
 jobs:
-  build:
+  release:
     runs-on: windows-2022
     environment:
       name: release
