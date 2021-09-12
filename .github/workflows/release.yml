@@ -71,8 +71,8 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
-          tag_name: ${{ needs.build.outputs.nbgv }}
-          release_name: ${{ needs.build.outputs.nbgv }}
+          tag_name: ${{ steps.nbgv.outputs.nbgv }}
+          release_name: ${{ steps.nbgv.outputs.nbgv }}
           body: |
             ${{ steps.changelog.outputs.commitLog }}
 
