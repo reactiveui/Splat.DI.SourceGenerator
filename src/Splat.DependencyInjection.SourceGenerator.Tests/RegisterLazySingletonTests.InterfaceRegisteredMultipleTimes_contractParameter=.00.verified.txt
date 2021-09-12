@@ -7,6 +7,7 @@
       WarningLevel: 1,
       Location: : (11,12)-(11,76),
       MessageFormat: {0} has been registered in multiple places,
+      Message: global::Test.ITest has been registered in multiple places,
       Category: Compiler
     }
   ]
