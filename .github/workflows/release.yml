@@ -48,6 +48,10 @@ jobs:
     - uses: nuget/setup-nuget@v1
       name: Setup NuGet
 
+    - name: Pack
+      run: dotnet pack --configuration=${{ env.configuration }} --verbosity=minimal --no-restore
+      working-directory: src
+
     # Decode the base 64 encoded pfx and save the Signing_Certificate
     - name: Sign NuGet packages
       shell: pwsh
