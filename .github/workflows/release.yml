@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+env:
+  configuration: Release
+  productNamespacePrefix: "Splat"
+
 jobs:
   build:
     runs-on: windows-2022
