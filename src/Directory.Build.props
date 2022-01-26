@@ -12,9 +12,9 @@
     <PackageDescription>Generates source for Splat dependency injection registrations with constructor and property injection.</PackageDescription>
     <Owners>glennawatson</Owners>
     <PackageTags>system.reactive;splat;dependency injection</PackageTags>
-    <PackageProjectUrl>https://github.com/reactivemarbles/Splat.DI.SourceGenerator</PackageProjectUrl>
-    <PackageReleaseNotes>https://github.com/reactivemarbles/Splat.DI.SourceGenerator/releases</PackageReleaseNotes>
-    <RepositoryUrl>https://github.com/reactivemarbles/Splat.DI.SourceGenerator</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/reactiveui/Splat.DI.SourceGenerator</PackageProjectUrl>
+    <PackageReleaseNotes>https://github.com/reactiveui/Splat.DI.SourceGenerator/releases</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/reactiveui/Splat.DI.SourceGenerator</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
 
     <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
@@ -26,6 +26,9 @@
     <PackageIcon>logo.png</PackageIcon>
     <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)</SolutionDir>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <EnableNETAnalyzers>True</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <IncludePackageReferencesDuringMarkupCompilation>true</IncludePackageReferencesDuringMarkupCompilation>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
@@ -45,7 +48,6 @@
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.4.255" PrivateAssets="all" />
     <PackageReference Include="stylecop.analyzers" Version="1.2.0-beta.354" PrivateAssets="all" />
     <PackageReference Include="Roslynator.Analyzers" Version="4.0.0" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" Link="stylecop.json" />
