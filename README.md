@@ -1,3 +1,5 @@
+[![Build](https://github.com/reactiveui/Splat.DI.SourceGenerator/actions/workflows/ci-build.yml/badge.svg)](https://github.com/reactiveui/Splat.DI.SourceGenerator/actions/workflows/ci-build.yml) [![Pull Requests](https://img.shields.io/github/issues-pr/reactiveui/Splat.DI.SourceGenerator.svg)](https://github.com/reactiveui/Splat.DI.SourceGenerator/pulls) [![Issues](https://img.shields.io/github/issues/reactiveui/Splat.DI.SourceGenerator.svg)](https://github.com/reactiveui/Splat.DI.SourceGenerator/issues) ![License](https://img.shields.io/github/license/reactiveui/Splat.DI.SourceGenerator.svg) ![Size](https://img.shields.io/github/repo-size/reactiveui/Splat.DI.SourceGenerator.svg) [![codecov](https://codecov.io/gh/reactiveui/Splat.DI.SourceGenerator/branch/main/graph/badge.svg?token=dmQeHH4Us8)](https://codecov.io/gh/reactiveui/Splat.DI.SourceGenerator)
+
 # Splat Source Generator
 
 This project is a source generator which produces Splat based registrations for both constructor and property injection.
