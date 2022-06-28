@@ -17,3 +17,5 @@ jobs:
       productNamespacePrefix: "Splat"
       useVisualStudioPreview: false
       useMauiCheckDotNetTool: false
+      installWindowsSdk: false
+      installWorkflows: false
