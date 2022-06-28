@@ -3,9 +3,11 @@
 // See the LICENSE file in the project root for full license information.
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.CodeAnalysis;
 
 using NuGet.LibraryModel;
@@ -45,7 +47,7 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
             EventCompiler = new(inputGroup, inputGroup, framework);
         }
 
-        public Task TestFail(string source, string contractParameter, [CallerFilePath] string file = "")
+        public Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
         {
             if (EventCompiler is null)
             {
@@ -58,29 +60,39 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests
 
             Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out _, out _, out driver, source));
 
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter);
-            return Verifier.Verify(driver, settings, file);
+            return RunVerify(file, memberName, callerType, driver, contractParameter);
         }
 
-        public Task TestPass(string source, string contractParameter, [CallerFilePath] string file = "")
+        public Task TestPass(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
         {
             var driver = Generate(source);
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter);
-            return Verifier.Verify(driver, settings, file);
+            return RunVerify(file, memberName, callerType, driver, contractParameter);
         }
 
-        public Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, [CallerFilePath] string file = "")
+        public Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
         {
             var driver = Generate(source);
 
-            VerifySettings settings = new();
-            settings.UseParameters(contractParameter, mode);
-            return Verifier.Verify(driver, settings, file);
+            return RunVerify(file, memberName, callerType, driver, contractParameter, mode);
         }
 
         public void Dispose() => EventCompiler?.Dispose();
+
+        private static Task RunVerify(string file, string callerMember, Type type, GeneratorDriver? driver, params object[] parameters)
+        {
+            var parametersString = string.Join("_", parameters);
+            VerifySettings settings = new();
+            settings.DisableRequireUniquePrefix();
+
+            if (!string.IsNullOrWhiteSpace(parametersString))
+            {
+                settings.UseTextForParameters(parametersString);
+            }
+
+            settings.UseTypeName(type.Name);
+            settings.UseMethodName(callerMember);
+            return Verifier.Verify(driver, settings, file);
+        }
 
         private GeneratorDriver Generate(string source)
         {

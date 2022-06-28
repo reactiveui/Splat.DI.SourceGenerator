@@ -70,7 +70,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -115,7 +115,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -169,7 +169,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -209,7 +209,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -249,7 +249,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -289,7 +289,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -329,7 +329,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -369,7 +369,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -409,7 +409,7 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -458,7 +458,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -498,7 +498,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -539,7 +539,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -581,7 +581,7 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -609,7 +609,7 @@ namespace Test
     public class TestConcrete : ITest {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter);
+            return TestHelper.TestPass(source, contractParameter, GetType());
         }
 
         [Theory]
@@ -639,7 +639,7 @@ namespace Test
     public class TestConcrete2 : ITest {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter);
+            return TestHelper.TestFail(source, contractParameter, GetType());
         }
 
         protected virtual void Dispose(bool isDisposing)

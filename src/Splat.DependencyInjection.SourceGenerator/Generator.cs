@@ -21,7 +21,7 @@ namespace Splat.DependencyInjection.SourceGenerator
         public void Execute(GeneratorExecutionContext context)
         {
             // add the attribute text.
-            context.AddSource("Splat.DI.Extensions.SourceGenerated.cs", SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
+            context.AddSource("Splat.DI.g.cs", SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
 
             if (context.SyntaxReceiver is not SyntaxReceiver syntaxReceiver)
             {
@@ -35,7 +35,7 @@ namespace Splat.DependencyInjection.SourceGenerator
 
             var outputText = SourceGeneratorHelpers.Generate(context, compilation, syntaxReceiver);
 
-            context.AddSource("Splat.DI.Extensions.Registrations.SourceGenerated.cs", SourceText.From(outputText, Encoding.UTF8));
+            context.AddSource("Splat.DI.Reg.g.cs", SourceText.From(outputText, Encoding.UTF8));
         }
 
         /// <inheritdoc/>
