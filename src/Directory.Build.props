@@ -7,7 +7,7 @@
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
     <DebugType>embedded</DebugType>
     <Authors>Glenn Watson</Authors>
-    <Copyright>Copyright (c) 2021 ReactiveUI Association Inc</Copyright>
+    <Copyright>Copyright (c) $([System.DateTime]::Now.ToString(yyyy)) ReactiveUI Association Inc</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageDescription>Generates source for Splat dependency injection registrations with constructor and property injection.</PackageDescription>
     <Owners>glennawatson</Owners>

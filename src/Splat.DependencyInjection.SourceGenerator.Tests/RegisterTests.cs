@@ -60,7 +60,7 @@ namespace Test
     public class Service1 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contract);
+            return TestHelper.TestFail(source, contract, GetType());
         }
 
         [Theory]
@@ -116,7 +116,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contract);
+            return TestHelper.TestFail(source, contract, GetType());
         }
     }
 }

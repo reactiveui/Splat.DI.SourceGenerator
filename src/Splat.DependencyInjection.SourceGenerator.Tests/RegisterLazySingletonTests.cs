@@ -75,7 +75,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contract, mode);
+            return TestHelper.TestPass(source, contract, mode, GetType());
         }
 
         [Theory]
@@ -131,7 +131,7 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contract);
+            return TestHelper.TestPass(source, contract, GetType());
         }
     }
 }
