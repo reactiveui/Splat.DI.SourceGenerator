@@ -14,7 +14,7 @@
     <PackageReference Include="coverlet.msbuild" Version="3.1.2" />
     <PackageReference Include="Verify.SourceGenerators" Version="1.5.0" />
     <PackageReference Include="ReactiveMarbles.SourceGenerator.TestNuGetHelper" Version="1.2.1" />
-    <PackageReference Include="Verify.Xunit" Version="17.1.5" />
+    <PackageReference Include="Verify.Xunit" Version="17.1.6" />
     <PackageRefernece Include="Microsoft.CodeAnalysis.CSharp" Version="3.10.0" PrivateAssets="all" />
   </ItemGroup>
 
