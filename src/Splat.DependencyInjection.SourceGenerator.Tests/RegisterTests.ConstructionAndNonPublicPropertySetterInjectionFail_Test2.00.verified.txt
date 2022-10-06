@@ -10,8 +10,7 @@
       HelpLink: ,
       MessageFormat: {0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter,
       Message: ServiceProperty property marked with DependencyInjectionPropertyAttribute must have a public or internal setter,
-      Category: Compiler,
-      CustomTags: []
+      Category: Compiler
     }
   ]
 }

@@ -10,8 +10,7 @@
       HelpLink: ,
       MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
       Message: Constructor parameters must not have a circular dependency to another registered resource,
-      Category: Compiler,
-      CustomTags: []
+      Category: Compiler
     },
     {
       Id: SPLATDI005,
@@ -23,8 +22,7 @@
       HelpLink: ,
       MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
       Message: Constructor parameters must not have a circular dependency to another registered resource,
-      Category: Compiler,
-      CustomTags: []
+      Category: Compiler
     }
   ]
 }
