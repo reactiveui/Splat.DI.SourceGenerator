@@ -10,8 +10,7 @@
       HelpLink: ,
       MessageFormat: {0} has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked,
       Message: global::Test.TestConcrete has multiple constructors marked with the DependencyInjectionConstructorAttribute attribute change so only one is marked,
-      Category: Compiler,
-      CustomTags: []
+      Category: Compiler
     }
   ]
 }

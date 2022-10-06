@@ -10,8 +10,7 @@
       HelpLink: ,
       MessageFormat: {0} has been registered in multiple places,
       Message: global::Test.ITest has been registered in multiple places,
-      Category: Compiler,
-      CustomTags: []
+      Category: Compiler
     }
   ]
 }
