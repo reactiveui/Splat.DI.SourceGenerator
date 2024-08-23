@@ -12,94 +12,93 @@ using ReactiveMarbles.RoslynHelpers;
 
 using Splat.DependencyInjection.SourceGenerator.Metadata;
 
-namespace Splat.DependencyInjection.SourceGenerator
+namespace Splat.DependencyInjection.SourceGenerator;
+
+internal static class MetadataDependencyChecker
 {
-    internal static class MetadataDependencyChecker
+    public static List<MethodMetadata> CheckMetadata(GeneratorExecutionContext context, IList<MethodMetadata> metadataMethods)
     {
-        public static List<MethodMetadata> CheckMetadata(GeneratorExecutionContext context, IList<MethodMetadata> metadataMethods)
+        var metadataDependencies = new Dictionary<string, MethodMetadata>();
+        foreach (var metadataMethod in metadataMethods)
         {
-            var metadataDependencies = new Dictionary<string, MethodMetadata>();
-            foreach (var metadataMethod in metadataMethods)
+            if (metadataDependencies.ContainsKey(metadataMethod.InterfaceTypeName))
             {
-                if (metadataDependencies.ContainsKey(metadataMethod.InterfaceTypeName))
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(DiagnosticWarnings.InterfaceRegisteredMultipleTimes, metadataMethod.MethodInvocation.GetLocation(), metadataMethod.InterfaceTypeName));
-                }
-                else
-                {
-                    metadataDependencies[metadataMethod.InterfaceTypeName] = metadataMethod;
-                }
+                context.ReportDiagnostic(Diagnostic.Create(DiagnosticWarnings.InterfaceRegisteredMultipleTimes, metadataMethod.MethodInvocation.GetLocation(), metadataMethod.InterfaceTypeName));
             }
-
-            var methods = new List<MethodMetadata>();
-
-            foreach (var metadataMethod in metadataMethods)
+            else
             {
-                var isError = false;
-                foreach (var constructorDependency in metadataMethod.ConstructorDependencies)
+                metadataDependencies[metadataMethod.InterfaceTypeName] = metadataMethod;
+            }
+        }
+
+        var methods = new List<MethodMetadata>();
+
+        foreach (var metadataMethod in metadataMethods)
+        {
+            var isError = false;
+            foreach (var constructorDependency in metadataMethod.ConstructorDependencies)
+            {
+                if (metadataDependencies.TryGetValue(constructorDependency.TypeName, out var dependencyMethod))
                 {
-                    if (metadataDependencies.TryGetValue(constructorDependency.TypeName, out var dependencyMethod))
+                    foreach (var childConstructor in dependencyMethod.ConstructorDependencies)
                     {
-                        foreach (var childConstructor in dependencyMethod.ConstructorDependencies)
+                        if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
                         {
-                            if (childConstructor.TypeName == metadataMethod.InterfaceTypeName)
-                            {
-                                var location = childConstructor.Parameter.GetLocation(metadataMethod.MethodInvocation);
-
-                                context.ReportDiagnostic(
-                                    Diagnostic.Create(
-                                        DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
-                                        location));
-                                isError = true;
-                            }
-                        }
-                    }
-
-                    if (constructorDependency.Type.Name == "Lazy" && constructorDependency.Type is INamedTypeSymbol namedTypeSymbol)
-                    {
-                        var typeArguments = namedTypeSymbol.TypeArguments;
-
-                        if (typeArguments.Length != 1)
-                        {
-                            continue;
-                        }
-
-                        var lazyType = namedTypeSymbol.TypeArguments[0];
-
-                        if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
-                        {
-                            var location = constructorDependency.Parameter.GetLocation(metadataMethod.MethodInvocation);
+                            var location = childConstructor.Parameter.GetLocation(metadataMethod.MethodInvocation);
 
                             context.ReportDiagnostic(
                                 Diagnostic.Create(
-                                    DiagnosticWarnings.LazyParameterNotRegisteredLazy,
-                                    location,
-                                    metadataMethod.ConcreteTypeName,
-                                    constructorDependency.Parameter.Name));
+                                    DiagnosticWarnings.ConstructorsMustNotHaveCircularDependency,
+                                    location));
                             isError = true;
                         }
                     }
                 }
 
-                if (!isError)
+                if (constructorDependency.Type.Name == "Lazy" && constructorDependency.Type is INamedTypeSymbol namedTypeSymbol)
                 {
-                    methods.Add(metadataMethod);
+                    var typeArguments = namedTypeSymbol.TypeArguments;
+
+                    if (typeArguments.Length != 1)
+                    {
+                        continue;
+                    }
+
+                    var lazyType = namedTypeSymbol.TypeArguments[0];
+
+                    if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
+                    {
+                        var location = constructorDependency.Parameter.GetLocation(metadataMethod.MethodInvocation);
+
+                        context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                DiagnosticWarnings.LazyParameterNotRegisteredLazy,
+                                location,
+                                metadataMethod.ConcreteTypeName,
+                                constructorDependency.Parameter.Name));
+                        isError = true;
+                    }
                 }
             }
 
-            return methods;
-        }
-
-        private static Location GetLocation(this ISymbol symbol, InvocationExpressionSyntax backupInvocation)
-        {
-            var location = symbol.Locations.FirstOrDefault();
-
-            if (location?.Kind != LocationKind.SourceFile)
+            if (!isError)
             {
-                location = backupInvocation.GetLocation();
+                methods.Add(metadataMethod);
             }
-
-            return location;
         }
+
+        return methods;
+    }
+
+    private static Location GetLocation(this ISymbol symbol, InvocationExpressionSyntax backupInvocation)
+    {
+        var location = symbol.Locations.FirstOrDefault();
+
+        if (location?.Kind != LocationKind.SourceFile)
+        {
+            location = backupInvocation.GetLocation();
+        }
+
+        return location;
     }
 }

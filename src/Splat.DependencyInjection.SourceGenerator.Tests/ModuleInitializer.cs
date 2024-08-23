@@ -9,6 +9,8 @@ using VerifyTests;
 /// <summary>
 /// Initialize for the module.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1050:Declare types in namespaces", Justification = "By Design")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Roslynator", "RCS1110:Declare type inside namespace", Justification = "By Design")]
 public static class ModuleInitializer
 {
     /// <summary>

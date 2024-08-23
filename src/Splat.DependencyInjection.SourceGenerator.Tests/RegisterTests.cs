@@ -3,37 +3,28 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Threading.Tasks;
-
-using VerifyXunit;
-
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Splat.DependencyInjection.SourceGenerator.Tests
+namespace Splat.DependencyInjection.SourceGenerator.Tests;
+
+public sealed class RegisterTests(ITestOutputHelper testOutputHelper) : TestBase(testOutputHelper, "Register")
 {
-    [UsesVerify]
-    public sealed class RegisterTests : TestBase
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task LazyParameterConstantNotRegisteredLazyFail(string contract)
     {
-        public RegisterTests(ITestOutputHelper testOutputHelper)
-            : base(testOutputHelper, "Register")
-        {
-        }
+        var arguments = string.IsNullOrWhiteSpace(contract) ?
+            string.Empty :
+            $"\"{contract}\"";
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task LazyParameterConstantNotRegisteredLazyFail(string contract)
-        {
-            string arguments = string.IsNullOrWhiteSpace(contract) ?
-                string.Empty :
-                $"\"{contract}\"";
+        var constantArguments = string.IsNullOrWhiteSpace(contract) ?
+            "new Service1()" :
+            $"new Service1(), \"{contract}\"";
 
-            string constantArguments = string.IsNullOrWhiteSpace(contract) ?
-                "new Service1()" :
-                $"new Service1(), \"{contract}\"";
-
-            var source = @$"
+        var source = @$"
 using System;
 using System.Threading;
 using Splat;
@@ -60,20 +51,20 @@ namespace Test
     public class Service1 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contract, GetType());
-        }
+        return TestHelper.TestFail(source, contract, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task LazyParameterNotRegisteredLazyFail(string contract)
-        {
-            string arguments = string.IsNullOrWhiteSpace(contract) ?
-                string.Empty :
-                $"\"{contract}\"";
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task LazyParameterNotRegisteredLazyFail(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract) ?
+            string.Empty :
+            $"\"{contract}\"";
 
-            var source = @$"
+        var source = @$"
 using System;
 using System.Threading;
 using Splat;
@@ -116,7 +107,6 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contract, GetType());
-        }
+        return TestHelper.TestFail(source, contract, GetType());
     }
 }

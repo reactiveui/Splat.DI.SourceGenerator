@@ -2,7 +2,6 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
-{
-    internal record ParameterMetadata(string ParameterName, string ParameterValue);
-}
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal record ParameterMetadata(string ParameterName, string ParameterValue);

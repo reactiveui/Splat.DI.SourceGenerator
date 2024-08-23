@@ -23,89 +23,87 @@ using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Splat.DependencyInjection.SourceGenerator.Tests
+namespace Splat.DependencyInjection.SourceGenerator.Tests;
+
+public sealed class TestHelper(ITestOutputHelper testOutput) : IDisposable
 {
-    public sealed class TestHelper : IDisposable
-    {
 #pragma warning disable CS0618 // Type or member is obsolete
-        private static readonly LibraryRange _splatLibrary = new("Splat", VersionRange.AllStableFloating, LibraryDependencyTarget.Package);
+    private static readonly LibraryRange _splatLibrary = new("Splat", VersionRange.AllStableFloating, LibraryDependencyTarget.Package);
+
 #pragma warning restore CS0618 // Type or member is obsolete
 
-        public TestHelper(ITestOutputHelper testOutput) => TestOutputHelper = testOutput ?? throw new ArgumentNullException(nameof(testOutput));
+    private EventBuilderCompiler? EventCompiler { get; set; }
 
-        private EventBuilderCompiler? EventCompiler { get; set; }
+    private ITestOutputHelper TestOutputHelper { get; } = testOutput ?? throw new ArgumentNullException(nameof(testOutput));
 
-        private ITestOutputHelper TestOutputHelper { get; }
+    public async Task InitializeAsync()
+    {
+        var targetFrameworks = "netstandard2.0".ToFrameworks();
 
-        public async Task InitializeAsync()
+        var inputGroup = await NuGetPackageHelper.DownloadPackageFilesAndFolder(_splatLibrary, targetFrameworks, packageOutputDirectory: null).ConfigureAwait(false);
+
+        var framework = targetFrameworks[0];
+        EventCompiler = new(inputGroup, inputGroup, framework);
+    }
+
+    public Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    {
+        if (EventCompiler is null)
         {
-            var targetFrameworks = "netstandard2.0".ToFrameworks();
-
-            var inputGroup = await NuGetPackageHelper.DownloadPackageFilesAndFolder(_splatLibrary, targetFrameworks, packageOutputDirectory: null).ConfigureAwait(false);
-
-            var framework = targetFrameworks[0];
-            EventCompiler = new(inputGroup, inputGroup, framework);
+            throw new InvalidOperationException("Must have valid compiler instance.");
         }
 
-        public Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+        var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
+
+        GeneratorDriver? driver = null;
+
+        Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out _, out _, out driver, source));
+
+        return RunVerify(file, memberName, callerType, driver, contractParameter);
+    }
+
+    public Task TestPass(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    {
+        var driver = Generate(source);
+        return RunVerify(file, memberName, callerType, driver, contractParameter);
+    }
+
+    public Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    {
+        var driver = Generate(source);
+
+        return RunVerify(file, memberName, callerType, driver, contractParameter, mode);
+    }
+
+    public void Dispose() => EventCompiler?.Dispose();
+
+    private static Task RunVerify(string file, string callerMember, Type type, GeneratorDriver? driver, params object[] parameters)
+    {
+        var parametersString = string.Join("_", parameters);
+        VerifySettings settings = new();
+        settings.DisableRequireUniquePrefix();
+
+        if (!string.IsNullOrWhiteSpace(parametersString))
         {
-            if (EventCompiler is null)
-            {
-                throw new InvalidOperationException("Must have valid compiler instance.");
-            }
-
-            var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
-
-            GeneratorDriver? driver = null;
-
-            Assert.Throws<InvalidOperationException>(() => utility.RunGenerator<Generator>(EventCompiler, out _, out _, out driver, source));
-
-            return RunVerify(file, memberName, callerType, driver, contractParameter);
+            settings.UseTextForParameters(parametersString);
         }
 
-        public Task TestPass(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+        settings.UseTypeName(type.Name);
+        settings.UseMethodName(callerMember);
+        return Verifier.Verify(driver, settings, file);
+    }
+
+    private GeneratorDriver Generate(string source)
+    {
+        if (EventCompiler is null)
         {
-            var driver = Generate(source);
-            return RunVerify(file, memberName, callerType, driver, contractParameter);
+            throw new InvalidOperationException("Must have valid compiler instance.");
         }
 
-        public Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
-        {
-            var driver = Generate(source);
+        var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
 
-            return RunVerify(file, memberName, callerType, driver, contractParameter, mode);
-        }
+        utility.RunGenerator<Generator>(EventCompiler, out _, out _, out var driver, source);
 
-        public void Dispose() => EventCompiler?.Dispose();
-
-        private static Task RunVerify(string file, string callerMember, Type type, GeneratorDriver? driver, params object[] parameters)
-        {
-            var parametersString = string.Join("_", parameters);
-            VerifySettings settings = new();
-            settings.DisableRequireUniquePrefix();
-
-            if (!string.IsNullOrWhiteSpace(parametersString))
-            {
-                settings.UseTextForParameters(parametersString);
-            }
-
-            settings.UseTypeName(type.Name);
-            settings.UseMethodName(callerMember);
-            return Verifier.Verify(driver, settings, file);
-        }
-
-        private GeneratorDriver Generate(string source)
-        {
-            if (EventCompiler is null)
-            {
-                throw new InvalidOperationException("Must have valid compiler instance.");
-            }
-
-            var utility = new SourceGeneratorUtility(x => TestOutputHelper.WriteLine(x));
-
-            utility.RunGenerator<Generator>(EventCompiler, out _, out _, out var driver, source);
-
-            return driver;
-        }
+        return driver;
     }
 }

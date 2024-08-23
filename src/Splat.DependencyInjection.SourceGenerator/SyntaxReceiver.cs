@@ -7,52 +7,51 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Splat.DependencyInjection.SourceGenerator
+namespace Splat.DependencyInjection.SourceGenerator;
+
+internal class SyntaxReceiver : ISyntaxReceiver
 {
-    internal class SyntaxReceiver : ISyntaxReceiver
+    public List<InvocationExpressionSyntax> Register { get; } = [];
+
+    public List<InvocationExpressionSyntax> RegisterLazySingleton { get; } = [];
+
+    public List<InvocationExpressionSyntax> RegisterConstant { get; } = [];
+
+    public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
     {
-        public List<InvocationExpressionSyntax> Register { get; } = new();
-
-        public List<InvocationExpressionSyntax> RegisterLazySingleton { get; } = new();
-
-        public List<InvocationExpressionSyntax> RegisterConstant { get; } = new();
-
-        public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
+        if (syntaxNode is not InvocationExpressionSyntax invocationExpression)
         {
-            if (syntaxNode is not InvocationExpressionSyntax invocationExpression)
-            {
-                return;
-            }
-
-            switch (invocationExpression.Expression)
-            {
-                case MemberAccessExpressionSyntax memberAccess:
-                    HandleSimpleName(memberAccess.Name, invocationExpression);
-                    break;
-                case MemberBindingExpressionSyntax bindingAccess:
-                    HandleSimpleName(bindingAccess.Name, invocationExpression);
-                    break;
-            }
+            return;
         }
 
-        private void HandleSimpleName(SimpleNameSyntax simpleName, InvocationExpressionSyntax invocationExpression)
+        switch (invocationExpression.Expression)
         {
-            var methodName = simpleName.Identifier.Text;
+            case MemberAccessExpressionSyntax memberAccess:
+                HandleSimpleName(memberAccess.Name, invocationExpression);
+                break;
+            case MemberBindingExpressionSyntax bindingAccess:
+                HandleSimpleName(bindingAccess.Name, invocationExpression);
+                break;
+        }
+    }
 
-            if (string.Equals(methodName, nameof(Register)))
-            {
-                Register.Add(invocationExpression);
-            }
+    private void HandleSimpleName(SimpleNameSyntax simpleName, InvocationExpressionSyntax invocationExpression)
+    {
+        var methodName = simpleName.Identifier.Text;
 
-            if (string.Equals(methodName, nameof(RegisterLazySingleton)))
-            {
-                RegisterLazySingleton.Add(invocationExpression);
-            }
+        if (string.Equals(methodName, nameof(Register)))
+        {
+            Register.Add(invocationExpression);
+        }
 
-            if (string.Equals(methodName, nameof(RegisterConstant)))
-            {
-                RegisterConstant.Add(invocationExpression);
-            }
+        if (string.Equals(methodName, nameof(RegisterLazySingleton)))
+        {
+            RegisterLazySingleton.Add(invocationExpression);
+        }
+
+        if (string.Equals(methodName, nameof(RegisterConstant)))
+        {
+            RegisterConstant.Add(invocationExpression);
         }
     }
 }

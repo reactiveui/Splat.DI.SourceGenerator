@@ -8,43 +8,34 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Splat.DependencyInjection.SourceGenerator.Tests
+namespace Splat.DependencyInjection.SourceGenerator.Tests;
+
+public abstract class TestBase(ITestOutputHelper testOutputHelper, string testMethod) : IAsyncLifetime, IDisposable
 {
-    public abstract class TestBase : IAsyncLifetime, IDisposable
+    protected TestHelper TestHelper { get; } = new(testOutputHelper);
+
+    public Task InitializeAsync() => TestHelper.InitializeAsync();
+
+    public Task DisposeAsync()
     {
-        private readonly string _testMethod;
+        TestHelper.Dispose();
+        return Task.CompletedTask;
+    }
 
-        protected TestBase(ITestOutputHelper testOutputHelper, string testMethod)
-        {
-            _testMethod = testMethod;
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-            TestHelper = new(testOutputHelper);
-        }
-
-        protected TestHelper TestHelper { get; }
-
-        public Task InitializeAsync() => TestHelper.InitializeAsync();
-
-        public Task DisposeAsync()
-        {
-            TestHelper.Dispose();
-            return Task.CompletedTask;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionInjection(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionInjection(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -54,7 +45,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -70,17 +61,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task CircularDependencyFail(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = $@"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task CircularDependencyFail(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = $@"
 using System;
 using Splat;
 
@@ -90,8 +81,8 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest1, TestConcrete1>({arguments});
-            SplatRegistrations.{_testMethod}<ITest2, TestConcrete2>();
+            SplatRegistrations.{testMethod}<ITest1, TestConcrete1>({arguments});
+            SplatRegistrations.{testMethod}<ITest2, TestConcrete2>();
         }}
     }}
 
@@ -115,17 +106,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task MultiClassesRegistrations(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task MultiClassesRegistrations(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -135,9 +126,9 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest1, TestConcrete1>({arguments});
-            SplatRegistrations.{_testMethod}<ITest2, TestConcrete2>({arguments});
-            SplatRegistrations.{_testMethod}<ITest3, TestConcrete3>({arguments});
+            SplatRegistrations.{testMethod}<ITest1, TestConcrete1>({arguments});
+            SplatRegistrations.{testMethod}<ITest2, TestConcrete2>({arguments});
+            SplatRegistrations.{testMethod}<ITest3, TestConcrete3>({arguments});
         }}
     }}
 
@@ -169,17 +160,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndPropertyInjection(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndPropertyInjection(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -189,7 +180,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -209,17 +200,17 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndNonPublicPropertyInjectionFail(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndNonPublicPropertyInjectionFail(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -229,7 +220,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -249,17 +240,17 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndNonPublicPropertySetterInjectionFail(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndNonPublicPropertySetterInjectionFail(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -269,7 +260,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -289,17 +280,17 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndInternalPropertyInjection(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndInternalPropertyInjection(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -309,7 +300,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -329,17 +320,17 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndInternalPropertyInjectionTypeArgument(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndInternalPropertyInjectionTypeArgument(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -349,7 +340,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<TestConcrete>({arguments});
         }}
     }}
 
@@ -369,17 +360,17 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndInternalSetterPropertyInjection(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndInternalSetterPropertyInjection(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -389,7 +380,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -409,18 +400,18 @@ namespace Test
     public interface IServiceProperty {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task ConstructionAndMultiplePropertyInjection(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task ConstructionAndMultiplePropertyInjection(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
 
-            var source = @$"
+        var source = @$"
 using System;
 using Splat;
 
@@ -430,7 +421,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -458,17 +449,17 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task MultipleConstructorWithoutAttributeFail(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task MultipleConstructorWithoutAttributeFail(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -478,7 +469,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -498,17 +489,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task MultipleConstructorWithAttribute(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task MultipleConstructorWithAttribute(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -518,7 +509,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -539,17 +530,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task MultipleConstructorWithMultipleAttributesFail(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task MultipleConstructorWithMultipleAttributesFail(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -559,7 +550,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -581,17 +572,17 @@ namespace Test
     public interface IService2 {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task EmptyConstructor(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task EmptyConstructor(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -601,7 +592,7 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete>({arguments});
         }}
     }}
 
@@ -609,17 +600,17 @@ namespace Test
     public class TestConcrete : ITest {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contractParameter, GetType());
-        }
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task InterfaceRegisteredMultipleTimes(string contractParameter)
-        {
-            var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
-            var source = @$"
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task InterfaceRegisteredMultipleTimes(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
 using System;
 using Splat;
 
@@ -629,8 +620,8 @@ namespace Test
     {{
         static DIRegister()
         {{
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete1>({arguments});
-            SplatRegistrations.{_testMethod}<ITest, TestConcrete2>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete1>({arguments});
+            SplatRegistrations.{testMethod}<ITest, TestConcrete2>({arguments});
         }}
     }}
 
@@ -639,15 +630,14 @@ namespace Test
     public class TestConcrete2 : ITest {{ }}
 }}";
 
-            return TestHelper.TestFail(source, contractParameter, GetType());
-        }
+        return TestHelper.TestFail(source, contractParameter, GetType());
+    }
 
-        protected virtual void Dispose(bool isDisposing)
+    protected virtual void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
         {
-            if (isDisposing)
-            {
-                TestHelper.Dispose();
-            }
+            TestHelper.Dispose();
         }
     }
 }

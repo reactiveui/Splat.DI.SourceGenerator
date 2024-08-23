@@ -6,8 +6,7 @@ using System;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
-{
-    internal record RegisterConstantMetadata(IMethodSymbol Method, ITypeSymbol InterfaceType, ITypeSymbol ConcreteType, InvocationExpressionSyntax MethodInvocation)
-        : MethodMetadata(Method, InterfaceType, ConcreteType, MethodInvocation, false, Array.Empty<ConstructorDependencyMetadata>(), Array.Empty<PropertyDependencyMetadata>(), Array.Empty<ParameterMetadata>());
-}
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal record RegisterConstantMetadata(IMethodSymbol Method, ITypeSymbol InterfaceType, ITypeSymbol ConcreteType, InvocationExpressionSyntax MethodInvocation)
+    : MethodMetadata(Method, InterfaceType, ConcreteType, MethodInvocation, false, [], [], []);

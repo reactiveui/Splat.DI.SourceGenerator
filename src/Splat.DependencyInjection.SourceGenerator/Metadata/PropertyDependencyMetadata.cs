@@ -4,20 +4,19 @@
 
 using Microsoft.CodeAnalysis;
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal record PropertyDependencyMetadata : DependencyMetadata
 {
-    internal record PropertyDependencyMetadata : DependencyMetadata
+    public PropertyDependencyMetadata(IPropertySymbol property)
+        : base(property.Type)
     {
-        public PropertyDependencyMetadata(IPropertySymbol property)
-            : base(property.Type)
-        {
-            Property = property;
+        Property = property;
 
-            Name = Property.Name;
-        }
-
-        public IPropertySymbol Property { get; }
-
-        public string Name { get; }
+        Name = Property.Name;
     }
+
+    public IPropertySymbol Property { get; }
+
+    public string Name { get; }
 }

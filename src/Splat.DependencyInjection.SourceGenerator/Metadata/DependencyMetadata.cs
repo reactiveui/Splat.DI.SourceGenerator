@@ -6,18 +6,17 @@ using Microsoft.CodeAnalysis;
 
 using ReactiveMarbles.RoslynHelpers;
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal abstract record DependencyMetadata
 {
-    internal abstract record DependencyMetadata
+    protected DependencyMetadata(ITypeSymbol type)
     {
-        protected DependencyMetadata(ITypeSymbol type)
-        {
-            Type = type;
-            TypeName = type.ToDisplayString(RoslynCommonHelpers.TypeFormat);
-        }
-
-        public ITypeSymbol Type { get; }
-
-        public string TypeName { get; }
+        Type = type;
+        TypeName = type.ToDisplayString(RoslynCommonHelpers.TypeFormat);
     }
+
+    public ITypeSymbol Type { get; }
+
+    public string TypeName { get; }
 }

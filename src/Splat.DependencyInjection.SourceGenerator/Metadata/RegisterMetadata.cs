@@ -7,8 +7,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
-{
-    internal record RegisterMetadata(IMethodSymbol Method, ITypeSymbol InterfaceType, ITypeSymbol ConcreteType, InvocationExpressionSyntax MethodInvocation, IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies, IReadOnlyList<PropertyDependencyMetadata> Properties, IReadOnlyList<ParameterMetadata> RegisterParameterValues)
-        : MethodMetadata(Method, InterfaceType, ConcreteType, MethodInvocation, false, ConstructorDependencies, Properties, RegisterParameterValues);
-}
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal record RegisterMetadata(IMethodSymbol Method, ITypeSymbol InterfaceType, ITypeSymbol ConcreteType, InvocationExpressionSyntax MethodInvocation, IReadOnlyList<ConstructorDependencyMetadata> ConstructorDependencies, IReadOnlyList<PropertyDependencyMetadata> Properties, IReadOnlyList<ParameterMetadata> RegisterParameterValues)
+    : MethodMetadata(Method, InterfaceType, ConcreteType, MethodInvocation, false, ConstructorDependencies, Properties, RegisterParameterValues);
