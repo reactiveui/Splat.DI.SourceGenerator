@@ -7,23 +7,20 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.CodeAnalysis;
 
-namespace Splat.DependencyInjection.SourceGenerator
+namespace Splat.DependencyInjection.SourceGenerator;
+
+/// <summary>
+/// When there is an context diagnostic issue.
+/// </summary>
+/// <remarks>
+/// Initializes a new instance of the <see cref="ContextDiagnosticException"/> class.
+/// </remarks>
+/// <param name="diagnostic">The diagnostic.</param>
+[SuppressMessage("Roslynator", "RCS1194: Implement exception constructor", Justification = "Deliberate usage.")]
+public class ContextDiagnosticException(Diagnostic diagnostic) : Exception
 {
     /// <summary>
-    /// When there is an context diagnostic issue.
+    /// Gets the diagnostic information about the generation context issue.
     /// </summary>
-    [SuppressMessage("Roslynator", "RCS1194: Implement exception constructor", Justification = "Deliberate usage.")]
-    public class ContextDiagnosticException : Exception
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ContextDiagnosticException"/> class.
-        /// </summary>
-        /// <param name="diagnostic">The diagnostic.</param>
-        public ContextDiagnosticException(Diagnostic diagnostic) => Diagnostic = diagnostic;
-
-        /// <summary>
-        /// Gets the diagnostic information about the generation context issue.
-        /// </summary>
-        public Diagnostic Diagnostic { get; }
-    }
+    public Diagnostic Diagnostic { get; } = diagnostic;
 }

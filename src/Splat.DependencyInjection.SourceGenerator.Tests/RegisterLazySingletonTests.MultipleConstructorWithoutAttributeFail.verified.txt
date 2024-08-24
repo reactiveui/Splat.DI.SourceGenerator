@@ -6,8 +6,6 @@
       Severity: Error,
       WarningLevel: 0,
       Location: Unknown File: (10,12)-(10,75),
-      Description: ,
-      HelpLink: ,
       MessageFormat: {0} has more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute,
       Message: global::Test.TestConcrete has more than one constructor and one hasn't been marked with DependencyInjectionConstructorAttribute,
       Category: Compiler

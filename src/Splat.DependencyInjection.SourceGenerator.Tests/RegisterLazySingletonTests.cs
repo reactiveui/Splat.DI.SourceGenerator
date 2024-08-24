@@ -4,39 +4,30 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-
-using VerifyXunit;
-
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Splat.DependencyInjection.SourceGenerator.Tests
+namespace Splat.DependencyInjection.SourceGenerator.Tests;
+
+public class RegisterLazySingletonTests(ITestOutputHelper testOutputHelper) : TestBase(testOutputHelper, "RegisterLazySingleton")
 {
-    [UsesVerify]
-    public class RegisterLazySingletonTests : TestBase
+    [Theory]
+    [InlineData(LazyThreadSafetyMode.PublicationOnly, "")]
+    [InlineData(LazyThreadSafetyMode.PublicationOnly, "Test1")]
+    [InlineData(LazyThreadSafetyMode.PublicationOnly, "Test2")]
+    [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "")]
+    [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "Test1")]
+    [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "Test2")]
+    [InlineData(LazyThreadSafetyMode.None, "")]
+    [InlineData(LazyThreadSafetyMode.None, "Test1")]
+    [InlineData(LazyThreadSafetyMode.None, "Test2")]
+    public Task ConstructionAndMultiplePropertyInjectionWithLazyMode(LazyThreadSafetyMode mode, string contract)
     {
-        public RegisterLazySingletonTests(ITestOutputHelper testOutputHelper)
-            : base(testOutputHelper, "RegisterLazySingleton")
-        {
-        }
+        var arguments = string.IsNullOrWhiteSpace(contract) ?
+            $"LazyThreadSafetyMode.{mode}" :
+            $"\"{contract}\", LazyThreadSafetyMode.{mode}";
 
-        [Theory]
-        [InlineData(LazyThreadSafetyMode.PublicationOnly, "")]
-        [InlineData(LazyThreadSafetyMode.PublicationOnly, "Test1")]
-        [InlineData(LazyThreadSafetyMode.PublicationOnly, "Test2")]
-        [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "")]
-        [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "Test1")]
-        [InlineData(LazyThreadSafetyMode.ExecutionAndPublication, "Test2")]
-        [InlineData(LazyThreadSafetyMode.None, "")]
-        [InlineData(LazyThreadSafetyMode.None, "Test1")]
-        [InlineData(LazyThreadSafetyMode.None, "Test2")]
-        public Task ConstructionAndMultiplePropertyInjectionWithLazyMode(LazyThreadSafetyMode mode, string contract)
-        {
-            string arguments = string.IsNullOrWhiteSpace(contract) ?
-                $"LazyThreadSafetyMode.{mode}" :
-                $"\"{contract}\", LazyThreadSafetyMode.{mode}";
-
-            var source = @$"
+        var source = @$"
 using System;
 using System.Threading;
 using Splat;
@@ -75,20 +66,20 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contract, mode, GetType());
-        }
+        return TestHelper.TestPass(source, contract, mode, GetType());
+    }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData("Test1")]
-        [InlineData("Test2")]
-        public Task LazyParameterRegisteredLazy(string contract)
-        {
-            string arguments = string.IsNullOrWhiteSpace(contract) ?
-                string.Empty :
-                $"\"{contract}\"";
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
+    public Task LazyParameterRegisteredLazy(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract) ?
+            string.Empty :
+            $"\"{contract}\"";
 
-            var source = @$"
+        var source = @$"
 using System;
 using System.Threading;
 using Splat;
@@ -131,7 +122,6 @@ namespace Test
     public interface IServiceProperty3 {{ }}
 }}";
 
-            return TestHelper.TestPass(source, contract, GetType());
-        }
+        return TestHelper.TestPass(source, contract, GetType());
     }
 }

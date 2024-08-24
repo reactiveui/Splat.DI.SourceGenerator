@@ -4,7 +4,6 @@
 
 using Microsoft.CodeAnalysis;
 
-namespace Splat.DependencyInjection.SourceGenerator.Metadata
-{
-    internal record ConstructorDependencyMetadata(IParameterSymbol Parameter, ITypeSymbol Type) : DependencyMetadata(Type);
-}
+namespace Splat.DependencyInjection.SourceGenerator.Metadata;
+
+internal record ConstructorDependencyMetadata(IParameterSymbol Parameter, ITypeSymbol Type) : DependencyMetadata(Type);
