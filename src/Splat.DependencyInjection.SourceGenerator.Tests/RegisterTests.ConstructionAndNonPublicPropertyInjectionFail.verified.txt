@@ -6,8 +6,6 @@
       Severity: Error,
       WarningLevel: 0,
       Location: Unknown File: (22,58)-(22,61),
-      Description: ,
-      HelpLink: ,
       MessageFormat: {0} property marked with DependencyInjectionPropertyAttribute must have a public or internal setter,
       Message: ServiceProperty property marked with DependencyInjectionPropertyAttribute must have a public or internal setter,
       Category: Compiler
