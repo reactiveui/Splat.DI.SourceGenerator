@@ -102,6 +102,12 @@ internal static class MetadataExtractor
                 return null;
             }
 
+            var invocationTarget = methodSymbol.ContainingType.OriginalDefinition;
+            if (invocationTarget is not { ContainingNamespace.Name: Constants.NamespaceName, Name: Constants.ClassName })
+            {
+                return null;
+            }
+
             var numberTypeParameters = methodSymbol.TypeArguments.Length;
 
             if (numberTypeParameters is 0 or > 2)
