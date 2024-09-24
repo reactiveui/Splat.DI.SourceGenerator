@@ -15,5 +15,3 @@ jobs:
     with:
       configuration: Release
       productNamespacePrefix: "Splat"
-      useVisualStudioPreview: false
-      useMauiCheckDotNetTool: false
