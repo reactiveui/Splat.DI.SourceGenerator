@@ -496,6 +496,42 @@ namespace Test
     [InlineData("")]
     [InlineData("Test1")]
     [InlineData("Test2")]
+    public Task MultipleConstructorWithoutAttributeNonDIPass(string contractParameter)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
+        var source = @$"
+using System;
+
+namespace Test
+{{
+    public interface ITest {{ }}
+    public class TestConcrete : ITest
+    {{
+        public static TestConcrete Instance = new(default!);
+        public TestConcrete(IService1 service1, IService2 service)
+        {{
+            Instance.{testMethod}<ITest, TestConcrete>({arguments});
+        }}
+
+        public TestConcrete(IService1 service1)
+        {{
+        }}
+        public void {testMethod}<T1, T2>(params object[] args)
+        {{
+        }}
+    }}
+
+    public interface IService1 {{ }}
+    public interface IService2 {{ }}
+}}";
+
+        return TestHelper.TestPass(source, contractParameter, GetType());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test1")]
+    [InlineData("Test2")]
     public Task MultipleConstructorWithAttribute(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
