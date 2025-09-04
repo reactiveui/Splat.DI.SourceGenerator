@@ -10,14 +10,18 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-using ReactiveMarbles.RoslynHelpers;
-
 using Splat.DependencyInjection.SourceGenerator.Metadata;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
 internal static class MetadataExtractor
 {
+    // Standard display format for types, replacing TypeFormat
+    private static readonly SymbolDisplayFormat TypeFormat = new(
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+    );
     public static IEnumerable<MethodMetadata> GetValidMethods(GeneratorExecutionContext context, SyntaxReceiver syntaxReceiver, Compilation compilation)
     {
         return GetValidMethods(new GeneratorExecutionContextAdapter(context), syntaxReceiver, compilation);
@@ -203,11 +207,11 @@ internal static class MetadataExtractor
         {
             foreach (var constructor in constructors)
             {
-                if (constructor.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString(RoslynCommonHelpers.TypeFormat) == Constants.ConstructorAttribute))
+                if (constructor.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString(TypeFormat) == Constants.ConstructorAttribute))
                 {
                     if (returnConstructor != null)
                     {
-                        throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+                        throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorsMarked, constructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(TypeFormat)));
                     }
 
                     returnConstructor = constructor;
@@ -217,12 +221,12 @@ internal static class MetadataExtractor
 
         if (returnConstructor is null)
         {
-            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorNeedAttribute, invocationExpression.GetLocation(), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.MultipleConstructorNeedAttribute, invocationExpression.GetLocation(), concreteTarget.ToDisplayString(TypeFormat)));
         }
 
         if (returnConstructor.DeclaredAccessibility < Accessibility.Internal)
         {
-            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+            throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.ConstructorsMustBePublic, returnConstructor.Locations.FirstOrDefault(x => x is not null), concreteTarget.ToDisplayString(TypeFormat)));
         }
 
         return returnConstructor.Parameters.Select(x => new ConstructorDependencyMetadata(x, x.Type));
@@ -235,13 +239,13 @@ internal static class MetadataExtractor
             .SelectMany(x => x.GetMembers())
             .Where(x => x.Kind == SymbolKind.Property)
             .Cast<IPropertySymbol>()
-            .Where(x => x.GetAttributes().Any(attr => attr.AttributeClass?.ToDisplayString(RoslynCommonHelpers.TypeFormat) == Constants.PropertyAttribute));
+            .Where(x => x.GetAttributes().Any(attr => attr.AttributeClass?.ToDisplayString(TypeFormat) == Constants.PropertyAttribute));
 
         foreach (var property in propertySymbols)
         {
             if (property.SetMethod?.DeclaredAccessibility < Accessibility.Internal)
             {
-                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(x => x is not null), property.ToDisplayString(RoslynCommonHelpers.TypeFormat)));
+                throw new ContextDiagnosticException(Diagnostic.Create(DiagnosticWarnings.PropertyMustPublicBeSettable, property.SetMethod?.Locations.FirstOrDefault(x => x is not null), property.ToDisplayString(TypeFormat)));
             }
 
             yield return new(property);

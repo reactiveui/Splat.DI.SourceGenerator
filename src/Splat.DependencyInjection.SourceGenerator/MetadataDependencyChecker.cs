@@ -8,14 +8,18 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-using ReactiveMarbles.RoslynHelpers;
-
 using Splat.DependencyInjection.SourceGenerator.Metadata;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
 internal static class MetadataDependencyChecker
 {
+    // Standard display format for types
+    private static readonly SymbolDisplayFormat TypeFormat = new(
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+    );
     public static List<MethodMetadata> CheckMetadata(GeneratorExecutionContext context, IList<MethodMetadata> metadataMethods)
     {
         return CheckMetadata(new GeneratorExecutionContextAdapter(context), metadataMethods);
@@ -71,7 +75,7 @@ internal static class MetadataDependencyChecker
 
                     var lazyType = namedTypeSymbol.TypeArguments[0];
 
-                    if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(RoslynCommonHelpers.TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
+                    if (metadataDependencies.TryGetValue(lazyType.ToDisplayString(TypeFormat), out dependencyMethod) && !dependencyMethod.IsLazy)
                     {
                         var location = constructorDependency.Parameter.GetLocation(metadataMethod.MethodInvocation);
 

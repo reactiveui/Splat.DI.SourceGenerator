@@ -4,16 +4,21 @@
 
 using Microsoft.CodeAnalysis;
 
-using ReactiveMarbles.RoslynHelpers;
-
 namespace Splat.DependencyInjection.SourceGenerator.Metadata;
 
 internal abstract record DependencyMetadata
 {
+    // Standard display format for types
+    private static readonly SymbolDisplayFormat TypeFormat = new(
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+    );
+
     protected DependencyMetadata(ITypeSymbol type)
     {
         Type = type;
-        TypeName = type.ToDisplayString(RoslynCommonHelpers.TypeFormat);
+        TypeName = type.ToDisplayString(TypeFormat);
     }
 
     public ITypeSymbol Type { get; }
