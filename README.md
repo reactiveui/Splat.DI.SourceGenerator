@@ -2,7 +2,18 @@
 
 # Splat Source Generator
 
-This project is a source generator which produces Splat based registrations for both constructor and property injection.
+This project is a high-performance source generator that produces Splat-based registrations for both constructor and property injection using modern incremental source generation.
+
+## ⚡ Performance Benefits
+
+This generator uses Roslyn's modern incremental model with efficient pipeline chaining and immutable records, significantly improving Visual Studio performance by:
+
+- **Caching intermediate results** - Only re-processes changed files instead of regenerating everything
+- **Reducing memory usage** - Uses efficient data structures and avoids unnecessary allocations
+- **Avoiding unnecessary re-computations** - Leverages Roslyn's caching to skip unchanged code paths
+- **Providing immediate feedback** - Fast incremental compilation during editing
+
+Compatible with Visual Studio 17.10+ and modern .NET development environments.
 
 # Installation
 
@@ -14,7 +25,7 @@ Install the following packages:
 
 | Name                          | Platform          | NuGet                            |
 | ----------------------------- | ----------------- | -------------------------------- |
-| [Splat.DependencyInjection.SourceGenerator][Core]       | Core - Libary     | [![CoreBadge]][Core]             |
+| [Splat.DependencyInjection.SourceGenerator][Core]       | Core - Library     | [![CoreBadge]][Core]             |
 
 
 [Core]: https://www.nuget.org/packages/Splat.DependencyInjection.SourceGenerator/
@@ -22,7 +33,7 @@ Install the following packages:
 
 ## What does it do?
 
-ObservableEvents generator registrations for Splat based on your constructors and properties. It will not use reflection and instead uses Source Generation. You should get full native speed.
+Generates high-performance dependency injection registrations for Splat based on your constructors and properties. It uses modern incremental source generation instead of reflection, providing full native speed with excellent IDE performance.
 
 ## Installation
 Include the following in your .csproj file
@@ -39,46 +50,99 @@ The `PrivateAssets` will prevent the Source generator from being inherited into 
 
 Register your dependencies using the `SplatRegistrations` class.
 
-There are two methods. 
+There are three main registration methods:
 
-`Register()` will generate a new instance each time. Use generic parameters, first for the interface type, second for the concrete type.
-
-```cs
-    SplatRegistrations.Register<IMenuUseCase, MenuUseCase>();
-    SplatRegistrations.Register<IOtherDependency, OtherDependency>();
-```
-
-`RegisterLazySingleton()` will have a lazy instance. Use generic parameters, first for the interface type, second for the concrete type.
+#### `Register<TInterface, TConcrete>()`
+Generates a new instance each time. Use generic parameters, first for the interface type, second for the concrete type.
 
 ```cs
-    SplatRegistrations.RegisterLazySingleton<IMessagesSqlDataSource, MessagesSqlDataSource>();
+SplatRegistrations.Register<IMenuUseCase, MenuUseCase>();
+SplatRegistrations.Register<IOtherDependency, OtherDependency>();
 ```
 
-You must call either `SplatRegistrations.SetupIOC()` or with the specialisation `SplatRegistrations.SetupIOC(resolver)` once during your application start. This must be done in each assembly where you use SplatRegistrations.
+#### `RegisterLazySingleton<TInterface, TConcrete>()`
+Creates a lazy singleton instance. Use generic parameters, first for the interface type, second for the concrete type.
 
-The resolver version of `SetupIOC` is used mainly for unit tests.
+```cs
+SplatRegistrations.RegisterLazySingleton<IMessagesSqlDataSource, MessagesSqlDataSource>();
+```
+
+You can also specify thread safety mode:
+
+```cs
+SplatRegistrations.RegisterLazySingleton<IService, Service>(LazyThreadSafetyMode.ExecutionAndPublication);
+```
+
+#### `RegisterConstant<T>(instance)`
+Registers a pre-created instance as a constant.
+
+```cs
+var config = new Configuration();
+SplatRegistrations.RegisterConstant<IConfiguration>(config);
+```
+
+### Setup
+
+You must call either `SplatRegistrations.SetupIOC()` or with the specialization `SplatRegistrations.SetupIOC(resolver)` once during your application start. This must be done in each assembly where you use SplatRegistrations.
+
+```cs
+// Use default Splat locator
+SplatRegistrations.SetupIOC();
+
+// Or use a specific resolver (mainly for unit tests)
+SplatRegistrations.SetupIOC(customResolver);
+```
 
 ### Constructor Injection
+
 If there are more than one constructor use the `[DependencyInjectionConstructor]` attribute to signify which one should be used.
 
 ```cs
-    [DependencyInjectionConstructor]
-    public AuthApi(
-        Lazy<IJsonService> jsonService,
-        : base(jsonService)
-    {
-    }
+[DependencyInjectionConstructor]
+public AuthApi(
+    Lazy<IJsonService> jsonService,
+    ILogService logService)
+    : base(jsonService)
+{
+}
 ```
 
-You don't need to decorate when there is only one constructor. 
+You don't need to decorate when there is only one constructor.
 
 ### Property Injection
 
-Use the `[DependencyInjectionProperty]` above a property to be initialized. It must be `public` or `internal` setter.
+Use the `[DependencyInjectionProperty]` above a property to be initialized. It must have a `public` or `internal` setter.
 
 ```cs
 public class MySpecialClass
 {
     [DependencyInjectionProperty]
     public IService MyService { get; set; }
+    
+    [DependencyInjectionProperty]
+    internal IInternalService InternalService { get; set; }
 }
+```
+
+### Contracts
+
+You can use contracts (string-based registration keys) with any registration method:
+
+```cs
+SplatRegistrations.Register<IService, ServiceA>("ServiceA");
+SplatRegistrations.Register<IService, ServiceB>("ServiceB");
+SplatRegistrations.RegisterLazySingleton<IConfig, Config>("DefaultConfig");
+SplatRegistrations.RegisterConstant<string>("MyValue", "MyContract");
+```
+
+## Architecture
+
+This source generator uses modern Roslyn incremental generation techniques:
+
+- **Incremental Pipeline**: Uses `IIncrementalGenerator` for optimal performance
+- **Efficient Syntax Detection**: Only processes method calls that match registration patterns
+- **Immutable Data Transfer**: Uses C# records for efficient data flow between pipeline stages
+- **Cache-Friendly Design**: Pure transforms and value-based equality for maximum caching benefits
+- **Memory Efficient**: Early filtering and minimal allocations in hot paths
+
+The generator targets `netstandard2.0` and leverages PolySharp for modern C# language features while maintaining broad compatibility.

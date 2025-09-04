@@ -7,12 +7,6 @@
     <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <PackageDescription>Produces DI registration for both property and constructor injection using the Splat locators.</PackageDescription>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <!-- Temporarily disable Git versioning for local testing -->
-    <EnableGitVersioning>false</EnableGitVersioning>
-    <Version>1.0.0</Version>
-    <!-- Disable Directory.Build.props import -->
-    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
-    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
   </PropertyGroup>
 
   <ItemGroup>
