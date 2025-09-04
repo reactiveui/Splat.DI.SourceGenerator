@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
@@ -270,22 +269,31 @@ public class Generator : IIncrementalGenerator
     private static IMethodSymbol? FindConstructorForInjection(ITypeSymbol type, out bool hasAttribute)
     {
         hasAttribute = false;
-        var constructors = type.GetMembers().OfType<IMethodSymbol>()
-            .Where(m => m.MethodKind == MethodKind.Constructor && !m.IsStatic)
-            .ToList();
+        var constructors = ImmutableArray.CreateBuilder<IMethodSymbol>();
+        
+        // Collect constructors without LINQ
+        foreach (var member in type.GetMembers())
+        {
+            if (member is IMethodSymbol method && 
+                method.MethodKind == MethodKind.Constructor && 
+                !method.IsStatic)
+            {
+                constructors.Add(method);
+            }
+        }
 
-        if (constructors.Count == 1)
-            return constructors.First();
+        var constructorList = constructors.ToImmutable();
+        if (constructorList.Length == 1)
+            return constructorList[0];
 
         // Look for constructor with DependencyInjectionConstructor attribute
-        var attributedConstructors = constructors
-            .Where(HasDependencyInjectionConstructorAttribute)
-            .ToList();
-
-        if (attributedConstructors.Count == 1)
+        foreach (var constructor in constructorList)
         {
-            hasAttribute = true;
-            return attributedConstructors.First();
+            if (HasDependencyInjectionConstructorAttribute(constructor))
+            {
+                hasAttribute = true;
+                return constructor;
+            }
         }
 
         return null; // Multiple constructors without clear choice
@@ -296,8 +304,12 @@ public class Generator : IIncrementalGenerator
     /// </summary>
     private static bool HasDependencyInjectionConstructorAttribute(IMethodSymbol constructor)
     {
-        return constructor.GetAttributes()
-            .Any(attr => attr.AttributeClass?.Name == "DependencyInjectionConstructorAttribute");
+        foreach (var attr in constructor.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name == "DependencyInjectionConstructorAttribute")
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -305,8 +317,12 @@ public class Generator : IIncrementalGenerator
     /// </summary>
     private static bool HasDependencyInjectionAttribute(IPropertySymbol property)
     {
-        return property.GetAttributes()
-            .Any(attr => attr.AttributeClass?.Name == "DependencyInjectionPropertyAttribute");
+        foreach (var attr in property.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name == "DependencyInjectionPropertyAttribute")
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -332,13 +348,21 @@ public class Generator : IIncrementalGenerator
         if (group.Registrations.IsEmpty)
             return null;
 
-        var statements = group.Registrations
-            .Select(GenerateRegistrationStatement)
-            .Where(stmt => !string.IsNullOrEmpty(stmt))
-            .Select(stmt => $"            {stmt}")
-            .ToList();
+        var statementBuilder = new StringBuilder();
+        var hasStatements = false;
 
-        if (!statements.Any())
+        // Generate registration statements without LINQ
+        foreach (var registration in group.Registrations)
+        {
+            var statement = GenerateRegistrationStatement(registration);
+            if (!string.IsNullOrEmpty(statement))
+            {
+                statementBuilder.AppendLine($"            {statement}");
+                hasStatements = true;
+            }
+        }
+
+        if (!hasStatements)
             return null;
 
         var sourceCode = $$"""
@@ -349,7 +373,7 @@ public class Generator : IIncrementalGenerator
                 {
                     static partial void {{Constants.IocMethod}}({{Constants.ResolverType}} {{Constants.ResolverParameterName}})
                     {
-            {{string.Join("\n", statements)}}
+            {{statementBuilder.ToString().TrimEnd()}}
                     }
                 }
             }
@@ -412,21 +436,39 @@ public class Generator : IIncrementalGenerator
         if (target.ConcreteType is null)
             return string.Empty;
 
-        var constructorArgs = target.ConstructorDependencies
-            .Select(dep => $"{Constants.ResolverParameterName}.{Constants.LocatorGetService}<{dep.TypeName}>()")
-            .ToList();
+        var constructorArgsBuilder = new StringBuilder();
+        var hasConstructorArgs = false;
+
+        // Build constructor arguments without LINQ
+        foreach (var dep in target.ConstructorDependencies)
+        {
+            if (hasConstructorArgs)
+                constructorArgsBuilder.Append(", ");
+            
+            constructorArgsBuilder.Append($"{Constants.ResolverParameterName}.{Constants.LocatorGetService}<{dep.TypeName}>()");
+            hasConstructorArgs = true;
+        }
 
         if (target.PropertyDependencies.IsEmpty)
         {
-            return $"new {target.ConcreteType}({string.Join(", ", constructorArgs)})";
+            return $"new {target.ConcreteType}({constructorArgsBuilder})";
         }
 
-        var propertyInits = target.PropertyDependencies
-            .Select(prop => $"{prop.PropertyName} = {Constants.ResolverParameterName}.{Constants.LocatorGetService}<{prop.TypeName}>()")
-            .ToList();
+        var propertyInitsBuilder = new StringBuilder();
+        var hasPropertyInits = false;
 
-        return constructorArgs.Any()
-            ? $"new {target.ConcreteType}({string.Join(", ", constructorArgs)}) {{ {string.Join(", ", propertyInits)} }}"
-            : $"new {target.ConcreteType}() {{ {string.Join(", ", propertyInits)} }}";
+        // Build property initializers without LINQ
+        foreach (var prop in target.PropertyDependencies)
+        {
+            if (hasPropertyInits)
+                propertyInitsBuilder.Append(", ");
+            
+            propertyInitsBuilder.Append($"{prop.PropertyName} = {Constants.ResolverParameterName}.{Constants.LocatorGetService}<{prop.TypeName}>()");
+            hasPropertyInits = true;
+        }
+
+        return hasConstructorArgs
+            ? $"new {target.ConcreteType}({constructorArgsBuilder}) {{ {propertyInitsBuilder} }}"
+            : $"new {target.ConcreteType}() {{ {propertyInitsBuilder} }}";
     }
 }

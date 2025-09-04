@@ -137,12 +137,44 @@ SplatRegistrations.RegisterConstant<string>("MyValue", "MyContract");
 
 ## Architecture
 
-This source generator uses modern Roslyn incremental generation techniques:
+This source generator leverages Roslyn's modern incremental generation pipeline for optimal performance and developer experience:
 
-- **Incremental Pipeline**: Uses `IIncrementalGenerator` for optimal performance
-- **Efficient Syntax Detection**: Only processes method calls that match registration patterns
-- **Immutable Data Transfer**: Uses C# records for efficient data flow between pipeline stages
-- **Cache-Friendly Design**: Pure transforms and value-based equality for maximum caching benefits
-- **Memory Efficient**: Early filtering and minimal allocations in hot paths
+### Modern Incremental Pipeline
+
+The generator implements a true four-stage incremental pipeline that provides maximum caching benefits:
+
+1. **Stage 1: Syntax Detection** - Efficiently identifies registration method calls (`Register<>()`, `RegisterLazySingleton<>()`, `RegisterConstant<>()`) and transforms them into `RegistrationCall` records
+2. **Stage 2: Semantic Analysis** - Processes each `RegistrationCall` with semantic analysis to create `RegistrationTarget` records containing type information and dependency data
+3. **Stage 3: Collection** - Aggregates all `RegistrationTarget` records into a single `RegistrationGroup` for batch processing
+4. **Stage 4: Code Generation** - Transforms the `RegistrationGroup` into final C# source code using efficient StringBuilder and raw string literals
+
+### Performance Optimizations
+
+- **Cache-Friendly Design**: Each pipeline stage uses pure transforms and immutable records designed for Roslyn's caching system
+- **Memory Efficient**: Avoids LINQ operations in hot paths, uses StringBuilder for string generation, and minimizes allocations
+- **Early Filtering**: Only processes syntax nodes that match registration patterns, ignoring irrelevant code
+- **Incremental Processing**: Only changed files trigger reprocessing, dramatically improving IDE performance
+- **Value-Based Equality**: Records provide efficient equality comparisons for maximum cache hit rates
+
+### Technical Features
+
+- **Target Framework**: `netstandard2.0` for broad compatibility
+- **Language Features**: Leverages PolySharp for modern C# language features (records, raw strings, pattern matching)
+- **Code Generation**: Uses raw string literals with interpolation for clean, readable generated code
+- **Error Handling**: Graceful degradation when semantic analysis fails, ensuring partial generation continues
+
+This architecture provides immediate feedback during editing in Visual Studio 17.10+ and significantly reduces compilation times in large solutions.
 
 The generator targets `netstandard2.0` and leverages PolySharp for modern C# language features while maintaining broad compatibility.
+
+## Development
+
+This project is developed with the assistance of AI tools including GitHub Copilot. All AI-generated code is thoroughly reviewed and tested by human developers to ensure quality, performance, and maintainability.
+
+## Acknowledgments
+
+With thanks to the following libraries and tools that make this project possible:
+
+- **PolySharp** - Provides modern C# language features for older target frameworks
+- **Microsoft.CodeAnalysis** - Powers the Roslyn-based source generation
+- **Splat** - The foundational service location framework this generator supports
