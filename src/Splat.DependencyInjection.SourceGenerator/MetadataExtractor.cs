@@ -20,6 +20,11 @@ internal static class MetadataExtractor
 {
     public static IEnumerable<MethodMetadata> GetValidMethods(GeneratorExecutionContext context, SyntaxReceiver syntaxReceiver, Compilation compilation)
     {
+        return GetValidMethods(new GeneratorExecutionContextAdapter(context), syntaxReceiver, compilation);
+    }
+
+    public static IEnumerable<MethodMetadata> GetValidMethods(IGeneratorContext context, SyntaxReceiver syntaxReceiver, Compilation compilation)
+    {
         foreach (var invocationExpression in syntaxReceiver.Register)
         {
             var methodMetadata = GetValidMethod(context, invocationExpression, compilation, (method, interfaceType, concreteType, invocation, constructors, properties, registerProperties) =>
@@ -55,7 +60,7 @@ internal static class MetadataExtractor
     }
 
     private static RegisterConstantMetadata? GetValidRegisterConstant(
-        GeneratorExecutionContext context,
+        IGeneratorContext context,
         InvocationExpressionSyntax invocationExpression,
         Compilation compilation,
         Func<IMethodSymbol, ITypeSymbol, ITypeSymbol, InvocationExpressionSyntax, RegisterConstantMetadata> createFunc)
@@ -87,7 +92,7 @@ internal static class MetadataExtractor
     }
 
     private static T? GetValidMethod<T>(
-        GeneratorExecutionContext context,
+        IGeneratorContext context,
         InvocationExpressionSyntax invocationExpression,
         Compilation compilation,
         Func<IMethodSymbol, ITypeSymbol, ITypeSymbol, InvocationExpressionSyntax, IReadOnlyList<ConstructorDependencyMetadata>, IReadOnlyList<PropertyDependencyMetadata>, IReadOnlyList<ParameterMetadata>, T> createFunc)

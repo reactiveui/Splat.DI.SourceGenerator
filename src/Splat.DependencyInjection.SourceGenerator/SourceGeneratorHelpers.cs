@@ -25,6 +25,11 @@ internal static class SourceGeneratorHelpers
 
     public static string Generate(GeneratorExecutionContext context, Compilation compilation, SyntaxReceiver syntaxReceiver)
     {
+        return Generate(new GeneratorExecutionContextAdapter(context), compilation, syntaxReceiver);
+    }
+
+    public static string Generate(IGeneratorContext context, Compilation compilation, SyntaxReceiver syntaxReceiver)
+    {
         var methods = MetadataExtractor.GetValidMethods(context, syntaxReceiver, compilation).ToList();
 
         methods = MetadataDependencyChecker.CheckMetadata(context, methods);

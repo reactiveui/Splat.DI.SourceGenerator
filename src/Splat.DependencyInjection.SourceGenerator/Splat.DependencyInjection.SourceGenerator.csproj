@@ -1,32 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
     <DevelopmentDependency>true</DevelopmentDependency>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <!-- forces SDK to copy dependencies into build output to make packing easier -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <PackageDescription>Produces DI registration for both property and constructor injection using the Splat locators.</PackageDescription>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackBuildOutputs</TargetsForTfmSpecificContentInPackage>
-    <NoWarn>$(NoWarn);AD0001</NoWarn>
-    <DebugType>full</DebugType>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- Temporarily disable Git versioning for local testing -->
+    <EnableGitVersioning>false</EnableGitVersioning>
+    <Version>1.0.0</Version>
+    <!-- Disable Directory.Build.props import -->
+    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.0.1" PrivateAssets="all" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.0.1" PrivateAssets="all" GeneratePathProperty="true" />
-    <PackageReference Include="ReactiveMarbles.RoslynHelpers" Version="1.2.1" GeneratePathProperty="true" PrivateAssets="all" />
-    <PackageReference Include="ILRepack" Version="2.0.44" GeneratePathProperty="true" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="PolySharp" Version="1.14.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <!-- Temporarily keep ReactiveMarbles.RoslynHelpers for compatibility -->
+    <PackageReference Include="ReactiveMarbles.RoslynHelpers" Version="1.2.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
-
-  <Target Name="ILRepack" AfterTargets="Build">
-    <Exec Command="$(PKGILRepack)\tools\ILRepack &quot;$(TargetPath)&quot; &quot;$(PKGReactiveMarbles_RoslynHelpers)\lib\netstandard2.0\ReactiveMarbles.RoslynHelpers.dll&quot; /out:&quot;$(TargetPath)&quot; /internalize /union /lib:&quot;$(PKGMicrosoft_CodeAnalysis_CSharp_Workspaces)\lib\netstandard2.0&quot; /lib:&quot;$(PKGMicrosoft_CodeAnalysis_Analyzers)\analyzers\dotnet\cs&quot; /lib:&quot;$(PKGMicrosoft_CodeAnalysis_Common)\lib\netstandard2.0&quot;" />
-  </Target>
-
-  <Target Name="PackBuildOutputs">
-    <ItemGroup>
-      <TfmSpecificPackageFile Include="$(TargetPath)" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    </ItemGroup>
-  </Target>
 </Project>

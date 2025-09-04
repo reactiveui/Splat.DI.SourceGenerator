@@ -18,6 +18,11 @@ internal static class MetadataDependencyChecker
 {
     public static List<MethodMetadata> CheckMetadata(GeneratorExecutionContext context, IList<MethodMetadata> metadataMethods)
     {
+        return CheckMetadata(new GeneratorExecutionContextAdapter(context), metadataMethods);
+    }
+
+    public static List<MethodMetadata> CheckMetadata(IGeneratorContext context, IList<MethodMetadata> metadataMethods)
+    {
         var metadataDependencies = new Dictionary<string, MethodMetadata>();
         foreach (var metadataMethod in metadataMethods)
         {
