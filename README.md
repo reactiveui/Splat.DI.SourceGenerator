@@ -39,8 +39,8 @@ Key features:
 ### Requirements
 
 - .NET SDK: Any version supporting C# 7.3 or later
-- Target Frameworks: .NET Framework 4.6.2+, .NET Standard 2.0+, .NET 6+, .NET 8+, .NET 9+
-- Splat: Version 15.0.0 or later (supports modern generic-first resolvers)
+- Target Frameworks: .NET Framework 4.6.2+, .NET 8+, .NET 9+, .NET 10+
+- Splat: Version 19.1.1 or later (supports modern generic-first resolvers)
 
 ### Installation
 
@@ -369,9 +369,11 @@ Make sure you registered the dependency with `RegisterLazySingleton`, not `Regis
 
 Version 3.0 includes breaking changes:
 
-- Requires Splat 15.0.0 or later for generic-first resolver support
+- Requires Splat 19.1.1 or later for generic-first resolver support
 - Migrated from legacy `ISourceGenerator` to modern `IIncrementalGenerator`
 - Updated to Roslyn 4.14.0
+- Removed support for .NET Standard 2.0 and .NET 6
+- Minimum supported frameworks: .NET Framework 4.6.2+, .NET 8+, .NET 9+, .NET 10+
 
 New features in 3.0:
 - 10-100x faster incremental builds (only processes changed files)
