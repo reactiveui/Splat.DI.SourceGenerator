@@ -1,0 +1,27 @@
+{
+  "platform": {
+    "execution": {
+      "parallel": false
+    }
+  },
+  "extensions": [
+    {
+      "extensionId": "Microsoft.Testing.Extensions.CodeCoverage",
+      "settings": {
+        "format": "cobertura",
+        "skipAutoProperties": true,
+        "modulePaths": {
+          "include": [ "Splat\\.DependencyInjection\\..*" ],
+          "exclude": [ ".*\\.Tests", ".*\\.TestRunner\\..*", ".*\\.Test" ]
+        },
+        "sourcePaths": {
+          "exclude": [
+            "**/tests/**",
+            "**/*Tests/**",
+            "**/*.Test/**"
+          ]
+        }
+      }
+    }
+  ]
+}

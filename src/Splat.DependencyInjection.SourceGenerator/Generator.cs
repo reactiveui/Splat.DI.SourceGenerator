@@ -1,43 +1,545 @@
-﻿// Copyright (c) 2019-2021 ReactiveUI Association Incorporated. All rights reserved.
+// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+
+using Splat.DependencyInjection.SourceGenerator.Models;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
 /// <summary>
-/// The main generator instance.
+/// Incremental generator for Splat dependency injection registrations.
 /// </summary>
 [Generator]
-public class Generator : ISourceGenerator
+public class Generator : IIncrementalGenerator
 {
+    private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
+
     /// <inheritdoc/>
-    public void Execute(GeneratorExecutionContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // add the attribute text.
-        context.AddSource("Splat.DI.g.cs", SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
-
-        if (context.SyntaxReceiver is not SyntaxReceiver syntaxReceiver)
+        // Always emit attributes and marker methods (per Cookbook best practices)
+        context.RegisterPostInitializationOutput(ctx =>
         {
-            return;
-        }
+            // Emit EmbeddedAttribute first to avoid conflicts with InternalsVisibleTo
+            ctx.AddSource(
+                "Microsoft.CodeAnalysis.EmbeddedAttribute.g.cs",
+                SourceText.From(Constants.EmbeddedAttributeText, Encoding.UTF8));
 
-        var compilation = context.Compilation;
+            // Emit marker attributes and extension methods
+            ctx.AddSource(
+                "Splat.DI.g.cs",
+                SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
+        });
 
-        var options = (compilation as CSharpCompilation)?.SyntaxTrees.FirstOrDefault()?.Options as CSharpParseOptions;
-        compilation = context.Compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8), options ?? new CSharpParseOptions()));
+        // Pipeline 1: Register<TInterface, TConcrete>() calls
+        var registerCalls = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: IsRegisterInvocation,
+                transform: ExtractRegisterMetadata)
+            .Where(x => x is not null)
+            .Select((x, _) => x!);
 
-        var outputText = SourceGeneratorHelpers.Generate(context, compilation, syntaxReceiver);
+        // Pipeline 2: RegisterLazySingleton<TInterface, TConcrete>() calls
+        var lazySingletonCalls = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: IsRegisterLazySingletonInvocation,
+                transform: ExtractLazySingletonMetadata)
+            .Where(x => x is not null)
+            .Select((x, _) => x!);
 
-        context.AddSource("Splat.DI.Reg.g.cs", SourceText.From(outputText, Encoding.UTF8));
+        // Combine all registrations
+        var allRegistrations = registerCalls
+            .Collect()
+            .Combine(lazySingletonCalls.Collect());
+
+        // Generate output with validation
+        context.RegisterSourceOutput(allRegistrations, GenerateCode);
     }
 
-    /// <inheritdoc/>
-    public void Initialize(GeneratorInitializationContext context) => context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+    private static bool IsRegisterInvocation(SyntaxNode node, CancellationToken ct)
+    {
+        if (node is not InvocationExpressionSyntax invocation)
+        {
+            return false;
+        }
+
+        return invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax { Name.Identifier.Text: "Register" } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: "Register" } => true,
+            _ => false
+        };
+    }
+
+    private static bool IsRegisterLazySingletonInvocation(SyntaxNode node, CancellationToken ct)
+    {
+        if (node is not InvocationExpressionSyntax invocation)
+        {
+            return false;
+        }
+
+        return invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
+            _ => false
+        };
+    }
+
+    private static TransientRegistrationInfo? ExtractRegisterMetadata(
+        GeneratorSyntaxContext context,
+        CancellationToken ct)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        var semanticModel = context.SemanticModel;
+
+        // Get method symbol
+        if (semanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol methodSymbol)
+        {
+            return null;
+        }
+
+        // Verify it's SplatRegistrations.Register
+        if (!IsSplatRegistrationsMethod(methodSymbol, "Register"))
+        {
+            return null;
+        }
+
+        // Extract type arguments (1 or 2)
+        var numberTypeParameters = methodSymbol.TypeArguments.Length;
+        if (numberTypeParameters is 0 or > 2)
+        {
+            return null;
+        }
+
+        var interfaceType = methodSymbol.TypeArguments[0];
+        var concreteType = numberTypeParameters == 2
+            ? methodSymbol.TypeArguments[1]
+            : interfaceType;
+
+        // Convert ISymbol → POCO (NO ISymbol references in result!)
+        var constructorParams = ExtractConstructorParameters(concreteType, invocation.GetLocation());
+        if (constructorParams == null)
+        {
+            return null; // Invalid constructor, silently skip
+        }
+
+        var propertyInjections = ExtractPropertyInjections(concreteType);
+        if (propertyInjections == null)
+        {
+            return null; // Invalid properties, silently skip
+        }
+
+        var contractValue = ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
+
+        return new TransientRegistrationInfo(
+            InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
+            ConcreteTypeFullName: concreteType.ToDisplayString(_fullyQualifiedFormat),
+            ConstructorParameters: new EquatableArray<ConstructorParameter>(constructorParams),
+            PropertyInjections: new EquatableArray<PropertyInjection>(propertyInjections),
+            ContractValue: contractValue,
+            InvocationLocation: invocation.GetLocation());
+    }
+
+    private static LazySingletonRegistrationInfo? ExtractLazySingletonMetadata(
+        GeneratorSyntaxContext context,
+        CancellationToken ct)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        var semanticModel = context.SemanticModel;
+
+        // Get method symbol
+        if (semanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol methodSymbol)
+        {
+            return null;
+        }
+
+        // Verify it's SplatRegistrations.RegisterLazySingleton
+        if (!IsSplatRegistrationsMethod(methodSymbol, "RegisterLazySingleton"))
+        {
+            return null;
+        }
+
+        // Extract type arguments (1 or 2)
+        var numberTypeParameters = methodSymbol.TypeArguments.Length;
+        if (numberTypeParameters is 0 or > 2)
+        {
+            return null;
+        }
+
+        var interfaceType = methodSymbol.TypeArguments[0];
+        var concreteType = numberTypeParameters == 2
+            ? methodSymbol.TypeArguments[1]
+            : interfaceType;
+
+        // Convert ISymbol → POCO (NO ISymbol references in result!)
+        var constructorParams = ExtractConstructorParameters(concreteType, invocation.GetLocation());
+        if (constructorParams == null)
+        {
+            return null; // Invalid constructor, silently skip
+        }
+
+        var propertyInjections = ExtractPropertyInjections(concreteType);
+        if (propertyInjections == null)
+        {
+            return null; // Invalid properties, silently skip
+        }
+
+        var contractValue = ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
+        var lazyMode = ExtractLazyThreadSafetyMode(methodSymbol, invocation, semanticModel, ct);
+
+        return new LazySingletonRegistrationInfo(
+            InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
+            ConcreteTypeFullName: concreteType.ToDisplayString(_fullyQualifiedFormat),
+            ConstructorParameters: new EquatableArray<ConstructorParameter>(constructorParams),
+            PropertyInjections: new EquatableArray<PropertyInjection>(propertyInjections),
+            ContractValue: contractValue,
+            LazyThreadSafetyMode: lazyMode,
+            InvocationLocation: invocation.GetLocation());
+    }
+
+    private static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
+    {
+        var containingType = methodSymbol.ContainingType?.OriginalDefinition;
+        if (containingType == null)
+        {
+            return false;
+        }
+
+        return containingType.ContainingNamespace?.Name == Constants.NamespaceName &&
+               containingType.Name == Constants.ClassName &&
+               methodSymbol.Name == methodName &&
+               !methodSymbol.IsExtensionMethod;
+    }
+
+    private static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType, Location invocationLocation)
+    {
+        var constructors = concreteType
+            .GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(x => x.MethodKind == MethodKind.Constructor && !x.IsStatic)
+            .ToList();
+
+        IMethodSymbol? selectedConstructor = null;
+
+        if (constructors.Count == 1)
+        {
+            selectedConstructor = constructors[0];
+        }
+        else if (constructors.Count > 1)
+        {
+            // Find constructor with attribute
+            foreach (var constructor in constructors)
+            {
+                var hasAttribute = constructor.GetAttributes().Any(x =>
+                    x.AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.ConstructorAttribute);
+
+                if (hasAttribute)
+                {
+                    if (selectedConstructor != null)
+                    {
+                        // Multiple constructors marked - silently skip (analyzer will warn)
+                        return null;
+                    }
+
+                    selectedConstructor = constructor;
+                }
+            }
+
+            if (selectedConstructor == null)
+            {
+                // Multiple constructors, none marked - silently skip (analyzer will warn)
+                return null;
+            }
+        }
+
+        if (selectedConstructor == null)
+        {
+            return Array.Empty<ConstructorParameter>();
+        }
+
+        // Check accessibility
+        if (selectedConstructor.DeclaredAccessibility < Accessibility.Internal)
+        {
+            return null; // Private/protected constructor - silently skip
+        }
+
+        // Extract parameters
+        var parameters = new List<ConstructorParameter>();
+        foreach (var param in selectedConstructor.Parameters)
+        {
+            var paramType = param.Type;
+            var paramTypeName = paramType.ToDisplayString(_fullyQualifiedFormat);
+
+            // Check if it's Lazy<T>
+            bool isLazy = false;
+            string? lazyInnerType = null;
+
+            if (paramType is INamedTypeSymbol namedType &&
+                namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Lazy<T>")
+            {
+                isLazy = true;
+                if (namedType.TypeArguments.Length > 0)
+                {
+                    lazyInnerType = namedType.TypeArguments[0].ToDisplayString(_fullyQualifiedFormat);
+                }
+            }
+
+            parameters.Add(new ConstructorParameter(
+                ParameterName: param.Name,
+                TypeFullName: paramTypeName,
+                IsLazy: isLazy,
+                LazyInnerType: lazyInnerType));
+        }
+
+        return parameters.ToArray();
+    }
+
+    private static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType)
+    {
+        var properties = new List<PropertyInjection>();
+
+        // Get all properties from base types and this type
+        var allTypes = GetBaseTypesAndThis(concreteType);
+
+        foreach (var type in allTypes)
+        {
+            foreach (var member in type.GetMembers())
+            {
+                if (member is not IPropertySymbol property)
+                {
+                    continue;
+                }
+
+                // Check for DependencyInjectionProperty attribute
+                var hasAttribute = property.GetAttributes().Any(attr =>
+                    attr.AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.PropertyAttribute);
+
+                if (!hasAttribute)
+                {
+                    continue;
+                }
+
+                // Validate setter accessibility
+                if (property.SetMethod == null || property.SetMethod.DeclaredAccessibility < Accessibility.Internal)
+                {
+                    return null; // Invalid property - silently skip (analyzer will warn)
+                }
+
+                properties.Add(new PropertyInjection(
+                    PropertyName: property.Name,
+                    TypeFullName: property.Type.ToDisplayString(_fullyQualifiedFormat),
+                    PropertyLocation: property.Locations.FirstOrDefault() ?? Location.None));
+            }
+        }
+
+        return properties.ToArray();
+    }
+
+    private static IEnumerable<ITypeSymbol> GetBaseTypesAndThis(ITypeSymbol type)
+    {
+        var current = type;
+        while (current != null)
+        {
+            yield return current;
+            current = current.BaseType;
+        }
+    }
+
+    private static string? ExtractContractParameter(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken ct)
+    {
+        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
+        {
+            var argument = invocation.ArgumentList.Arguments[i];
+            var parameter = methodSymbol.Parameters[i];
+
+            if (parameter.Name != "contract")
+            {
+                continue;
+            }
+
+            var expression = argument.Expression;
+
+            // Handle string literals
+            if (expression is LiteralExpressionSyntax literal)
+            {
+                return literal.ToString();
+            }
+
+            // Handle constant expressions
+            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
+            if (symbolInfo.Symbol != null)
+            {
+                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ExtractLazyThreadSafetyMode(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken ct)
+    {
+        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
+        {
+            var argument = invocation.ArgumentList.Arguments[i];
+            var parameter = methodSymbol.Parameters[i];
+
+            if (parameter.Name != "mode")
+            {
+                continue;
+            }
+
+            var expression = argument.Expression;
+            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
+
+            if (symbolInfo.Symbol != null)
+            {
+                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
+            }
+        }
+
+        return null;
+    }
+
+    private static void GenerateCode(
+        SourceProductionContext context,
+        (ImmutableArray<TransientRegistrationInfo> Transients, ImmutableArray<LazySingletonRegistrationInfo> LazySingletons) data)
+    {
+        var (transients, lazySingletons) = data;
+
+        // Generate code only for valid registrations (invalid ones were filtered out in transform)
+        var code = GenerateSetupIOCMethod(transients, lazySingletons);
+        context.AddSource("Splat.DI.Reg.g.cs", SourceText.From(code, Encoding.UTF8));
+    }
+
+    private static string GenerateSetupIOCMethod(
+        ImmutableArray<TransientRegistrationInfo> transients,
+        ImmutableArray<LazySingletonRegistrationInfo> lazySingletons)
+    {
+        var sb = new StringBuilder()
+            .AppendLine("// <auto-generated />")
+            .AppendLine("namespace Splat")
+            .AppendLine("{")
+            .AppendLine("    internal static partial class SplatRegistrations")
+            .AppendLine("    {")
+            .AppendLine("        static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)")
+            .AppendLine("        {");
+
+        // Generate transient registrations
+        foreach (var registration in transients)
+        {
+            GenerateTransientRegistration(sb, registration);
+        }
+
+        // Generate lazy singleton registrations
+        foreach (var registration in lazySingletons)
+        {
+            GenerateLazySingletonRegistration(sb, registration);
+        }
+
+        sb.AppendLine("        }")
+            .AppendLine("    }")
+            .AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private static void GenerateTransientRegistration(
+        StringBuilder sb,
+        TransientRegistrationInfo registration)
+    {
+        // Build constructor arguments - resolve from resolver
+        var constructorArgs = string.Join(
+            ", ",
+            registration.ConstructorParameters.Select(
+                p => $"({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))"));
+
+        // Build property initializer if needed
+        string? propertyInitializer = null;
+        if (registration.PropertyInjections.Length > 0)
+        {
+            var properties = string.Join(
+                ", ",
+                registration.PropertyInjections.Select(
+                    p => $"{p.PropertyName} = ({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))"));
+            propertyInitializer = $" {{ {properties} }}";
+        }
+
+        // Build contract parameter
+        var contractArg = registration.ContractValue is not null
+            ? $", {registration.ContractValue}"
+            : string.Empty;
+
+        // Generate: resolver.Register<IInterface>(() => new Concrete(...) { Props... })
+        sb.Append($"            resolver.Register<{registration.InterfaceTypeFullName}>(")
+            .Append($"() => new {registration.ConcreteTypeFullName}({constructorArgs})")
+            .Append(propertyInitializer ?? string.Empty)
+            .AppendLine($"{contractArg});");
+    }
+
+    private static void GenerateLazySingletonRegistration(
+        StringBuilder sb,
+        LazySingletonRegistrationInfo registration)
+    {
+        sb.AppendLine("            {");
+
+        // Build constructor arguments
+        var constructorArgs = string.Join(
+            ", ",
+            registration.ConstructorParameters.Select(
+                p => $"({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))"));
+
+        // Build property initializer
+        string? propertyInitializer = null;
+        if (registration.PropertyInjections.Length > 0)
+        {
+            var properties = string.Join(
+                ", ",
+                registration.PropertyInjections.Select(
+                    p => $"{p.PropertyName} = ({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))"));
+            propertyInitializer = $" {{ {properties} }}";
+        }
+
+        // Create lazy instance
+        var lazyTypeFullName = $"global::System.Lazy<{registration.InterfaceTypeFullName}>";
+        var lazyModeArg = registration.LazyThreadSafetyMode is not null
+            ? $", {registration.LazyThreadSafetyMode}"
+            : string.Empty;
+
+        sb.Append($"                {lazyTypeFullName} lazy = ")
+            .Append($"new {lazyTypeFullName}(")
+            .Append($"() => new {registration.ConcreteTypeFullName}({constructorArgs})")
+            .Append(propertyInitializer ?? string.Empty)
+            .AppendLine($"{lazyModeArg});");
+
+        // Build contract parameter
+        var contractArg = registration.ContractValue is not null
+            ? $", {registration.ContractValue}"
+            : string.Empty;
+
+        // Register both Lazy<T> and T
+        sb.AppendLine($"                resolver.Register<{lazyTypeFullName}>(() => lazy{contractArg});")
+            .AppendLine($"                resolver.Register<{registration.InterfaceTypeFullName}>(() => lazy.Value{contractArg});")
+            .AppendLine("            }");
+    }
 }

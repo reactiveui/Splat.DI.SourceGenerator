@@ -1,0 +1,133 @@
+// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
+// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+namespace Splat.DependencyInjection.Analyzer.Tests;
+
+/// <summary>
+/// Tests for the constructor code fix provider that adds the DependencyInjectionConstructor attribute.
+/// Validates that the code fix correctly adds the attribute to the selected constructor.
+/// </summary>
+public class ConstructorCodeFixProviderTests
+{
+    /// <summary>
+    /// Tests that the code fix adds the DependencyInjectionConstructor attribute to the first (parameterless) constructor.
+    /// Verifies the code action at index 0 targets the constructor with zero parameters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task AddAttributeToFirstConstructor_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionConstructor]
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Select first constructor (0 parameters)
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds the DependencyInjectionConstructor attribute to the second constructor.
+    /// Verifies the code action at index 1 targets the constructor with one parameter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task AddAttributeToSecondConstructor_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    public TestClass()
+                    {
+                    }
+
+                    [DependencyInjectionConstructor]
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 1); // Select second constructor (1 parameter)
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+}

@@ -1,0 +1,32 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Testing Framework -->
+    <PackageVersion Include="TUnit" Version="1.12.15" />
+    <PackageVersion Include="Verify.TUnit" Version="31.9.4" />
+    <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
+
+    <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+
+    <!-- Test Infrastructure -->
+    <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.4" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.4" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.4" />
+
+    <!-- Dependencies -->
+    <PackageVersion Include="Splat" Version="19.2.1" />
+
+    <!-- Build Tools -->
+    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
+    <PackageVersion Include="stylecop.analyzers" Version="1.2.0-beta.556" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.102" />
+  </ItemGroup>
+</Project>

@@ -1,37 +1,45 @@
-﻿// Copyright (c) 2019-2021 ReactiveUI Association Incorporated. All rights reserved.
+// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System;
-using System.Threading.Tasks;
-
-using Xunit;
-using Xunit.Abstractions;
+using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
-public abstract class TestBase(ITestOutputHelper testOutputHelper, string testMethod) : IAsyncLifetime, IDisposable
+/// <summary>
+/// Base class for source generator snapshot tests.
+/// Provides common test patterns for verifying generated code against snapshots.
+/// </summary>
+/// <param name="testMethod">The name of the registration method being tested (Register or RegisterLazySingleton).</param>
+public abstract class TestBase(string testMethod)
 {
-    protected TestHelper TestHelper { get; } = new(testOutputHelper);
+    /// <summary>
+    /// Initializes resources before each test.
+    /// </summary>
+    /// <returns>A task representing the asynchronous initialization operation.</returns>
+    [Before(Test)]
+    public Task SetupAsync() => TestHelper.InitializeAsync();
 
-    public Task InitializeAsync() => TestHelper.InitializeAsync();
-
-    public Task DisposeAsync()
+    /// <summary>
+    /// Cleans up resources after each test.
+    /// </summary>
+    /// <returns>A task representing the asynchronous cleanup operation.</returns>
+    [After(Test)]
+    public Task CleanupAsync()
     {
-        TestHelper.Dispose();
+        // No cleanup needed with static TestHelper methods
         return Task.CompletedTask;
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that basic constructor injection works with different contract parameters.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionInjection(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -64,10 +72,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that circular dependencies between registered types are detected and fail appropriately.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task CircularDependencyFail(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -109,10 +122,15 @@ namespace Test
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple classes can be registered simultaneously with constructor injection.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task MultiClassesRegistrations(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -163,10 +181,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that both constructor injection and public property injection work together.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndPropertyInjection(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -203,10 +226,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that property injection fails when the property is not public.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndNonPublicPropertyInjectionFail(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -243,10 +271,15 @@ namespace Test
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that property injection fails when the property setter is not public.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndNonPublicPropertySetterInjectionFail(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -283,10 +316,15 @@ namespace Test
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that property injection works with internal properties.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndInternalPropertyInjection(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -323,10 +361,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that property injection works with internal properties when using single type argument registration.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndInternalPropertyInjectionTypeArgument(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -363,10 +406,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that property injection works with public properties having internal setters.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndInternalSetterPropertyInjection(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -403,10 +451,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple properties can be injected simultaneously with different accessibility levels.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task ConstructionAndMultiplePropertyInjection(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -452,10 +505,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple constructors without the DependencyInjectionConstructor attribute cause a failure.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task MultipleConstructorWithoutAttributeFail(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -492,10 +550,15 @@ namespace Test
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple constructors pass when not using DI registration (non-DI scenario).
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task MultipleConstructorWithoutAttributeNonDIPass(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -528,10 +591,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple constructors work when one is marked with the DependencyInjectionConstructor attribute.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task MultipleConstructorWithAttribute(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -569,10 +637,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that multiple constructors with multiple DependencyInjectionConstructor attributes cause a failure.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task MultipleConstructorWithMultipleAttributesFail(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -611,10 +684,15 @@ namespace Test
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that classes with no constructor parameters can be registered successfully.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task EmptyConstructor(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -639,10 +717,15 @@ namespace Test
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("Test1")]
-    [InlineData("Test2")]
+    /// <summary>
+    /// Validates that registering the same interface multiple times with different implementations causes a failure.
+    /// </summary>
+    /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
     public Task InterfaceRegisteredMultipleTimes(string contractParameter)
     {
         var arguments = string.IsNullOrWhiteSpace(contractParameter) ? string.Empty : '"' + contractParameter + '"';
@@ -667,13 +750,5 @@ namespace Test
 }}";
 
         return TestHelper.TestFail(source, contractParameter, GetType());
-    }
-
-    protected virtual void Dispose(bool isDisposing)
-    {
-        if (isDisposing)
-        {
-            TestHelper.Dispose();
-        }
     }
 }
