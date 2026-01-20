@@ -35,44 +35,45 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
             $"LazyThreadSafetyMode.{mode}" :
             $"\"{contract}\", LazyThreadSafetyMode.{mode}";
 
-        var source = @$"
-using System;
-using System.Threading;
-using Splat;
+        var source = $$"""
+            using System;
+            using System.Threading;
+            using Splat;
 
-namespace Test
-{{
-    public static class DIRegister
-    {{
-        static DIRegister()
-        {{
-            SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete>({arguments});
-        }}
-    }}
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete>({{arguments}});
+                    }
+                }
 
-    public interface ITest {{ }}
-    public class TestConcrete : ITest
-    {{
-        public TestConcrete(IService1 service1, IService2 service)
-        {{
-        }}
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IService1 service1, IService2 service)
+                    {
+                    }
 
-        [DependencyInjectionProperty]
-        public IServiceProperty1 ServiceProperty1 {{ get; set; }}
+                    [DependencyInjectionProperty]
+                    public IServiceProperty1 ServiceProperty1 { get; set; }
 
-        [DependencyInjectionProperty]
-        public IServiceProperty2 ServiceProperty2 {{ get; set; }}
+                    [DependencyInjectionProperty]
+                    public IServiceProperty2 ServiceProperty2 { get; set; }
 
-        [DependencyInjectionProperty]
-        internal IServiceProperty3 ServiceProperty3 {{ get; set; }}
-    }}
+                    [DependencyInjectionProperty]
+                    internal IServiceProperty3 ServiceProperty3 { get; set; }
+                }
 
-    public interface IService1 {{ }}
-    public interface IService2 {{ }}
-    public interface IServiceProperty1 {{ }}
-    public interface IServiceProperty2 {{ }}
-    public interface IServiceProperty3 {{ }}
-}}";
+                public interface IService1 { }
+                public interface IService2 { }
+                public interface IServiceProperty1 { }
+                public interface IServiceProperty2 { }
+                public interface IServiceProperty3 { }
+            }
+            """;
 
         return TestHelper.TestPass(source, contract, mode, GetType());
     }
@@ -92,48 +93,49 @@ namespace Test
             string.Empty :
             $"\"{contract}\"";
 
-        var source = @$"
-using System;
-using System.Threading;
-using Splat;
+        var source = $$"""
+            using System;
+            using System.Threading;
+            using Splat;
 
-namespace Test
-{{
-    public static class DIRegister
-    {{
-        static DIRegister()
-        {{
-            SplatRegistrations.Register<ITest, TestConcrete>({arguments});
-            SplatRegistrations.Register<IService1, Service1>({arguments});
-            SplatRegistrations.RegisterLazySingleton<IService2, Service2>({arguments});
-        }}
-    }}
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.Register<IService1, Service1>({{arguments}});
+                        SplatRegistrations.RegisterLazySingleton<IService2, Service2>({{arguments}});
+                    }
+                }
 
-    public interface ITest {{ }}
-    public class TestConcrete : ITest
-    {{
-        public TestConcrete(IService1 service1, Lazy<IService2> service)
-        {{
-        }}
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IService1 service1, Lazy<IService2> service)
+                    {
+                    }
 
-        [DependencyInjectionProperty]
-        public IServiceProperty1 ServiceProperty1 {{ get; set; }}
+                    [DependencyInjectionProperty]
+                    public IServiceProperty1 ServiceProperty1 { get; set; }
 
-        [DependencyInjectionProperty]
-        public IServiceProperty2 ServiceProperty2 {{ get; set; }}
+                    [DependencyInjectionProperty]
+                    public IServiceProperty2 ServiceProperty2 { get; set; }
 
-        [DependencyInjectionProperty]
-        internal IServiceProperty3 ServiceProperty3 {{ get; set; }}
-    }}
+                    [DependencyInjectionProperty]
+                    internal IServiceProperty3 ServiceProperty3 { get; set; }
+                }
 
-    public interface IService1 {{ }}
-    public class Service1 : IService1 {{ }}
-    public interface IService2 {{ }}
-    public class Service2 : IService2 {{ }}
-    public interface IServiceProperty1 {{ }}
-    public interface IServiceProperty2 {{ }}
-    public interface IServiceProperty3 {{ }}
-}}";
+                public interface IService1 { }
+                public class Service1 : IService1 { }
+                public interface IService2 { }
+                public class Service2 : IService2 { }
+                public interface IServiceProperty1 { }
+                public interface IServiceProperty2 { }
+                public interface IServiceProperty3 { }
+            }
+            """;
 
         return TestHelper.TestPass(source, contract, GetType());
     }
