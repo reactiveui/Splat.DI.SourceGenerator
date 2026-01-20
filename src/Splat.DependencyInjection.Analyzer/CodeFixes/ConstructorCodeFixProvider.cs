@@ -4,7 +4,6 @@
 
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,25 +38,53 @@ public class ConstructorCodeFixProvider : CodeFixProvider
             return;
         }
 
-        var diagnostic = context.Diagnostics.First();
+        var diagnostic = context.Diagnostics[0];
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var typeDeclaration = root.FindToken(diagnosticSpan.Start)
-            .Parent?
-            .AncestorsAndSelf()
-            .OfType<TypeDeclarationSyntax>()
-            .FirstOrDefault();
+        // Manual ancestor walk to find TypeDeclarationSyntax
+        var node = root.FindToken(diagnosticSpan.Start).Parent;
+        TypeDeclarationSyntax? typeDeclaration = null;
+        while (node != null)
+        {
+            if (node is TypeDeclarationSyntax tds)
+            {
+                typeDeclaration = tds;
+                break;
+            }
+
+            node = node.Parent;
+        }
 
         if (typeDeclaration == null)
         {
             return;
         }
 
-        // Find all constructors
-        var constructors = typeDeclaration.Members
-            .OfType<ConstructorDeclarationSyntax>()
-            .Where(c => !c.Modifiers.Any(SyntaxKind.StaticKeyword))
-            .ToList();
+        // Find all non-static constructors (manual loop to avoid LINQ allocations)
+        var constructors = new System.Collections.Generic.List<ConstructorDeclarationSyntax>(capacity: 4);
+        var members = typeDeclaration.Members;
+        for (var i = 0; i < members.Count; i++)
+        {
+            if (members[i] is ConstructorDeclarationSyntax ctor)
+            {
+                // Check if not static
+                var isStatic = false;
+                var modifiers = ctor.Modifiers;
+                for (var j = 0; j < modifiers.Count; j++)
+                {
+                    if (modifiers[j].IsKind(SyntaxKind.StaticKeyword))
+                    {
+                        isStatic = true;
+                        break;
+                    }
+                }
+
+                if (!isStatic)
+                {
+                    constructors.Add(ctor);
+                }
+            }
+        }
 
         foreach (var constructor in constructors)
         {

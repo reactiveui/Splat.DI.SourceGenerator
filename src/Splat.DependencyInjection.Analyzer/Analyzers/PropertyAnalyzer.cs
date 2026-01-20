@@ -42,9 +42,38 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
     {
         var property = (IPropertySymbol)context.Symbol;
 
-        // Check if property has [DependencyInjectionProperty] attribute
-        var hasAttribute = property.GetAttributes().Any(a =>
-            a.AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.PropertyAttribute);
+        // Cache attribute symbol for comparison (avoids repeated string allocations)
+        var propertyAttributeSymbol = context.Compilation.GetTypeByMetadataName(
+            "Splat.DependencyInjection.DependencyInjectionPropertyAttribute");
+
+        // Check if property has [DependencyInjectionProperty] attribute (manual loop to avoid LINQ allocation)
+        var attrs = property.GetAttributes();
+        var hasAttribute = false;
+
+        if (propertyAttributeSymbol != null)
+        {
+            // Fast path: symbol comparison
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, propertyAttributeSymbol))
+                {
+                    hasAttribute = true;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Fallback: string comparison (for test scenarios where metadata lookup may fail)
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.PropertyAttribute)
+                {
+                    hasAttribute = true;
+                    break;
+                }
+            }
+        }
 
         if (!hasAttribute)
         {
@@ -56,7 +85,7 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable,
-                property.Locations.First(),
+                property.Locations.Length > 0 ? property.Locations[0] : Location.None,
                 property.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
         }
     }

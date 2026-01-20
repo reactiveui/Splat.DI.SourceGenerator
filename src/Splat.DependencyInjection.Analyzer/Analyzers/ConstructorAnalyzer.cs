@@ -52,46 +52,131 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Get all instance constructors
-        var allConstructors = namedType.Constructors
-            .Where(c => !c.IsStatic)
-            .ToList();
+        // Cache attribute symbol for comparison (avoids repeated string allocations)
+        var constructorAttributeSymbol = context.Compilation.GetTypeByMetadataName(
+            "Splat.DependencyInjection.DependencyInjectionConstructorAttribute");
 
-        // Find constructors marked with [DependencyInjectionConstructor] (check ALL constructors including private)
-        var markedConstructors = allConstructors
-            .Where(c => c.GetAttributes().Any(a =>
-                a.AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.ConstructorAttribute))
-            .ToList();
+        // Single-pass counting (eliminates 3 List allocations and repeated GetAttributes() calls)
+        var constructors = namedType.Constructors;
+        var accessibleCount = 0;
+        var markedCount = 0;
+        IMethodSymbol? firstMarked = null;
+        IMethodSymbol? secondMarked = null;
 
-        // Only consider constructors with >= Internal accessibility for counting
-        var accessibleConstructors = allConstructors
-            .Where(c => c.DeclaredAccessibility >= Accessibility.Internal)
-            .ToList();
-
-        // If there's a marked constructor, always validate it
-        if (markedConstructors.Count > 0)
+        for (var i = 0; i < constructors.Length; i++)
         {
-            if (markedConstructors.Count > 1)
+            var ctor = constructors[i];
+
+            if (ctor.IsStatic)
             {
-                // SPLATDI003: Multiple constructors marked
-                foreach (var ctor in markedConstructors)
+                continue;
+            }
+
+            // Check accessibility
+            if (ctor.DeclaredAccessibility >= Accessibility.Internal)
+            {
+                accessibleCount++;
+            }
+
+            // Check for attribute
+            var attrs = ctor.GetAttributes();
+            var isMarked = false;
+
+            if (constructorAttributeSymbol != null)
+            {
+                // Fast path: symbol comparison
+                for (var j = 0; j < attrs.Length; j++)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
-                        ctor.Locations.First(),
-                        namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                    if (SymbolEqualityComparer.Default.Equals(attrs[j].AttributeClass, constructorAttributeSymbol))
+                    {
+                        isMarked = true;
+                        break;
+                    }
                 }
             }
             else
             {
+                // Fallback: string comparison (for test scenarios where metadata lookup may fail)
+                for (var j = 0; j < attrs.Length; j++)
+                {
+                    if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.ConstructorAttribute)
+                    {
+                        isMarked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isMarked)
+            {
+                markedCount++;
+                if (firstMarked == null)
+                {
+                    firstMarked = ctor;
+                }
+                else if (secondMarked == null)
+                {
+                    secondMarked = ctor;
+                }
+            }
+        }
+
+        // If there's a marked constructor, always validate it
+        if (markedCount > 0)
+        {
+            if (markedCount > 1)
+            {
+                // SPLATDI003: Multiple constructors marked - report on all marked constructors
+                for (var i = 0; i < constructors.Length; i++)
+                {
+                    var ctor = constructors[i];
+                    var attrs = ctor.GetAttributes();
+                    var ctorIsMarked = false;
+
+                    // Check if this constructor is marked
+                    if (constructorAttributeSymbol != null)
+                    {
+                        // Fast path: symbol comparison
+                        for (var j = 0; j < attrs.Length; j++)
+                        {
+                            if (SymbolEqualityComparer.Default.Equals(attrs[j].AttributeClass, constructorAttributeSymbol))
+                            {
+                                ctorIsMarked = true;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: string comparison
+                        for (var j = 0; j < attrs.Length; j++)
+                        {
+                            if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.ConstructorAttribute)
+                            {
+                                ctorIsMarked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ctorIsMarked)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(
+                            SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
+                            ctor.Locations.Length > 0 ? ctor.Locations[0] : Location.None,
+                            namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                    }
+                }
+            }
+            else if (firstMarked != null)
+            {
                 // Exactly one constructor is marked - check accessibility
-                var markedConstructor = markedConstructors[0];
-                if (markedConstructor.DeclaredAccessibility < Accessibility.Internal)
+                if (firstMarked.DeclaredAccessibility < Accessibility.Internal)
                 {
                     // SPLATDI004: Constructor must be public or internal
                     context.ReportDiagnostic(Diagnostic.Create(
                         SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
-                        markedConstructor.Locations.First(),
+                        firstMarked.Locations.Length > 0 ? firstMarked.Locations[0] : Location.None,
                         namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
                 }
             }
@@ -100,12 +185,12 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         }
 
         // No marked constructors - check if we need to warn about multiple accessible constructors
-        if (accessibleConstructors.Count > 1)
+        if (accessibleCount > 1)
         {
             // SPLATDI001: Multiple constructors without attribute
             context.ReportDiagnostic(Diagnostic.Create(
                 SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
-                namedType.Locations.First(),
+                namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None,
                 namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
         }
     }

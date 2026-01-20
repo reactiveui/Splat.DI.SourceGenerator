@@ -4,7 +4,6 @@
 
 using System.Collections.Immutable;
 using System.Composition;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,14 +38,22 @@ public class PropertyCodeFixProvider : CodeFixProvider
             return;
         }
 
-        var diagnostic = context.Diagnostics.First();
+        var diagnostic = context.Diagnostics[0];
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var propertyDeclaration = root.FindToken(diagnosticSpan.Start)
-            .Parent?
-            .AncestorsAndSelf()
-            .OfType<PropertyDeclarationSyntax>()
-            .FirstOrDefault();
+        // Manual ancestor walk to find PropertyDeclarationSyntax
+        var node = root.FindToken(diagnosticSpan.Start).Parent;
+        PropertyDeclarationSyntax? propertyDeclaration = null;
+        while (node != null)
+        {
+            if (node is PropertyDeclarationSyntax pds)
+            {
+                propertyDeclaration = pds;
+                break;
+            }
+
+            node = node.Parent;
+        }
 
         if (propertyDeclaration == null)
         {
@@ -101,9 +108,14 @@ public class PropertyCodeFixProvider : CodeFixProvider
         // Determine if the setter needs an explicit modifier
         // If the property already has the same accessibility, the setter doesn't need a modifier
         bool needsModifier = true;
-        if (property.Modifiers.Any(m => m.IsKind(accessorModifier)))
+        var modifiers = property.Modifiers;
+        for (var i = 0; i < modifiers.Count; i++)
         {
-            needsModifier = false;
+            if (modifiers[i].IsKind(accessorModifier))
+            {
+                needsModifier = false;
+                break;
+            }
         }
 
         var setterModifiers = needsModifier
@@ -141,25 +153,39 @@ public class PropertyCodeFixProvider : CodeFixProvider
                 .WithExpressionBody(null)
                 .WithSemicolonToken(default);
         }
-        else if (property.AccessorList.Accessors.All(a => a.Kind() != SyntaxKind.SetAccessorDeclaration))
-        {
-            // Has getter but no setter - add setter
-            var setter = SyntaxFactory.AccessorDeclaration(
-                    SyntaxKind.SetAccessorDeclaration)
-                .WithModifiers(setterModifiers)
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-            var newAccessorList = property.AccessorList.AddAccessors(setter);
-            newProperty = property.WithAccessorList(newAccessorList);
-        }
         else
         {
-            // Has setter with wrong accessibility - update it
-            var oldSetter = property.AccessorList.Accessors.First(a => a.Kind() == SyntaxKind.SetAccessorDeclaration);
-            var newSetter = oldSetter.WithModifiers(setterModifiers);
+            // Check if there's a setter (manual loop to avoid LINQ allocation)
+            var accessors = property.AccessorList.Accessors;
+            AccessorDeclarationSyntax? existingSetter = null;
+            for (var i = 0; i < accessors.Count; i++)
+            {
+                if (accessors[i].Kind() == SyntaxKind.SetAccessorDeclaration)
+                {
+                    existingSetter = accessors[i];
+                    break;
+                }
+            }
 
-            var newAccessorList = property.AccessorList.ReplaceNode(oldSetter, newSetter);
-            newProperty = property.WithAccessorList(newAccessorList);
+            if (existingSetter == null)
+            {
+                // Has getter but no setter - add setter
+                var setter = SyntaxFactory.AccessorDeclaration(
+                        SyntaxKind.SetAccessorDeclaration)
+                    .WithModifiers(setterModifiers)
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+                var newAccessorList = property.AccessorList.AddAccessors(setter);
+                newProperty = property.WithAccessorList(newAccessorList);
+            }
+            else
+            {
+                // Has setter with wrong accessibility - update it
+                var newSetter = existingSetter.WithModifiers(setterModifiers);
+
+                var newAccessorList = property.AccessorList.ReplaceNode(existingSetter, newSetter);
+                newProperty = property.WithAccessorList(newAccessorList);
+            }
         }
 
         var newRoot = root.ReplaceNode(property, newProperty);

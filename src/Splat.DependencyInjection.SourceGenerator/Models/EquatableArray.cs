@@ -5,7 +5,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Splat.DependencyInjection.SourceGenerator.Models;
 
@@ -133,7 +132,7 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnu
     /// <returns>An enumerator for the array.</returns>
     public IEnumerator<T> GetEnumerator()
     {
-        return (_array ?? Enumerable.Empty<T>()).AsEnumerable().GetEnumerator();
+        return ((_array ?? []) as IEnumerable<T>).GetEnumerator();
     }
 
     /// <summary>

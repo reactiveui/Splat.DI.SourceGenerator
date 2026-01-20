@@ -2,8 +2,8 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -83,15 +83,43 @@ internal static class RoslynHelpers
     /// Gets all base types and the type itself in inheritance order.
     /// </summary>
     /// <param name="type">The type to get base types for.</param>
-    /// <returns>An enumerable of the type and all its base types.</returns>
-    internal static IEnumerable<ITypeSymbol> GetBaseTypesAndThis(ITypeSymbol type)
+    /// <returns>An array of the type and all its base types.</returns>
+    internal static ITypeSymbol[] GetBaseTypesAndThis(ITypeSymbol type)
     {
+        // Count inheritance depth first (typical: 1-5 levels)
+        var depth = 0;
         var current = type;
         while (current != null)
         {
-            yield return current;
+            depth++;
             current = current.BaseType;
         }
+
+        // Early exit for empty case (shouldn't happen, but defensive)
+        if (depth == 0)
+        {
+            return [];
+        }
+
+        // Allocate exact-size array and populate
+        var result = new ITypeSymbol[depth];
+        current = type;
+        for (var i = 0; i < depth; i++)
+        {
+            if (current == null)
+            {
+                // Defensive: shouldn't happen if depth calculation was correct
+                // Return partial results collected so far
+                var partial = new ITypeSymbol[i];
+                Array.Copy(result, partial, i);
+                return partial;
+            }
+
+            result[i] = current;
+            current = current.BaseType;
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -123,6 +151,7 @@ internal static class RoslynHelpers
             // Handle string literals
             if (expression is LiteralExpressionSyntax literal)
             {
+                // Returns raw literal token (includes quotes), safe for embedding in generated code
                 return literal.ToString();
             }
 
