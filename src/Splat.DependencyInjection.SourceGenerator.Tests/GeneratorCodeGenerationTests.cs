@@ -233,4 +233,82 @@ public class GeneratorCodeGenerationTests
         await Assert.That(result).Contains("global::System.Lazy<global::Test.IService2>");
         await Assert.That(result).Contains("new global::Test.Service2()");
     }
+
+    /// <summary>
+    /// Tests that GenerateLazySingletonRegistration generates correct code with property injections.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task GenerateLazySingletonRegistration_WithPropertyInjections_GeneratesCorrectCode()
+    {
+        var registration = new LazySingletonRegistrationInfo(
+            InterfaceTypeFullName: "global::Test.IService",
+            ConcreteTypeFullName: "global::Test.Service",
+            ConstructorParameters: default,
+            PropertyInjections: new EquatableArray<PropertyInjection>(new[]
+            {
+                new PropertyInjection("Prop1", "global::Test.IProp1", Location.None),
+                new PropertyInjection("Prop2", "global::Test.IProp2", Location.None)
+            }),
+            ContractValue: null,
+            LazyThreadSafetyMode: null,
+            InvocationLocation: Location.None);
+
+        var sb = new StringBuilder();
+        Generator.GenerateLazySingletonRegistration(sb, registration);
+
+        var result = sb.ToString();
+        await Assert.That(result).Contains("{ Prop1 = (global::Test.IProp1)resolver.GetService(typeof(global::Test.IProp1)), Prop2 = (global::Test.IProp2)resolver.GetService(typeof(global::Test.IProp2)) }");
+    }
+
+    /// <summary>
+    /// Tests that GenerateLazySingletonRegistration generates correct code with constructor parameters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task GenerateLazySingletonRegistration_WithConstructorParameters_GeneratesCorrectCode()
+    {
+        var registration = new LazySingletonRegistrationInfo(
+            InterfaceTypeFullName: "global::Test.IService",
+            ConcreteTypeFullName: "global::Test.Service",
+            ConstructorParameters: new EquatableArray<ConstructorParameter>(new[]
+            {
+                new ConstructorParameter("dep1", "global::Test.IDep1", false, null),
+                new ConstructorParameter("dep2", "global::Test.IDep2", false, null)
+            }),
+            PropertyInjections: default,
+            ContractValue: null,
+            LazyThreadSafetyMode: null,
+            InvocationLocation: Location.None);
+
+        var sb = new StringBuilder();
+        Generator.GenerateLazySingletonRegistration(sb, registration);
+
+        var result = sb.ToString();
+        await Assert.That(result).Contains("(global::Test.IDep1)resolver.GetService(typeof(global::Test.IDep1))");
+        await Assert.That(result).Contains("(global::Test.IDep2)resolver.GetService(typeof(global::Test.IDep2))");
+    }
+
+    /// <summary>
+    /// Tests that GenerateLazySingletonRegistration generates correct code with a contract value.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task GenerateLazySingletonRegistration_WithContract_GeneratesCorrectCode()
+    {
+        var registration = new LazySingletonRegistrationInfo(
+            InterfaceTypeFullName: "global::Test.IService",
+            ConcreteTypeFullName: "global::Test.Service",
+            ConstructorParameters: default,
+            PropertyInjections: default,
+            ContractValue: "\"MyContract\"",
+            LazyThreadSafetyMode: null,
+            InvocationLocation: Location.None);
+
+        var sb = new StringBuilder();
+        Generator.GenerateLazySingletonRegistration(sb, registration);
+
+        var result = sb.ToString();
+        await Assert.That(result).Contains(", \"MyContract\"");
+    }
 }
