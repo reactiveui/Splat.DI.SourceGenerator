@@ -12,8 +12,8 @@
 
     <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
 
     <!-- Test Infrastructure -->
     <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.4" />
