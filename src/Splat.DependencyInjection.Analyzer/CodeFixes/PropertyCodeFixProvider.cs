@@ -101,7 +101,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
         // Determine if the setter needs an explicit modifier
         // If the property already has the same accessibility, the setter doesn't need a modifier
         bool needsModifier = true;
-        if (property.Modifiers.Any(m => m.Kind() == accessorModifier))
+        if (property.Modifiers.Any(m => m.IsKind(accessorModifier)))
         {
             needsModifier = false;
         }

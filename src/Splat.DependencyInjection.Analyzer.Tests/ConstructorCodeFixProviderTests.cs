@@ -130,4 +130,142 @@ public class ConstructorCodeFixProviderTests
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
     }
+
+    /// <summary>
+    /// Tests that the code fix works with a class that has multiple constructors with different parameter counts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task MultipleConstructorsWithDifferentParameterCounts_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService1 service1)
+                    {
+                    }
+
+                    public TestClass(IService1 service1, IService2 service2)
+                    {
+                    }
+                }
+
+                public interface IService1 { }
+                public interface IService2 { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService1 service1)
+                    {
+                    }
+
+                    [DependencyInjectionConstructor]
+
+                    public TestClass(IService1 service1, IService2 service2)
+                    {
+                    }
+                }
+
+                public interface IService1 { }
+                public interface IService2 { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 2); // Select third constructor (2 parameters)
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that static constructors are ignored by the code fix provider.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ClassWithStaticConstructor_IgnoresStaticConstructor()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    static TestClass()
+                    {
+                    }
+
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    static TestClass()
+                    {
+                    }
+
+                    [DependencyInjectionConstructor]
+
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Should select first non-static constructor
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
 }

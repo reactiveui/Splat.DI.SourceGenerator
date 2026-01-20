@@ -156,4 +156,205 @@ public class PropertyCodeFixProviderTests
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
     }
+
+    /// <summary>
+    /// Tests that the code fix adds a setter to an expression-bodied property.
+    /// Verifies the code fix can handle expression-bodied properties by converting them to standard properties with getter and setter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ExpressionBodiedProperty_AddPublicSetter()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    private IService _service;
+
+                    [DependencyInjectionProperty]
+                    public IService Service => _service;
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    private IService _service;
+
+                    [DependencyInjectionProperty]
+                    public IService Service { get => _service; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // "Add public setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds an internal setter to an expression-bodied property.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ExpressionBodiedProperty_AddInternalSetter()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    private IService _service;
+
+                    [DependencyInjectionProperty]
+                    public IService Service => _service;
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    private IService _service;
+
+                    [DependencyInjectionProperty]
+                    public IService Service { get => _service; internal set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 1); // "Add internal setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds a setter to a property with internal modifier where setter doesn't need explicit modifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task InternalPropertyWithNoSetter_AddSetterWithoutModifier()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    internal IService Service { get; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    internal IService Service { get; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 1); // "Add internal setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds an internal setter to a read-only property.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task PropertyWithNoSetter_AddInternalSetter()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; internal set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 1); // "Add internal setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
 }

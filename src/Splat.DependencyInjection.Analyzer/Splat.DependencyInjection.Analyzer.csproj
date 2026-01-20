@@ -6,6 +6,8 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <PackageDescription>Diagnostic analyzers and code fix providers for Splat dependency injection.</PackageDescription>
+    <!-- RS1038: Workspaces reference is required for code fix providers in this assembly -->
+    <NoWarn>$(NoWarn);RS1038</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,5 +20,11 @@
   <ItemGroup>
     <Compile Include="..\Splat.DependencyInjection.SourceGenerator\DiagnosticWarnings.cs" Link="DiagnosticWarnings.cs" />
     <Compile Include="..\Splat.DependencyInjection.SourceGenerator\Constants.cs" Link="Constants.cs" />
+  </ItemGroup>
+
+  <!-- Include analyzer release tracking files -->
+  <ItemGroup>
+    <None Include="AnalyzerReleases.Shipped.md" />
+    <None Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
 </Project>
