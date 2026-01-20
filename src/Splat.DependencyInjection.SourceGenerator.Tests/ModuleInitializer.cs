@@ -3,6 +3,9 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Runtime.CompilerServices;
+using TUnit.Core;
+
+[assembly: NotInParallel]
 
 /// <summary>
 /// Initialize for the module.

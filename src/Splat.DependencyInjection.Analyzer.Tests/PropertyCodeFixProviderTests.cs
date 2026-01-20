@@ -357,4 +357,150 @@ public class PropertyCodeFixProviderTests
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
     }
+
+    /// <summary>
+    /// Tests that the code fix changes a protected setter to public.
+    /// Validates the code fix can handle protected setters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ProtectedSetter_ChangeToPublic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; protected set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // "Add public setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix changes a protected setter to internal.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ProtectedSetter_ChangeToInternal()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; protected set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; internal set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 1); // "Add internal setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds a public setter to a public property with no setter.
+    /// Validates the needsModifier=false path where property and setter have same accessibility.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task PublicPropertyWithNoSetter_AddPublicSetterWithoutModifier()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.PropertyAnalyzer,
+            CodeFixes.PropertyCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // "Add public setter"
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
 }

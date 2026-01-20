@@ -29,6 +29,7 @@ public static class TestUtilities
     /// <summary>
     /// Compares two source code strings with whitespace normalization.
     /// Ignores differences in line endings and per-line leading/trailing whitespace.
+    /// Outputs expected and actual to console when they don't match for easier debugging.
     /// </summary>
     /// <param name="expected">The expected source code.</param>
     /// <param name="actual">The actual source code.</param>
@@ -37,7 +38,24 @@ public static class TestUtilities
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expected);
         ArgumentException.ThrowIfNullOrWhiteSpace(actual);
-        return NormalizeWhitespace(expected) == NormalizeWhitespace(actual);
+        var result = NormalizeWhitespace(expected) == NormalizeWhitespace(actual);
+
+        if (!result)
+        {
+            System.Console.WriteLine("╔═══════════════════════════════════════════════════════════════╗");
+            System.Console.WriteLine("║ TEST FAILURE: Source code comparison failed                  ║");
+            System.Console.WriteLine("╚═══════════════════════════════════════════════════════════════╝");
+            System.Console.WriteLine();
+            System.Console.WriteLine("=== EXPECTED ===");
+            System.Console.WriteLine(expected);
+            System.Console.WriteLine();
+            System.Console.WriteLine("=== ACTUAL ===");
+            System.Console.WriteLine(actual);
+            System.Console.WriteLine();
+            System.Console.WriteLine("═══════════════════════════════════════════════════════════════");
+        }
+
+        return result;
     }
 
     /// <summary>

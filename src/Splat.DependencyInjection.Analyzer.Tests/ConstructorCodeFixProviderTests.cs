@@ -112,7 +112,6 @@ public class ConstructorCodeFixProviderTests
                     }
 
                     [DependencyInjectionConstructor]
-
                     public TestClass(IService service)
                     {
                     }
@@ -181,7 +180,6 @@ public class ConstructorCodeFixProviderTests
                     }
 
                     [DependencyInjectionConstructor]
-
                     public TestClass(IService1 service1, IService2 service2)
                     {
                     }
@@ -246,7 +244,6 @@ public class ConstructorCodeFixProviderTests
                     }
 
                     [DependencyInjectionConstructor]
-
                     public TestClass()
                     {
                     }
@@ -265,6 +262,258 @@ public class ConstructorCodeFixProviderTests
             CodeFixes.ConstructorCodeFixProvider>(
             code,
             codeActionIndex: 0); // Should select first non-static constructor
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix works with structs that have multiple constructors.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task StructWithMultipleConstructors_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public struct TestStruct
+                {
+                    public TestStruct(IService service)
+                    {
+                    }
+
+                    public TestStruct(IService service, int value)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public struct TestStruct
+                {
+                    [DependencyInjectionConstructor]
+                    public TestStruct(IService service)
+                    {
+                    }
+
+                    public TestStruct(IService service, int value)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Select first constructor
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix adds the attribute to a constructor that already has other attributes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ConstructorWithExistingAttribute_AddsAttribute()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            using System;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [Obsolete]
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            using System;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionConstructor]
+                    [Obsolete]
+                    public TestClass()
+                    {
+                    }
+
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Select first constructor
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix works with constructors that have XML documentation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ConstructorWithXmlDocumentation_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    /// <summary>
+                    /// Default constructor.
+                    /// </summary>
+                    public TestClass()
+                    {
+                    }
+
+                    /// <summary>
+                    /// Constructor with service.
+                    /// </summary>
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    /// <summary>
+                    /// Default constructor.
+                    /// </summary>
+                    [DependencyInjectionConstructor]
+                    public TestClass()
+                    {
+                    }
+
+                    /// <summary>
+                    /// Constructor with service.
+                    /// </summary>
+                    public TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Select first constructor
+
+        await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that the code fix works with internal constructors.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task InternalConstructors_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    internal TestClass()
+                    {
+                    }
+
+                    internal TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        const string expectedFixed = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionConstructor]
+                    internal TestClass()
+                    {
+                    }
+
+                    internal TestClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var actualFixed = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(
+            code,
+            codeActionIndex: 0); // Select first constructor
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
     }

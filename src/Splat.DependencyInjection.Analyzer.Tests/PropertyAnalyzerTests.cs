@@ -2,6 +2,7 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System.Linq;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -156,5 +157,129 @@ public class PropertyAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that a property with a protected setter triggers diagnostic SPLATDI002.
+    /// Protected setters are not accessible enough for dependency injection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task PropertyWithProtectedSetter_ReportsDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; protected set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+    }
+
+    /// <summary>
+    /// Tests that a property on a struct with public setter does not trigger diagnostics.
+    /// Structs can also use dependency injection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task PropertyOnStruct_WithPublicSetter_NoDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public struct TestStruct
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service { get; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that a static property with DependencyInjectionProperty attribute is analyzed.
+    /// Even though static properties might be unusual for DI, the analyzer still validates them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task StaticPropertyWithPrivateSetter_ReportsDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public static IService Service { get; private set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+    }
+
+    /// <summary>
+    /// Tests that multiple properties with issues all report diagnostics.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task MultiplePropertiesWithIssues_ReportMultipleDiagnostics()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [DependencyInjectionProperty]
+                    public IService Service1 { get; private set; }
+
+                    [DependencyInjectionProperty]
+                    public IService Service2 { get; }
+
+                    [DependencyInjectionProperty]
+                    public IService Service3 { get; set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(2);
+        await Assert.That(diagnostics.All(d => d.Id == "SPLATDI002")).IsTrue();
     }
 }

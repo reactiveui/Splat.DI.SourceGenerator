@@ -21,12 +21,4 @@
   <ItemGroup>
     <ProjectReference Include="..\Splat.DependencyInjection.SourceGenerator\Splat.DependencyInjection.SourceGenerator.csproj" />
   </ItemGroup>
-
-  <!-- Nest all verified snapshot files under their test classes for better organization -->
-  <ItemGroup>
-    <Compile Update="**\*.verified.*">
-      <DependentUpon>%(Filename)</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
 </Project>

@@ -38,10 +38,12 @@ Always reference these instructions first and fallback to search or bash command
 - Full solution restore and build:
   ```bash
   cd src
-  dotnet restore Splat.DependencyInjection.SourceGenerator.sln
-  dotnet build Splat.DependencyInjection.SourceGenerator.sln --configuration Release
+  dotnet restore Splat.DI.SourceGenerator.slnx
+  dotnet build Splat.DI.SourceGenerator.slnx --configuration Release
   ```
   Build time: **30-60 seconds**. Set timeout to 5+ minutes for full solution builds.
+
+- **Note:** This project uses the modern `.slnx` (XML-based solution file) format instead of the legacy `.sln` format. The `.slnx` format provides better performance, cleaner diffs, and improved tooling support in Visual Studio 2022 17.10+.
 
 - Individual project builds (faster for development):
   ```bash
@@ -76,7 +78,7 @@ See: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test?tabs=dotnet
 ```bash
 # Run all tests in the solution
 cd src
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -c Release
+dotnet test --solution Splat.DI.SourceGenerator.slnx -c Release
 
 # Run all tests in a specific project
 dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj -c Release
@@ -93,10 +95,10 @@ dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyI
 dotnet test --project Splat.DependencyInjection.SourceGenerator.Tests/Splat.DependencyInjection.SourceGenerator.Tests.csproj -- --treenode-filter "/*/MyNamespace/*/*"
 
 # Filter by test property (e.g., Category)
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --treenode-filter "/*/*/*/*[Category=Integration]"
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --treenode-filter "/*/*/*/*[Category=Integration]"
 
 # Run tests with code coverage (Microsoft Code Coverage)
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --coverage --coverage-output-format cobertura
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --coverage --coverage-output-format cobertura
 
 # Run tests with detailed output
 dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --output Detailed

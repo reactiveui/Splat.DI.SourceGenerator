@@ -16,8 +16,10 @@ dotnet --info
 
 # Restore NuGet packages
 cd src
-dotnet restore Splat.DependencyInjection.SourceGenerator.sln
+dotnet restore Splat.DI.SourceGenerator.slnx
 ```
+
+**Note:** This project uses the modern `.slnx` (XML-based solution file) format instead of the legacy `.sln` format. The `.slnx` format provides better performance, cleaner diffs, and improved tooling support in Visual Studio 2022 17.10+.
 
 ### Build Commands
 
@@ -25,13 +27,13 @@ dotnet restore Splat.DependencyInjection.SourceGenerator.sln
 
 ```powershell
 # Build the solution
-dotnet build Splat.DependencyInjection.SourceGenerator.sln -c Release
+dotnet build Splat.DI.SourceGenerator.slnx -c Release
 
 # Build with warnings as errors (includes StyleCop violations)
-dotnet build Splat.DependencyInjection.SourceGenerator.sln -c Release -warnaserror
+dotnet build Splat.DI.SourceGenerator.slnx -c Release -warnaserror
 
 # Clean the solution
-dotnet clean Splat.DependencyInjection.SourceGenerator.sln
+dotnet clean Splat.DI.SourceGenerator.slnx
 ```
 
 ### Test Commands (Microsoft Testing Platform)
@@ -49,7 +51,7 @@ The working folder must be `./src` folder. These commands won't function properl
 
 ```powershell
 # Run all tests in the solution
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -c Release
+dotnet test --solution Splat.DI.SourceGenerator.slnx -c Release
 
 # Run all tests in a specific project
 dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj -c Release
@@ -66,31 +68,31 @@ dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyI
 dotnet test --project Splat.DependencyInjection.SourceGenerator.Tests/Splat.DependencyInjection.SourceGenerator.Tests.csproj -- --treenode-filter "/*/MyNamespace/*/*"
 
 # Filter by test property (e.g., Category)
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --treenode-filter "/*/*/*/*[Category=Integration]"
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --treenode-filter "/*/*/*/*[Category=Integration]"
 
 # Run tests with code coverage (Microsoft Code Coverage)
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --coverage --coverage-output-format cobertura
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --coverage --coverage-output-format cobertura
 
 # Run tests with detailed output
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --output Detailed
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --output Detailed
 
 # List all available tests without running them
 dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj -- --list-tests
 
 # Fail fast (stop on first failure)
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --fail-fast
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --fail-fast
 
 # Control parallel test execution
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --maximum-parallel-tests 4
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --maximum-parallel-tests 4
 
 # Generate TRX report
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --report-trx
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --report-trx
 
 # Disable logo for cleaner output
 dotnet test --project Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj -- --disable-logo
 
 # Combine options: coverage + TRX report + detailed output
-dotnet test --solution Splat.DependencyInjection.SourceGenerator.sln -- --coverage --coverage-output-format cobertura --report-trx --output Detailed
+dotnet test --solution Splat.DI.SourceGenerator.slnx -- --coverage --coverage-output-format cobertura --report-trx --output Detailed
 ```
 
 **Alternative: Using `dotnet run` for single project**
@@ -135,6 +137,7 @@ See https://tunit.dev/docs/reference/command-line-flags for complete TUnit flag 
 
 ### Key Configuration Files
 
+- `src/Splat.DI.SourceGenerator.slnx` - Modern XML-based solution file (Visual Studio 2022 17.10+)
 - `src/testconfig.json` - Configures test execution (`"parallel": false`) and code coverage (Cobertura format)
 - `src/Directory.Build.props` - Enables `TestingPlatformDotnetTestSupport` for test projects
 - `.github/COPILOT_INSTRUCTIONS.md` - Comprehensive development guidelines

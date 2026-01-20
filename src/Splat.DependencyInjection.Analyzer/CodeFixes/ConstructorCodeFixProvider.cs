@@ -90,12 +90,33 @@ public class ConstructorCodeFixProvider : CodeFixProvider
         var attribute = SyntaxFactory.Attribute(
             SyntaxFactory.ParseName("DependencyInjectionConstructor"));
 
-        var attributeList = SyntaxFactory.AttributeList(
-            SyntaxFactory.SingletonSeparatedList(attribute))
-            .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
+        // If the constructor has no existing attributes and has leading trivia (like XML documentation),
+        // we need to move that trivia to the new attribute list
+        AttributeListSyntax attributeList;
+        ConstructorDeclarationSyntax newConstructor;
 
-        // Add attribute to constructor
-        var newConstructor = constructor.AddAttributeLists(attributeList);
+        if (constructor.AttributeLists.Count == 0 && constructor.HasLeadingTrivia)
+        {
+            // Move leading trivia to the attribute list
+            var leadingTrivia = constructor.GetLeadingTrivia();
+            attributeList = SyntaxFactory.AttributeList(
+                SyntaxFactory.SingletonSeparatedList(attribute))
+                .WithLeadingTrivia(leadingTrivia);
+
+            // Remove trivia from constructor and add attribute
+            newConstructor = constructor
+                .WithoutLeadingTrivia()
+                .WithAttributeLists(SyntaxFactory.SingletonList(attributeList));
+        }
+        else
+        {
+            // No leading trivia, just insert at the beginning
+            attributeList = SyntaxFactory.AttributeList(
+                SyntaxFactory.SingletonSeparatedList(attribute));
+
+            var newAttributeLists = constructor.AttributeLists.Insert(0, attributeList);
+            newConstructor = constructor.WithAttributeLists(newAttributeLists);
+        }
 
         // Replace old constructor with new one
         var newRoot = root.ReplaceNode(constructor, newConstructor);

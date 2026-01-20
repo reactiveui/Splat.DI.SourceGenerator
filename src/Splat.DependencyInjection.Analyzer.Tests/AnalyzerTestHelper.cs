@@ -44,20 +44,18 @@ public static class AnalyzerTestHelper
     private static CSharpCompilation CreateCompilation(string source)
     {
         // Add the attribute definitions so the analyzer can find them
+        // Note: Attributes must be at namespace level to match Constants.ConstructorAttribute and Constants.PropertyAttribute
         const string attributeSource = """
             namespace Splat
             {
-                internal static partial class SplatRegistrations
+                [System.AttributeUsage(System.AttributeTargets.Property)]
+                internal sealed class DependencyInjectionPropertyAttribute : System.Attribute
                 {
-                    [System.AttributeUsage(System.AttributeTargets.Property)]
-                    internal sealed class DependencyInjectionPropertyAttribute : System.Attribute
-                    {
-                    }
+                }
 
-                    [System.AttributeUsage(System.AttributeTargets.Constructor)]
-                    internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
-                    {
-                    }
+                [System.AttributeUsage(System.AttributeTargets.Constructor)]
+                internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
+                {
                 }
             }
             """;

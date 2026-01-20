@@ -188,4 +188,64 @@ public class ConstructorAnalyzerTests
         await Assert.That(diagnostics.Length).IsEqualTo(1);
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI004");
     }
+
+    /// <summary>
+    /// Tests that interfaces are not analyzed by the constructor analyzer.
+    /// Interfaces cannot have constructors, so they should be skipped.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task Interface_NoDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public interface IService
+                {
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that structs with multiple constructors triggers diagnostic SPLATDI001.
+    /// Structs are also supported by dependency injection and should follow the same rules.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task StructWithMultipleConstructors_ReportsDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public struct TestStruct
+                {
+                    public TestStruct(int value)
+                    {
+                    }
+
+                    public TestStruct(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+    }
 }
