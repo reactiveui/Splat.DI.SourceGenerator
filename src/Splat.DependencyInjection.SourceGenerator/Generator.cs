@@ -48,7 +48,7 @@ public class Generator : IIncrementalGenerator
         // Pipeline 1: Register<TInterface, TConcrete>() calls
         var registerCalls = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: IsRegisterInvocation,
+                predicate: RoslynHelpers.IsRegisterInvocation,
                 transform: ExtractRegisterMetadata)
             .Where(x => x is not null)
             .Select((x, _) => x!);
@@ -56,7 +56,7 @@ public class Generator : IIncrementalGenerator
         // Pipeline 2: RegisterLazySingleton<TInterface, TConcrete>() calls
         var lazySingletonCalls = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: IsRegisterLazySingletonInvocation,
+                predicate: RoslynHelpers.IsRegisterLazySingletonInvocation,
                 transform: ExtractLazySingletonMetadata)
             .Where(x => x is not null)
             .Select((x, _) => x!);
@@ -200,36 +200,6 @@ public class Generator : IIncrementalGenerator
             .AppendLine("            }");
     }
 
-    private static bool IsRegisterInvocation(SyntaxNode node, CancellationToken ct)
-    {
-        if (node is not InvocationExpressionSyntax invocation)
-        {
-            return false;
-        }
-
-        return invocation.Expression switch
-        {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "Register" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "Register" } => true,
-            _ => false
-        };
-    }
-
-    private static bool IsRegisterLazySingletonInvocation(SyntaxNode node, CancellationToken ct)
-    {
-        if (node is not InvocationExpressionSyntax invocation)
-        {
-            return false;
-        }
-
-        return invocation.Expression switch
-        {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
-            _ => false
-        };
-    }
-
     private static TransientRegistrationInfo? ExtractRegisterMetadata(
         GeneratorSyntaxContext context,
         CancellationToken ct)
@@ -244,7 +214,7 @@ public class Generator : IIncrementalGenerator
         }
 
         // Verify it's SplatRegistrations.Register
-        if (!IsSplatRegistrationsMethod(methodSymbol, "Register"))
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "Register"))
         {
             return null;
         }
@@ -274,7 +244,7 @@ public class Generator : IIncrementalGenerator
             return null; // Invalid properties, silently skip
         }
 
-        var contractValue = ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
+        var contractValue = RoslynHelpers.ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
 
         return new TransientRegistrationInfo(
             InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
@@ -299,7 +269,7 @@ public class Generator : IIncrementalGenerator
         }
 
         // Verify it's SplatRegistrations.RegisterLazySingleton
-        if (!IsSplatRegistrationsMethod(methodSymbol, "RegisterLazySingleton"))
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "RegisterLazySingleton"))
         {
             return null;
         }
@@ -329,8 +299,8 @@ public class Generator : IIncrementalGenerator
             return null; // Invalid properties, silently skip
         }
 
-        var contractValue = ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
-        var lazyMode = ExtractLazyThreadSafetyMode(methodSymbol, invocation, semanticModel, ct);
+        var contractValue = RoslynHelpers.ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
+        var lazyMode = RoslynHelpers.ExtractLazyThreadSafetyMode(methodSymbol, invocation, semanticModel, ct);
 
         return new LazySingletonRegistrationInfo(
             InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
@@ -340,20 +310,6 @@ public class Generator : IIncrementalGenerator
             ContractValue: contractValue,
             LazyThreadSafetyMode: lazyMode,
             InvocationLocation: invocation.GetLocation());
-    }
-
-    private static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
-    {
-        var containingType = methodSymbol.ContainingType?.OriginalDefinition;
-        if (containingType == null)
-        {
-            return false;
-        }
-
-        return containingType.ContainingNamespace?.Name == Constants.NamespaceName &&
-               containingType.Name == Constants.ClassName &&
-               methodSymbol.Name == methodName &&
-               !methodSymbol.IsExtensionMethod;
     }
 
     private static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType, Location invocationLocation)
@@ -444,7 +400,7 @@ public class Generator : IIncrementalGenerator
         var properties = new List<PropertyInjection>();
 
         // Get all properties from base types and this type
-        var allTypes = GetBaseTypesAndThis(concreteType);
+        var allTypes = RoslynHelpers.GetBaseTypesAndThis(concreteType);
 
         foreach (var type in allTypes)
         {
@@ -478,78 +434,5 @@ public class Generator : IIncrementalGenerator
         }
 
         return properties.ToArray();
-    }
-
-    private static IEnumerable<ITypeSymbol> GetBaseTypesAndThis(ITypeSymbol type)
-    {
-        var current = type;
-        while (current != null)
-        {
-            yield return current;
-            current = current.BaseType;
-        }
-    }
-
-    private static string? ExtractContractParameter(
-        IMethodSymbol methodSymbol,
-        InvocationExpressionSyntax invocation,
-        SemanticModel semanticModel,
-        CancellationToken ct)
-    {
-        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
-        {
-            var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
-
-            if (parameter.Name != "contract")
-            {
-                continue;
-            }
-
-            var expression = argument.Expression;
-
-            // Handle string literals
-            if (expression is LiteralExpressionSyntax literal)
-            {
-                return literal.ToString();
-            }
-
-            // Handle constant expressions
-            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
-            if (symbolInfo.Symbol != null)
-            {
-                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
-            }
-        }
-
-        return null;
-    }
-
-    private static string? ExtractLazyThreadSafetyMode(
-        IMethodSymbol methodSymbol,
-        InvocationExpressionSyntax invocation,
-        SemanticModel semanticModel,
-        CancellationToken ct)
-    {
-        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
-        {
-            var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
-
-            if (parameter.Name != "mode")
-            {
-                continue;
-            }
-
-            var expression = argument.Expression;
-            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
-
-            if (symbolInfo.Symbol != null)
-            {
-                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
-            }
-        }
-
-        return null;
     }
 }

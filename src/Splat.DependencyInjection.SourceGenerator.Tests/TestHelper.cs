@@ -27,6 +27,38 @@ public static class TestHelper
     }
 
     /// <summary>
+    /// Creates a compilation from source code with appropriate references.
+    /// Uses Basic.Reference.Assemblies for the target framework and includes Splat assembly.
+    /// </summary>
+    /// <param name="source">The source code to compile.</param>
+    /// <returns>A compilation ready for testing.</returns>
+    public static Compilation CreateCompilation(string source)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+
+        // Use the appropriate reference assemblies based on target framework
+        IEnumerable<MetadataReference> references;
+
+#if NET10_0_OR_GREATER
+        references = Basic.Reference.Assemblies.Net100.References.All;
+#elif NET9_0_OR_GREATER
+        references = Basic.Reference.Assemblies.Net90.References.All;
+#else
+        references = Basic.Reference.Assemblies.Net80.References.All;
+#endif
+
+        // Add Splat assembly reference
+        var splatAssembly = typeof(Splat.IReadonlyDependencyResolver).Assembly;
+        var allReferences = references.Concat(new[] { MetadataReference.CreateFromFile(splatAssembly.Location) });
+
+        return CSharpCompilation.Create(
+            "TestAssembly",
+            new[] { syntaxTree },
+            allReferences,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    }
+
+    /// <summary>
     /// Tests a source generator scenario that is expected to fail with compilation or generator errors.
     /// Verifies the errors against a snapshot.
     /// </summary>
@@ -229,30 +261,7 @@ public static class TestHelper
     /// <returns>The generator driver containing the generated output.</returns>
     private static GeneratorDriver RunGenerator(string source, out Compilation outputCompilation, out ImmutableArray<Diagnostic> diagnostics)
     {
-        // Parse the source
-        var syntaxTree = CSharpSyntaxTree.ParseText(source);
-
-        // Create compilation using Basic.Reference.Assemblies (modern approach)
-        // Use the appropriate reference assemblies based on target framework
-        IEnumerable<MetadataReference> references;
-
-#if NET10_0_OR_GREATER
-        references = Basic.Reference.Assemblies.Net100.References.All;
-#elif NET9_0_OR_GREATER
-        references = Basic.Reference.Assemblies.Net90.References.All;
-#else
-        references = Basic.Reference.Assemblies.Net80.References.All;
-#endif
-
-        // Add Splat assembly reference
-        var splatAssembly = typeof(Splat.IReadonlyDependencyResolver).Assembly;
-        var allReferences = references.Concat(new[] { MetadataReference.CreateFromFile(splatAssembly.Location) });
-
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            new[] { syntaxTree },
-            allReferences,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var compilation = CreateCompilation(source);
 
         // Create generator driver with incremental step tracking (Cookbook pattern)
         var generator = new Generator();
