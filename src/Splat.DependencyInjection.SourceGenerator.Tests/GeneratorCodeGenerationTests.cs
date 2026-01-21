@@ -4,13 +4,11 @@
 
 using System.Collections.Immutable;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.CodeAnalysis;
+
 using Splat.DependencyInjection.SourceGenerator.CodeGeneration;
 using Splat.DependencyInjection.SourceGenerator.Models;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 

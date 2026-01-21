@@ -2,10 +2,7 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
-
-using TUnit.Assertions;
 
 namespace Splat.DependencyInjection.Analyzer.Tests;
 

@@ -2,12 +2,8 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
@@ -16,6 +12,50 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests;
 /// </summary>
 public class MetadataExtractorTests
 {
+    /// <summary>
+    /// Verifies ExtractConstructorParameters handles empty constructor list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractConstructorParameters_NoConstructors_ReturnsEmpty()
+    {
+        // Static class has no instance constructors
+        var syntaxTree = CSharpSyntaxTree.ParseText("public static class StaticClass {}");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("StaticClass");
+        var result = MetadataExtractor.ExtractConstructorParameters(type!);
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!).IsEmpty();
+    }
+
+    /// <summary>
+    /// Verifies ExtractPropertyInjections handles read-only properties (no setter).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractPropertyInjections_ReadOnly_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
+            namespace Splat {
+                public class DependencyInjectionPropertyAttribute : System.Attribute {}
+            }
+            public class TestClass {
+                [Splat.DependencyInjectionProperty]
+                public string Prop { get; }
+            }
+            ");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("TestClass");
+        var result = MetadataExtractor.ExtractPropertyInjections(type!);
+
+        await Assert.That(result).IsNull();
+    }
+
     /// <summary>
     /// Verifies ExtractConstructorParameters handles multiple constructors correctly.
     /// </summary>

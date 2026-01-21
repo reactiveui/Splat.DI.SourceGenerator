@@ -2,10 +2,14 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
@@ -21,7 +25,7 @@ public class RoslynHelpersTests
     [Test]
     public async Task IsRegisterInvocation_IdentifiesRegisterCalls()
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText("""
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
             using Splat;
             public class Test {
                 public void Run() {
@@ -29,12 +33,49 @@ public class RoslynHelpersTests
                     Other.Register();
                 }
             }
-            """);
+            ");
         var root = await syntaxTree.GetRootAsync();
         var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
         await Assert.That(invocations).Count().IsEqualTo(2);
         await Assert.That(RoslynHelpers.IsRegisterInvocation(invocations[0], CancellationToken.None)).IsTrue();
         await Assert.That(RoslynHelpers.IsRegisterInvocation(invocations[1], CancellationToken.None)).IsTrue(); // Matches name "Register"
+    }
+
+    /// <summary>
+    /// Verifies IsRegisterInvocation returns false for non-invocation nodes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsRegisterInvocation_NonInvocation_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("class Test {}");
+        var root = await syntaxTree.GetRootAsync();
+        var node = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First();
+
+        await Assert.That(RoslynHelpers.IsRegisterInvocation(node, CancellationToken.None)).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies that IsRegisterInvocation returns false for non-matching invocations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsRegisterInvocation_NonMatching_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
+            public class Test {
+                public void Run() {
+                    Other(); // Simple name
+                    this.Other(); // Member access but wrong name
+                }
+                public void Other() {}
+            }
+            ");
+        var root = await syntaxTree.GetRootAsync();
+        var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+
+        await Assert.That(RoslynHelpers.IsRegisterInvocation(invocations[0], CancellationToken.None)).IsFalse();
+        await Assert.That(RoslynHelpers.IsRegisterInvocation(invocations[1], CancellationToken.None)).IsFalse();
     }
 
     /// <summary>
@@ -45,7 +86,7 @@ public class RoslynHelpersTests
     public async Task IsSplatRegistrationsMethod_IdentifiesCorrectMethods()
     {
         // This test requires a compilation to get symbols
-        var syntaxTree = CSharpSyntaxTree.ParseText("""
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
             namespace Splat {
                 public static class SplatRegistrations {
                     public static void Register<T>() {}
@@ -57,7 +98,7 @@ public class RoslynHelpersTests
                     public static void Register<T>() {}
                 }
             }
-            """);
+            ");
 
         var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
         var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
@@ -75,13 +116,30 @@ public class RoslynHelpersTests
     }
 
     /// <summary>
+    /// Verifies that IsSplatRegistrationsMethod handles null containing type.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsSplatRegistrationsMethod_NullContainingType_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
+            public delegate void MyDelegate();
+            ");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var delegateType = (INamedTypeSymbol)compilation.GetTypeByMetadataName("MyDelegate")!;
+        var invokeMethod = delegateType.DelegateInvokeMethod!;
+
+        await Assert.That(RoslynHelpers.IsSplatRegistrationsMethod(invokeMethod, "Register")).IsFalse();
+    }
+
+    /// <summary>
     /// Verifies that IsRegisterLazySingletonInvocation correctly identifies RegisterLazySingleton calls.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsRegisterLazySingletonInvocation_IdentifiesCorrectCalls()
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText("""
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
             using Splat;
             public class Test {
                 public void Run() {
@@ -89,12 +147,47 @@ public class RoslynHelpersTests
                     Other.RegisterLazySingleton();
                 }
             }
-            """);
+            ");
         var root = await syntaxTree.GetRootAsync();
         var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
         await Assert.That(invocations).Count().IsEqualTo(2);
         await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(invocations[0], CancellationToken.None)).IsTrue();
         await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(invocations[1], CancellationToken.None)).IsTrue();
+    }
+
+    /// <summary>
+    /// Verifies IsRegisterLazySingletonInvocation returns false for non-invocation nodes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsRegisterLazySingletonInvocation_NonInvocation_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("class Test {}");
+        var root = await syntaxTree.GetRootAsync();
+        var node = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First();
+
+        await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(node, CancellationToken.None)).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies that IsRegisterLazySingletonInvocation returns false for non-matching invocations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsRegisterLazySingletonInvocation_NonMatching_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
+            public class Test {
+                public void Run() {
+                    Other(); // Simple name
+                }
+                public void Other() {}
+            }
+            ");
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(invocation, CancellationToken.None)).IsFalse();
     }
 
     /// <summary>
@@ -146,9 +239,43 @@ public class RoslynHelpersTests
 
         // 3. Constant
         var constantContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[2], semanticModel, CancellationToken.None);
+        await Assert.That(constantContract).IsEqualTo("TestNamespace.Constants.MyContract");
+    }
 
-        // FullyQualifiedFormat should return global::TestNamespace.Constants.MyContract
-        await Assert.That(constantContract).Contains("TestNamespace.Constants.MyContract");
+    /// <summary>
+    /// Verifies ExtractContractParameter returns null if parameter not found.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_NoContractParam_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(int other) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.Register<string>(123);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        var result = RoslynHelpers.ExtractContractParameter(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(result).IsNull();
     }
 
     /// <summary>
@@ -158,7 +285,7 @@ public class RoslynHelpersTests
     [Test]
     public async Task ExtractLazyThreadSafetyMode_ExtractsValue()
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText("""
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
             using System.Threading;
             using Splat;
             namespace Splat {
@@ -172,7 +299,7 @@ public class RoslynHelpersTests
                     SplatRegistrations.RegisterLazySingleton<string>(mode: LazyThreadSafetyMode.None);
                 }
             }
-            """);
+            ");
 
         var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
@@ -187,9 +314,6 @@ public class RoslynHelpersTests
         var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
 
         var mode1 = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocations[0], semanticModel, CancellationToken.None);
-
-        // Note: fully qualified format includes "global::" usually?
-        // The helper uses SymbolDisplayFormat.FullyQualifiedFormat.
         await Assert.That(mode1).Contains("ExecutionAndPublication");
 
         var mode2 = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocations[1], semanticModel, CancellationToken.None);
@@ -203,11 +327,11 @@ public class RoslynHelpersTests
     [Test]
     public async Task GetBaseTypesAndThis_ReturnsInheritanceChain()
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText("""
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
             public class Base {}
             public class Derived : Base {}
             public class Leaf : Derived {}
-            """);
+            ");
         var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
         var leafType = compilation.GetTypeByMetadataName("Leaf");
         await Assert.That(leafType).IsNotNull();
@@ -219,5 +343,24 @@ public class RoslynHelpersTests
         await Assert.That(hierarchy[1].Name).IsEqualTo("Derived");
         await Assert.That(hierarchy[2].Name).IsEqualTo("Base");
         await Assert.That(hierarchy[3].Name).IsEqualTo("Object");
+    }
+
+    /// <summary>
+    /// Verifies GetBaseTypesAndThis handles interfaces (BaseType is null).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetBaseTypesAndThis_Interface_ReturnsSelf()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("interface ITest {}");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var type = compilation.GetTypeByMetadataName("ITest");
+        await Assert.That(type).IsNotNull();
+
+        var result = RoslynHelpers.GetBaseTypesAndThis(type!);
+
+        // Interface has no base class, so result should be just [ITest]
+        await Assert.That(result).Count().IsEqualTo(1);
+        await Assert.That(result[0].Name).IsEqualTo("ITest");
     }
 }

@@ -2,10 +2,6 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
-
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
 /// <summary>
@@ -14,6 +10,58 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class ConstructorAnalyzerTests
 {
+    /// <summary>
+    /// Tests that Register with zero type arguments doesn't trigger analysis.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task RegisterWithZeroTypeArguments_NoDiagnostic()
+    {
+        // This is a bit of a trick because the compiler won't let you call a generic method without args usually,
+        // but we can have a non-generic method with the same name.
+        const string code = """
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register() {}
+                }
+            }
+            public class Startup {
+                public void Configure() {
+                    Splat.SplatRegistrations.Register();
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that Register with three type arguments doesn't trigger analysis.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task RegisterWithThreeTypeArguments_NoDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T1, T2, T3>() {}
+                }
+            }
+            public class Startup {
+                public void Configure() {
+                    Splat.SplatRegistrations.Register<int, int, int>();
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
     /// <summary>
     /// Tests that multiple constructors without an attribute triggers diagnostic SPLATDI001.
     /// When a class has multiple constructors, one must be marked for dependency injection.

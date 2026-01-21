@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.CompilerServices;
 
@@ -10,5 +11,6 @@ namespace System.Runtime.CompilerServices;
 /// Reserved to be used by the compiler for tracking metadata.
 /// This class should not be used by developers in source code.
 /// </summary>
+[ExcludeFromCodeCoverage]
 [EditorBrowsable(EditorBrowsableState.Never)]
 internal static class IsExternalInit;

@@ -3,10 +3,11 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 using Splat.DependencyInjection.SourceGenerator.Models;
 
 namespace Splat.DependencyInjection.SourceGenerator;

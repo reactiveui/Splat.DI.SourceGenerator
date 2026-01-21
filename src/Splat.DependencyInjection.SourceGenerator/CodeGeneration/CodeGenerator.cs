@@ -5,6 +5,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Text;
+
 using Splat.DependencyInjection.SourceGenerator.Models;
 
 namespace Splat.DependencyInjection.SourceGenerator.CodeGeneration;

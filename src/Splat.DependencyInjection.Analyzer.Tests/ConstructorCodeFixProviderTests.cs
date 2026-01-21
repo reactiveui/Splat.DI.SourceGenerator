@@ -663,4 +663,67 @@ public class ConstructorCodeFixProviderTests
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
     }
+
+    /// <summary>
+    /// Tests that ConstructorCodeFixProvider works when constructor has no leading trivia.
+    /// This hits the specific branch in AddAttributeAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConstructorCodeFix_NoLeadingTrivia()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            namespace Test {
+                public class TestClass {
+                    public TestClass() {}
+                    public TestClass(int i) {}
+                }
+                public class Startup {
+                    public void Configure() {
+                        Register<TestClass>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+    }
+
+    /// <summary>
+    /// Tests that ConstructorCodeFixProvider works when constructor has existing attributes but no leading trivia.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConstructorCodeFix_ExistingAttribute_NoLeadingTrivia()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            using System;
+            namespace Test {
+                public class TestClass {
+                    [Obsolete]public TestClass() {}
+                    public TestClass(int i) {}
+                }
+                public class Startup {
+                    public void Configure() {
+                        Register<TestClass>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+        await Assert.That(fixedCode).Contains("[Obsolete]public TestClass()");
+    }
 }
