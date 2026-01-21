@@ -365,9 +365,9 @@ Ensure the property has `[DependencyInjectionProperty]` and a `public` or `inter
 
 Make sure you registered the dependency with `RegisterLazySingleton`, not `Register`. Only lazy singletons can be injected as `Lazy<T>`.
 
-## Migration from Version 2.x to 3.0
+## Migration from Version 1.x to 2.x
 
-Version 3.0 includes breaking changes:
+Version 2.1.1 includes breaking changes:
 
 - Requires Splat 19.1.1 or later for generic-first resolver support
 - Migrated from legacy `ISourceGenerator` to modern `IIncrementalGenerator`
@@ -375,7 +375,7 @@ Version 3.0 includes breaking changes:
 - Removed support for .NET Standard 2.0 and .NET 6
 - Minimum supported frameworks: .NET Framework 4.6.2+, .NET 8+, .NET 9+, .NET 10+
 
-New features in 3.0:
+New features in 2.1.1:
 - 10-100x faster incremental builds (only processes changed files)
 - Cache-friendly pipeline eliminates unnecessary recompilation
 - Built-in analyzers with real-time diagnostics and automatic code fixes
