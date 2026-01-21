@@ -482,4 +482,112 @@ public class RoslynHelpersTests
         // Local variable reference should be preserved
         await Assert.That(result).IsEqualTo("unknownVar");
     }
+
+    /// <summary>
+    /// Verifies IsSplatRegistrationsMethod returns false for extension methods.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsSplatRegistrationsMethod_ExtensionMethod_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(@"
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(this object obj) {}
+                }
+            }
+            ");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        await Assert.That(method.IsExtensionMethod).IsTrue();
+        await Assert.That(RoslynHelpers.IsSplatRegistrationsMethod(method, "Register")).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies GetBaseTypesAndThis returns empty array for null input.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetBaseTypesAndThis_Null_ReturnsEmpty()
+    {
+        var result = RoslynHelpers.GetBaseTypesAndThis(null!);
+        await Assert.That(result).IsEmpty();
+    }
+
+    /// <summary>
+    /// Verifies ExtractContractParameter returns null when symbol is unresolved.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_UnresolvedSymbol_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract = null) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.Register<string>(undeclaredVar);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        var result = RoslynHelpers.ExtractContractParameter(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractLazyThreadSafetyMode returns null when symbol is unresolved.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazyThreadSafetyMode_UnresolvedSymbol_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using System.Threading;
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(LazyThreadSafetyMode mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.RegisterLazySingleton<string>(undeclaredVar);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.LazyThreadSafetyMode).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        var result = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(result).IsNull();
+    }
 }

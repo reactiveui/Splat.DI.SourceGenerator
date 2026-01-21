@@ -726,4 +726,46 @@ public class ConstructorCodeFixProviderTests
         await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
         await Assert.That(fixedCode).Contains("[Obsolete]public TestClass()");
     }
+
+    /// <summary>
+    /// Tests that the code fix works correctly for a nested class.
+    /// This validates the ancestor walk logic in RegisterCodeFixesAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task NestedClass_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class Outer
+                {
+                    public class Inner
+                    {
+                        public Inner() {}
+                        public Inner(IService service) {}
+                    }
+                }
+
+                public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<Outer.Inner>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+    }
 }

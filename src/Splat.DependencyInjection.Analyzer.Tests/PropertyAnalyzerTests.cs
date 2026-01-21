@@ -314,4 +314,42 @@ public class PropertyAnalyzerTests
         // Should be empty because Initialize checks for attribute existence
         await Assert.That(diagnostics).IsEmpty();
     }
+
+    /// <summary>
+    /// Tests that Initialize throws ArgumentNullException when context is null.
+    /// </summary>
+    [Test]
+    public void Initialize_NullContext_ThrowsArgumentNullException()
+    {
+        var analyzer = new Analyzers.PropertyAnalyzer();
+        Assert.Throws<ArgumentNullException>(() => analyzer.Initialize(null!));
+    }
+
+    /// <summary>
+    /// Tests that a property with a different attribute does not trigger diagnostics.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task PropertyWithOtherAttribute_NoDiagnostic()
+    {
+        const string code = """
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public class TestClass
+                {
+                    [Obsolete]
+                    public IService Service { get; private set; }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
+
+        await Assert.That(diagnostics).IsEmpty();
+    }
 }
