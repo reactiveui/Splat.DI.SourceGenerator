@@ -304,4 +304,48 @@ public sealed class RegisterTests() : TestBase("Register")
 
         return TestHelper.TestPass(source, contract, GetType());
     }
+
+    /// <summary>
+    /// Validates that property injection with contracts generates correct GetService calls.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task PropertyInjectionWithContract()
+    {
+        var source = """
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<ITest, TestConcrete>("TestContract");
+                        SplatRegistrations.Register<IService1, Service1>("TestContract");
+                        SplatRegistrations.Register<IServiceProperty1, ServiceProperty1>("TestContract");
+                    }
+                }
+
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IService1 service1)
+                    {
+                    }
+
+                    [DependencyInjectionProperty]
+                    public IServiceProperty1 ServiceProperty1 { get; set; }
+                }
+
+                public interface IService1 { }
+                public class Service1 : IService1 { }
+                public interface IServiceProperty1 { }
+                public class ServiceProperty1 : IServiceProperty1 { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "TestContract", GetType());
+    }
 }

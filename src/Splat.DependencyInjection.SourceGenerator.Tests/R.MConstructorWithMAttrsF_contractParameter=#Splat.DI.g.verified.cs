@@ -124,21 +124,21 @@ namespace Splat
 
 
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver);
+    }
 
-        /// <summary>
-        /// Makes the property get added by the DI engine.
-        /// </summary>
-        [System.AttributeUsage(System.AttributeTargets.Property), Microsoft.CodeAnalysis.Embedded]
-        internal sealed class DependencyInjectionPropertyAttribute : System.Attribute
-        {
-        }
+    /// <summary>
+    /// Makes the property get added by the DI engine.
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Property), Microsoft.CodeAnalysis.Embedded]
+    internal sealed class DependencyInjectionPropertyAttribute : System.Attribute
+    {
+    }
 
-        /// <summary>
-        /// Makes this the constructor used by the DI engine.
-        /// </summary>
-        [System.AttributeUsage(System.AttributeTargets.Constructor), Microsoft.CodeAnalysis.Embedded]
-        internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
-        {
-        }
+    /// <summary>
+    /// Makes this the constructor used by the DI engine.
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Constructor), Microsoft.CodeAnalysis.Embedded]
+    internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
+    {
     }
 }

@@ -139,4 +139,105 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
 
         return TestHelper.TestPass(source, contract, GetType());
     }
+
+    /// <summary>
+    /// Validates that IEnumerable{T} dependency injection works in lazy singleton constructors.
+    /// </summary>
+    /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
+    public Task IEnumerableDependencyInLazySingleton(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
+
+        var source = $$"""
+            using System;
+            using System.Collections.Generic;
+            using System.Threading;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.Register<IService, ServiceA>({{arguments}});
+                        SplatRegistrations.Register<IService, ServiceB>({{arguments}});
+                    }
+                }
+
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IEnumerable<IService> services)
+                    {
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceA : IService { }
+                public class ServiceB : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, contract, GetType());
+    }
+
+    /// <summary>
+    /// Validates that property injection with contracts works in lazy singleton registrations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task PropertyInjectionWithContractInLazySingleton()
+    {
+        var source = """
+            using System;
+            using System.Threading;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete>("TestContract");
+                        SplatRegistrations.Register<IService1, Service1>("TestContract");
+                        SplatRegistrations.Register<IServiceProperty1, ServiceProperty1>("TestContract");
+                        SplatRegistrations.Register<IServiceProperty2, ServiceProperty2>("TestContract");
+                    }
+                }
+
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IService1 service1)
+                    {
+                    }
+
+                    [DependencyInjectionProperty]
+                    public IServiceProperty1 ServiceProperty1 { get; set; }
+
+                    [DependencyInjectionProperty]
+                    public IServiceProperty2 ServiceProperty2 { get; set; }
+                }
+
+                public interface IService1 { }
+                public class Service1 : IService1 { }
+                public interface IServiceProperty1 { }
+                public class ServiceProperty1 : IServiceProperty1 { }
+                public interface IServiceProperty2 { }
+                public class ServiceProperty2 : IServiceProperty2 { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "TestContract", GetType());
+    }
 }

@@ -15,17 +15,17 @@ namespace Splat
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
             {
-                global::System.Lazy<global::Test.ITest1> lazy = new global::System.Lazy<global::Test.ITest1>(() => new global::Test.TestConcrete1(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract "Test1" not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract "Test1" not registered with Splat resolver.")));
+                global::System.Lazy<global::Test.ITest1> lazy = new global::System.Lazy<global::Test.ITest1>(() => new global::Test.TestConcrete1(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest1>>(() => lazy, "Test1");
                 resolver.Register<global::Test.ITest1>(() => lazy.Value, "Test1");
             }
             {
-                global::System.Lazy<global::Test.ITest2> lazy = new global::System.Lazy<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract "Test1" not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract "Test1" not registered with Splat resolver.")));
+                global::System.Lazy<global::Test.ITest2> lazy = new global::System.Lazy<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest2>>(() => lazy, "Test1");
                 resolver.Register<global::Test.ITest2>(() => lazy.Value, "Test1");
             }
             {
-                global::System.Lazy<global::Test.ITest3> lazy = new global::System.Lazy<global::Test.ITest3>(() => new global::Test.TestConcrete3(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract "Test1" not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract "Test1" not registered with Splat resolver.")));
+                global::System.Lazy<global::Test.ITest3> lazy = new global::System.Lazy<global::Test.ITest3>(() => new global::Test.TestConcrete3(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest3>>(() => lazy, "Test1");
                 resolver.Register<global::Test.ITest3>(() => lazy.Value, "Test1");
             }

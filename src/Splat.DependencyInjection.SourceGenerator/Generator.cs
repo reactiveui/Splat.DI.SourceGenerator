@@ -151,7 +151,7 @@ public class Generator : IIncrementalGenerator
                 // Use generic GetService<T>() - no cast needed, better for AOT
                 if (registration.ContractValue is not null)
                 {
-                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract \" + {registration.ContractValue} + \" not registered with Splat resolver.\")";
                 }
                 else
                 {
@@ -174,7 +174,7 @@ public class Generator : IIncrementalGenerator
                 // Use generic GetService<T>() - no cast needed, better for AOT
                 if (registration.ContractValue is not null)
                 {
-                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract \" + {registration.ContractValue} + \" not registered with Splat resolver.\")";
                 }
                 else
                 {
@@ -228,7 +228,7 @@ public class Generator : IIncrementalGenerator
                 // Use generic GetService<T>() - no cast needed, better for AOT
                 if (registration.ContractValue is not null)
                 {
-                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract \" + {registration.ContractValue} + \" not registered with Splat resolver.\")";
                 }
                 else
                 {
@@ -251,7 +251,7 @@ public class Generator : IIncrementalGenerator
                 // Use generic GetService<T>() - no cast needed, better for AOT
                 if (registration.ContractValue is not null)
                 {
-                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract \" + {registration.ContractValue} + \" not registered with Splat resolver.\")";
                 }
                 else
                 {
