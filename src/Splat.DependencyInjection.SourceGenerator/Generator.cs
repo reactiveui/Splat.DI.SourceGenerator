@@ -137,14 +137,9 @@ public class Generator : IIncrementalGenerator
             if (p.IsCollection && p.CollectionItemType is not null)
             {
                 // GetServices<T>() returns IEnumerable<T>, never null (empty collection instead)
-                if (registration.ContractValue is not null)
-                {
-                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})";
-                }
-                else
-                {
-                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>()";
-                }
+                args[i] = registration.ContractValue is not null
+                    ? $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})"
+                    : $"resolver.GetServices<{p.CollectionItemType}>()";
             }
             else
             {
@@ -214,14 +209,9 @@ public class Generator : IIncrementalGenerator
             if (p.IsCollection && p.CollectionItemType is not null)
             {
                 // GetServices<T>() returns IEnumerable<T>, never null (empty collection instead)
-                if (registration.ContractValue is not null)
-                {
-                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})";
-                }
-                else
-                {
-                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>()";
-                }
+                args[i] = registration.ContractValue is not null
+                    ? $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})"
+                    : $"resolver.GetServices<{p.CollectionItemType}>()";
             }
             else
             {
