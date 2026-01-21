@@ -245,4 +245,72 @@ public class AnalyzerHelpersTests
         await Assert.That(registerMethod.IsExtensionMethod).IsTrue();
         await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, "Register")).IsFalse();
     }
+
+    /// <summary>
+    /// Tests AnalyzeConstructorsForType where one constructor is marked but is not accessible.
+    /// Should report SPLATDI004.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    [Test]
+    public async Task AnalyzeConstructorsForType_MarkedPrivateConstructor_ReportsError()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+            }
+
+            public class TestClass {
+                [Splat.DependencyInjectionConstructor]
+                private TestClass() {} 
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("TestClass");
+        var diagnostics = new List<Diagnostic>();
+
+        AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
+
+        await Assert.That(diagnostics).Count().IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI004");
+    }
+
+    /// <summary>
+    /// Tests AnalyzeConstructorsForType where multiple constructors are marked.
+    /// Should report SPLATDI003 for each marked constructor.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    [Test]
+    public async Task AnalyzeConstructorsForType_MultipleMarked_ReportsErrorOnAll()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+            }
+
+            public class TestClass {
+                [Splat.DependencyInjectionConstructor]
+                public TestClass() {} 
+
+                [Splat.DependencyInjectionConstructor]
+                public TestClass(int i) {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("TestClass");
+        var diagnostics = new List<Diagnostic>();
+
+        AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
+
+        await Assert.That(diagnostics).Count().IsEqualTo(2);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI003");
+        await Assert.That(diagnostics[1].Id).IsEqualTo("SPLATDI003");
+    }
 }
