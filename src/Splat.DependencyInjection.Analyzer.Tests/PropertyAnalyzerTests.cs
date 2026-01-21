@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Linq;
+
+using Microsoft.CodeAnalysis.Diagnostics;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -281,5 +283,40 @@ public class PropertyAnalyzerTests
 
         await Assert.That(diagnostics.Length).IsEqualTo(2);
         await Assert.That(diagnostics.All(d => d.Id == "SPLATDI002")).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that if the attribute is missing from compilation, no analysis happens.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task AttributeMissingFromCompilation_NoDiagnostic()
+    {
+        const string code = """
+            namespace Test
+            {
+                public class TestClass
+                {
+                    // Attribute is used but not defined in metadata
+                    [DependencyInjectionProperty]
+                    public IService Service { get; private set; }
+                }
+                public interface IService { }
+            }
+            """;
+
+        // Create compilation WITHOUT adding Splat attributes
+        var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var compilationWithAnalyzers = compilation.WithAnalyzers(
+            System.Collections.Immutable.ImmutableArray.Create<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer>(
+                new Analyzers.PropertyAnalyzer()));
+
+        var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
+
+        // Should be empty because Initialize checks for attribute existence
+        await Assert.That(diagnostics).IsEmpty();
     }
 }

@@ -16,7 +16,6 @@ namespace Splat
         {
             resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetServices<global::Test.IService>("Test2")), "Test2");
             resolver.Register<global::Test.IService>(() => new global::Test.ServiceA(), "Test2");
-            resolver.Register<global::Test.IService>(() => new global::Test.ServiceB(), "Test2");
-        }
+            resolver.Register<global::Test.IService>(() => new global::Test.ServiceB(), "Test2");        }
     }
 }

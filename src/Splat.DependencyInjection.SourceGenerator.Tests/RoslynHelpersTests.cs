@@ -75,6 +75,128 @@ public class RoslynHelpersTests
     }
 
     /// <summary>
+    /// Verifies that IsRegisterLazySingletonInvocation correctly identifies RegisterLazySingleton calls.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsRegisterLazySingletonInvocation_IdentifiesCorrectCalls()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.RegisterLazySingleton<IService, Service>();
+                    Other.RegisterLazySingleton();
+                }
+            }
+            """);
+        var root = await syntaxTree.GetRootAsync();
+        var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+        await Assert.That(invocations).Count().IsEqualTo(2);
+        await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(invocations[0], CancellationToken.None)).IsTrue();
+        await Assert.That(RoslynHelpers.IsRegisterLazySingletonInvocation(invocations[1], CancellationToken.None)).IsTrue();
+    }
+
+    /// <summary>
+    /// Verifies that ExtractContractParameter correctly extracts the contract value.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_ExtractsValue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract = null) {}
+                }
+            }
+            namespace TestNamespace {
+                public class Constants {
+                    public const string MyContract = "MyConstantContract";
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.Register<string>("LiteralContract");
+                    SplatRegistrations.Register<string>(contract: "NamedLiteralContract");
+                    SplatRegistrations.Register<string>(TestNamespace.Constants.MyContract);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        // 1. Literal "LiteralContract"
+        var literalContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[0], semanticModel, CancellationToken.None);
+        await Assert.That(literalContract).IsEqualTo("\"LiteralContract\"");
+
+        // 2. Named Literal
+        var namedLiteralContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[1], semanticModel, CancellationToken.None);
+        await Assert.That(namedLiteralContract).IsEqualTo("\"NamedLiteralContract\"");
+
+        // 3. Constant
+        var constantContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[2], semanticModel, CancellationToken.None);
+
+        // FullyQualifiedFormat should return global::TestNamespace.Constants.MyContract
+        await Assert.That(constantContract).Contains("TestNamespace.Constants.MyContract");
+    }
+
+    /// <summary>
+    /// Verifies that ExtractLazyThreadSafetyMode correctly extracts the mode.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazyThreadSafetyMode_ExtractsValue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using System.Threading;
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(LazyThreadSafetyMode mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.RegisterLazySingleton<string>(LazyThreadSafetyMode.ExecutionAndPublication);
+                    SplatRegistrations.RegisterLazySingleton<string>(mode: LazyThreadSafetyMode.None);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.LazyThreadSafetyMode).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocations = root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        var mode1 = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocations[0], semanticModel, CancellationToken.None);
+
+        // Note: fully qualified format includes "global::" usually?
+        // The helper uses SymbolDisplayFormat.FullyQualifiedFormat.
+        await Assert.That(mode1).Contains("ExecutionAndPublication");
+
+        var mode2 = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocations[1], semanticModel, CancellationToken.None);
+        await Assert.That(mode2).Contains("None");
+    }
+
+    /// <summary>
     /// Verifies that GetBaseTypesAndThis returns the inheritance chain correctly.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

@@ -15,7 +15,6 @@ namespace Splat
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
             resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete1(), "Test1");
-            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete2(), "Test1");
-        }
+            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete2(), "Test1");        }
     }
 }

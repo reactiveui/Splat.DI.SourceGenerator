@@ -4,6 +4,7 @@
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
+
 using TUnit.Assertions;
 
 namespace Splat.DependencyInjection.Analyzer.Tests;

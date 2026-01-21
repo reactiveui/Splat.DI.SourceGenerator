@@ -14,7 +14,6 @@ namespace Splat
     {
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.IRepository>(() => new global::Test.Repository<global::System.Collections.Generic.List<string>>());
-        }
+            resolver.Register<global::Test.IRepository>(() => new global::Test.Repository<global::System.Collections.Generic.List<string>>());        }
     }
 }

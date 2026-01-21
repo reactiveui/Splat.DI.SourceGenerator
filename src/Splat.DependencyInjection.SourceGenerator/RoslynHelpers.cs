@@ -155,11 +155,14 @@ internal static class RoslynHelpers
                 return literal.ToString();
             }
 
-            // Handle constant expressions
+            // Handle non-literal expressions (constant fields, properties, etc.)
+            // Preserve the expression as written by the user (e.g., TestNamespace.Constants.MyContract)
+            // This maintains the reference rather than inlining the value
             var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
             if (symbolInfo.Symbol != null)
             {
-                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
+                // Use the expression syntax as written to preserve namespace qualifications
+                return expression.ToString();
             }
         }
 

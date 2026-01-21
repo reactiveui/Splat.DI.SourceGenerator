@@ -15,7 +15,6 @@ namespace Splat
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
             resolver.Register<global::Test.IAppUpdateService>(() => new global::Test.AppUpdateService<string>(resolver.GetService<global::Test.IConfig>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IConfig' with contract " + "Test1" + " not registered with Splat resolver.")), "Test1");
-            resolver.Register<global::Test.IConfig>(() => new global::Test.Config(), "Test1");
-        }
+            resolver.Register<global::Test.IConfig>(() => new global::Test.Config(), "Test1");        }
     }
 }

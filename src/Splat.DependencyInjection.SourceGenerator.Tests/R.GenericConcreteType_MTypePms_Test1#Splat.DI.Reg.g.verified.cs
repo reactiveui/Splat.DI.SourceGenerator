@@ -14,7 +14,6 @@ namespace Splat
     {
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ICache>(() => new global::Test.Cache<string, int>(), "Test1");
-        }
+            resolver.Register<global::Test.ICache>(() => new global::Test.Cache<string, int>(), "Test1");        }
     }
 }

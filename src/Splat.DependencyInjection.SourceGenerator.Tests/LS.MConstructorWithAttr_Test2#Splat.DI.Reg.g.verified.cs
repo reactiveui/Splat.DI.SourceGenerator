@@ -18,7 +18,6 @@ namespace Splat
                 global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test2" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest>(() => lazy.Value, "Test2");
-            }
-        }
+            }        }
     }
 }
