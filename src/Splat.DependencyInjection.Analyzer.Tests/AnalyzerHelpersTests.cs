@@ -177,4 +177,72 @@ public class AnalyzerHelpersTests
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(markedCtor, attrSymbol)).IsTrue();
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(unmarkedCtor, attrSymbol)).IsFalse();
     }
+
+    /// <summary>
+    /// Tests AnalyzeConstructorsForType with interface (should skip).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AnalyzeConstructorsForType_Interface_Skips()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("public interface ITest {}");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("ITest");
+        await Assert.That(type).IsNotNull();
+
+        var diagnostics = new List<Diagnostic>();
+        AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
+
+        // Should not report any diagnostics for interface
+        await Assert.That(diagnostics).IsEmpty();
+    }
+
+    /// <summary>
+    /// Tests AnalyzeConstructorsForType with enum (should skip).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AnalyzeConstructorsForType_Enum_Skips()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("public enum TestEnum { A, B }");
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("TestEnum");
+        await Assert.That(type).IsNotNull();
+
+        var diagnostics = new List<Diagnostic>();
+        AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
+
+        // Should not report any diagnostics for enum
+        await Assert.That(diagnostics).IsEmpty();
+    }
+
+    /// <summary>
+    /// Tests IsSplatRegistrationsMethod with extension method.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsSplatRegistrationsMethod_ExtensionMethod_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                }
+                public static class Extensions {
+                    public static void Register<T>(this SplatRegistrations r) {}
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var extensionsType = compilation.GetTypeByMetadataName("Splat.Extensions");
+        await Assert.That(extensionsType).IsNotNull();
+
+        var registerMethod = extensionsType!.GetMembers("Register").OfType<IMethodSymbol>().First();
+        await Assert.That(registerMethod.IsExtensionMethod).IsTrue();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, "Register")).IsFalse();
+    }
 }
