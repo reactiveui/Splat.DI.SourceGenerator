@@ -127,12 +127,37 @@ public class Generator : IIncrementalGenerator
         StringBuilder sb,
         TransientRegistrationInfo registration)
     {
-        // Build constructor arguments - resolve from resolver
+        // Build constructor arguments - resolve from resolver with null checks
         var args = new string[registration.ConstructorParameters.Length];
         for (var i = 0; i < registration.ConstructorParameters.Length; i++)
         {
             var p = registration.ConstructorParameters[i];
-            args[i] = $"({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))";
+
+            // Handle IEnumerable<T> - use GetServices<T>()
+            if (p.IsCollection && p.CollectionItemType is not null)
+            {
+                // GetServices<T>() returns IEnumerable<T>, never null (empty collection instead)
+                if (registration.ContractValue is not null)
+                {
+                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})";
+                }
+                else
+                {
+                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>()";
+                }
+            }
+            else
+            {
+                // Use generic GetService<T>() - no cast needed, better for AOT
+                if (registration.ContractValue is not null)
+                {
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                }
+                else
+                {
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>() ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' not registered with Splat resolver.\")";
+                }
+            }
         }
 
         var constructorArgs = string.Join(", ", args);
@@ -145,7 +170,16 @@ public class Generator : IIncrementalGenerator
             for (var i = 0; i < registration.PropertyInjections.Length; i++)
             {
                 var p = registration.PropertyInjections[i];
-                props[i] = $"{p.PropertyName} = ({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))";
+
+                // Use generic GetService<T>() - no cast needed, better for AOT
+                if (registration.ContractValue is not null)
+                {
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                }
+                else
+                {
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>() ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' not registered with Splat resolver.\")";
+                }
             }
 
             var properties = string.Join(", ", props);
@@ -175,7 +209,32 @@ public class Generator : IIncrementalGenerator
         for (var i = 0; i < registration.ConstructorParameters.Length; i++)
         {
             var p = registration.ConstructorParameters[i];
-            args[i] = $"({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))";
+
+            // Handle IEnumerable<T> - use GetServices<T>()
+            if (p.IsCollection && p.CollectionItemType is not null)
+            {
+                // GetServices<T>() returns IEnumerable<T>, never null (empty collection instead)
+                if (registration.ContractValue is not null)
+                {
+                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>({registration.ContractValue})";
+                }
+                else
+                {
+                    args[i] = $"resolver.GetServices<{p.CollectionItemType}>()";
+                }
+            }
+            else
+            {
+                // Use generic GetService<T>() - no cast needed, better for AOT
+                if (registration.ContractValue is not null)
+                {
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                }
+                else
+                {
+                    args[i] = $"resolver.GetService<{p.TypeFullName}>() ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' not registered with Splat resolver.\")";
+                }
+            }
         }
 
         var constructorArgs = string.Join(", ", args);
@@ -188,7 +247,16 @@ public class Generator : IIncrementalGenerator
             for (var i = 0; i < registration.PropertyInjections.Length; i++)
             {
                 var p = registration.PropertyInjections[i];
-                props[i] = $"{p.PropertyName} = ({p.TypeFullName})resolver.GetService(typeof({p.TypeFullName}))";
+
+                // Use generic GetService<T>() - no cast needed, better for AOT
+                if (registration.ContractValue is not null)
+                {
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>({registration.ContractValue}) ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' with contract {registration.ContractValue} not registered with Splat resolver.\")";
+                }
+                else
+                {
+                    props[i] = $"{p.PropertyName} = resolver.GetService<{p.TypeFullName}>() ?? throw new global::System.InvalidOperationException(\"Dependency '{p.TypeFullName}' not registered with Splat resolver.\")";
+                }
             }
 
             var properties = string.Join(", ", props);
@@ -421,11 +489,27 @@ public class Generator : IIncrementalGenerator
                 }
             }
 
+            // Check if it's IEnumerable<T>
+            bool isCollection = false;
+            string? collectionItemType = null;
+
+            if (paramType is INamedTypeSymbol namedCollType &&
+                namedCollType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Collections.Generic.IEnumerable<T>")
+            {
+                isCollection = true;
+                if (namedCollType.TypeArguments.Length > 0)
+                {
+                    collectionItemType = namedCollType.TypeArguments[0].ToDisplayString(_fullyQualifiedFormat);
+                }
+            }
+
             parameters.Add(new ConstructorParameter(
                 ParameterName: param.Name,
                 TypeFullName: paramTypeName,
                 IsLazy: isLazy,
-                LazyInnerType: lazyInnerType));
+                LazyInnerType: lazyInnerType,
+                IsCollection: isCollection,
+                CollectionItemType: collectionItemType));
         }
 
         return parameters.ToArray();

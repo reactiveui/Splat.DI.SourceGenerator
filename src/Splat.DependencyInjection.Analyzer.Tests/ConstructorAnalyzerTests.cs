@@ -40,6 +40,14 @@ public class ConstructorAnalyzerTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -77,6 +85,14 @@ public class ConstructorAnalyzerTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -113,6 +129,14 @@ public class ConstructorAnalyzerTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -180,6 +204,14 @@ public class ConstructorAnalyzerTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -240,6 +272,14 @@ public class ConstructorAnalyzerTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestStruct>();
+                    }
+                }
             }
             """;
 
@@ -247,5 +287,175 @@ public class ConstructorAnalyzerTests
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+    }
+
+    /// <summary>
+    /// Tests that non-Splat Register methods do not trigger diagnostics (Bug #1/3 fix).
+    /// Only SplatRegistrations.Register should be analyzed, not other Register methods.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task NonSplatRegisterMethod_NoDiagnostic()
+    {
+        const string code = """
+            using Splat;
+
+            namespace Test
+            {
+                public class DialogManager
+                {
+                    public static void Register<TView, TContext>()
+                    {
+                    }
+                }
+
+                public class MyClass
+                {
+                    public MyClass()
+                    {
+                    }
+
+                    public MyClass(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+
+                public class TestSetup
+                {
+                    public void Setup()
+                    {
+                        // This should NOT trigger analyzer - it's not Splat.SplatRegistrations
+                        DialogManager.Register<MyClass, string>();
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that classes with multiple constructors but not used in DI don't trigger diagnostics (Bug #1/3 fix).
+    /// Only types actually registered with Splat should be analyzed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task ClassNotUsedInDI_NoDiagnostic()
+    {
+        const string code = """
+            using Splat;
+
+            namespace Test
+            {
+                public class NotRegistered
+                {
+                    public NotRegistered()
+                    {
+                    }
+
+                    public NotRegistered(IService service)
+                    {
+                    }
+                }
+
+                public interface IService { }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that Splat registrations with multiple constructors still report diagnostics.
+    /// Verifies the fix doesn't break detection of actual Splat DI issues.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task SplatRegistrationWithMultipleConstructors_ReportsDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class MyService
+                {
+                    public MyService()
+                    {
+                    }
+
+                    public MyService(ILogger logger)
+                    {
+                    }
+                }
+
+                public interface ILogger { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<MyService>();
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+    }
+
+    /// <summary>
+    /// Tests that RegisterLazySingleton with multiple constructors reports diagnostics.
+    /// Verifies lazy singleton registrations are also analyzed correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task RegisterLazySingletonWithMultipleConstructors_ReportsDiagnostic()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class MyService
+                {
+                    public MyService()
+                    {
+                    }
+
+                    public MyService(ILogger logger)
+                    {
+                    }
+                }
+
+                public interface ILogger { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        RegisterLazySingleton<MyService>();
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        await Assert.That(diagnostics.Length).IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
     }
 }

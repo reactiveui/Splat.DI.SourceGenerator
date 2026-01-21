@@ -22,8 +22,8 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_WithSameValues_AreEqual()
     {
-        var param1 = new ConstructorParameter("service", "global::Test.IService", false, null);
-        var param2 = new ConstructorParameter("service", "global::Test.IService", false, null);
+        var param1 = new ConstructorParameter("service", "global::Test.IService", false, null, false, null);
+        var param2 = new ConstructorParameter("service", "global::Test.IService", false, null, false, null);
 
         await Assert.That(param1).IsEqualTo(param2);
         await Assert.That(param1.GetHashCode()).IsEqualTo(param2.GetHashCode());
@@ -36,8 +36,8 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_WithDifferentParameterName_AreNotEqual()
     {
-        var param1 = new ConstructorParameter("service1", "global::Test.IService", false, null);
-        var param2 = new ConstructorParameter("service2", "global::Test.IService", false, null);
+        var param1 = new ConstructorParameter("service1", "global::Test.IService", false, null, false, null);
+        var param2 = new ConstructorParameter("service2", "global::Test.IService", false, null, false, null);
 
         await Assert.That(param1).IsNotEqualTo(param2);
     }
@@ -49,8 +49,8 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_WithDifferentTypeName_AreNotEqual()
     {
-        var param1 = new ConstructorParameter("service", "global::Test.IService1", false, null);
-        var param2 = new ConstructorParameter("service", "global::Test.IService2", false, null);
+        var param1 = new ConstructorParameter("service", "global::Test.IService1", false, null, false, null);
+        var param2 = new ConstructorParameter("service", "global::Test.IService2", false, null, false, null);
 
         await Assert.That(param1).IsNotEqualTo(param2);
     }
@@ -62,8 +62,8 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_WithDifferentIsLazy_AreNotEqual()
     {
-        var param1 = new ConstructorParameter("service", "global::Test.IService", false, null);
-        var param2 = new ConstructorParameter("service", "global::Test.IService", true, "global::Test.IService");
+        var param1 = new ConstructorParameter("service", "global::Test.IService", false, null, false, null);
+        var param2 = new ConstructorParameter("service", "global::Test.IService", true, "global::Test.IService", false, null);
 
         await Assert.That(param1).IsNotEqualTo(param2);
     }
@@ -75,8 +75,8 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_WithDifferentLazyInnerType_AreNotEqual()
     {
-        var param1 = new ConstructorParameter("service", "global::System.Lazy<global::Test.IService1>", true, "global::Test.IService1");
-        var param2 = new ConstructorParameter("service", "global::System.Lazy<global::Test.IService2>", true, "global::Test.IService2");
+        var param1 = new ConstructorParameter("service", "global::System.Lazy<global::Test.IService1>", true, "global::Test.IService1", false, null);
+        var param2 = new ConstructorParameter("service", "global::System.Lazy<global::Test.IService2>", true, "global::Test.IService2", false, null);
 
         await Assert.That(param1).IsNotEqualTo(param2);
     }
@@ -88,7 +88,7 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_NonLazy_Properties_AreAccessible()
     {
-        var param = new ConstructorParameter("myParam", "global::Test.IMyType", false, null);
+        var param = new ConstructorParameter("myParam", "global::Test.IMyType", false, null, false, null);
 
         await Assert.That(param.ParameterName).IsEqualTo("myParam");
         await Assert.That(param.TypeFullName).IsEqualTo("global::Test.IMyType");
@@ -103,7 +103,7 @@ public class ConstructorParameterTests
     [Test]
     public async Task ConstructorParameter_Lazy_Properties_AreAccessible()
     {
-        var param = new ConstructorParameter("myParam", "global::System.Lazy<global::Test.IMyType>", true, "global::Test.IMyType");
+        var param = new ConstructorParameter("myParam", "global::System.Lazy<global::Test.IMyType>", true, "global::Test.IMyType", false, null);
 
         await Assert.That(param.ParameterName).IsEqualTo("myParam");
         await Assert.That(param.TypeFullName).IsEqualTo("global::System.Lazy<global::Test.IMyType>");

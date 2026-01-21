@@ -26,7 +26,7 @@ public class RegistrationInfoTests
         var location = Location.None;
         var constructorParams = new EquatableArray<ConstructorParameter>(new[]
         {
-            new ConstructorParameter("param1", "global::System.String", false, null)
+            new ConstructorParameter("param1", "global::System.String", false, null, false, null)
         });
         var propertyInjections = new EquatableArray<PropertyInjection>(new[]
         {
@@ -158,7 +158,7 @@ public class RegistrationInfoTests
         var location = Location.None;
         var constructorParams = new EquatableArray<ConstructorParameter>(new[]
         {
-            new ConstructorParameter("param1", "global::System.String", false, null)
+            new ConstructorParameter("param1", "global::System.String", false, null, false, null)
         });
         var propertyInjections = new EquatableArray<PropertyInjection>(new[]
         {

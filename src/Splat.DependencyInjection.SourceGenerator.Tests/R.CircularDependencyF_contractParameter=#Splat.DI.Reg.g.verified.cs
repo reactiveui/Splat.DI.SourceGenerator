@@ -14,8 +14,8 @@ namespace Splat
     {
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ITest1>(() => new global::Test.TestConcrete1((global::Test.ITest2)resolver.GetService(typeof(global::Test.ITest2)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))));
-            resolver.Register<global::Test.ITest2>(() => new global::Test.TestConcrete2((global::Test.ITest1)resolver.GetService(typeof(global::Test.ITest1)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))));
+            resolver.Register<global::Test.ITest1>(() => new global::Test.TestConcrete1(resolver.GetService<global::Test.ITest2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.ITest2' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
+            resolver.Register<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.ITest1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.ITest1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
         }
     }
 }

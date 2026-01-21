@@ -124,4 +124,184 @@ public sealed class RegisterTests() : TestBase("Register")
 
         return TestHelper.TestFail(source, contract, GetType());
     }
+
+    /// <summary>
+    /// Validates that IEnumerable{T} dependency injection generates GetServices{T}() calls.
+    /// </summary>
+    /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
+    public Task IEnumerableDependency(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
+
+        var source = $$"""
+            using System;
+            using System.Collections.Generic;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.Register<IService, ServiceA>({{arguments}});
+                        SplatRegistrations.Register<IService, ServiceB>({{arguments}});
+                    }
+                }
+
+                public interface ITest { }
+                public class TestConcrete : ITest
+                {
+                    public TestConcrete(IEnumerable<IService> services)
+                    {
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceA : IService { }
+                public class ServiceB : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, contract, GetType());
+    }
+
+    /// <summary>
+    /// Validates that generic concrete types with single type parameter are handled correctly.
+    /// </summary>
+    /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
+    public Task GenericConcreteType_SingleTypeParameter(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
+
+        var source = $$"""
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IAppUpdateService, AppUpdateService<string>>({{arguments}});
+                        SplatRegistrations.Register<IConfig, Config>({{arguments}});
+                    }
+                }
+
+                public interface IAppUpdateService { }
+                public class AppUpdateService<TSettings> : IAppUpdateService
+                {
+                    public AppUpdateService(IConfig config)
+                    {
+                    }
+                }
+
+                public interface IConfig { }
+                public class Config : IConfig { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, contract, GetType());
+    }
+
+    /// <summary>
+    /// Validates that generic concrete types with multiple type parameters are handled correctly.
+    /// </summary>
+    /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
+    public Task GenericConcreteType_MultipleTypeParameters(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
+
+        var source = $$"""
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<ICache, Cache<string, int>>({{arguments}});
+                    }
+                }
+
+                public interface ICache { }
+                public class Cache<TKey, TValue> : ICache
+                {
+                    public Cache()
+                    {
+                    }
+                }
+            }
+            """;
+
+        return TestHelper.TestPass(source, contract, GetType());
+    }
+
+    /// <summary>
+    /// Validates that nested generic types are handled correctly.
+    /// </summary>
+    /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    [Arguments("")]
+    [Arguments("Test1")]
+    [Arguments("Test2")]
+    public Task GenericConcreteType_NestedGeneric(string contract)
+    {
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
+
+        var source = $$"""
+            using System;
+            using System.Collections.Generic;
+            using Splat;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IRepository, Repository<List<string>>>({{arguments}});
+                    }
+                }
+
+                public interface IRepository { }
+                public class Repository<T> : IRepository
+                {
+                    public Repository()
+                    {
+                    }
+                }
+            }
+            """;
+
+        return TestHelper.TestPass(source, contract, GetType());
+    }
 }

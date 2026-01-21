@@ -15,7 +15,7 @@ namespace Splat
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
             {
-                global::System.Lazy<global::Test.TestConcrete> lazy = new global::System.Lazy<global::Test.TestConcrete>(() => new global::Test.TestConcrete((global::Test.IService1)resolver.GetService(typeof(global::Test.IService1)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))));
+                global::System.Lazy<global::Test.TestConcrete> lazy = new global::System.Lazy<global::Test.TestConcrete>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract "Test1" not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract "Test1" not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.TestConcrete>>(() => lazy, "Test1");
                 resolver.Register<global::Test.TestConcrete>(() => lazy.Value, "Test1");
             }

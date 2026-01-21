@@ -8,6 +8,7 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Splat.DependencyInjection.Analyzer.Analyzers;
 
@@ -39,21 +40,65 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterSymbolAction(AnalyzeNamedType, SymbolKind.NamedType);
+        context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
     }
 
-    private static void AnalyzeNamedType(SymbolAnalysisContext context)
+    private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
-        var namedType = (INamedTypeSymbol)context.Symbol;
+        var invocation = (IInvocationOperation)context.Operation;
+        var method = invocation.TargetMethod;
 
-        // Only analyze classes and structs
-        if (namedType.TypeKind != TypeKind.Class && namedType.TypeKind != TypeKind.Struct)
+        // Check if it's SplatRegistrations.Register or RegisterLazySingleton
+        if (!IsSplatRegistrationsMethod(method, "Register") &&
+            !IsSplatRegistrationsMethod(method, "RegisterLazySingleton") &&
+            !IsSplatRegistrationsMethod(method, "RegisterConstant"))
         {
             return;
         }
 
+        // Extract concrete type from type arguments
+        if (method.TypeArguments.Length == 0 || method.TypeArguments.Length > 2)
+        {
+            return;
+        }
+
+        var concreteType = method.TypeArguments.Length == 2
+            ? method.TypeArguments[1]
+            : method.TypeArguments[0];
+
+        // Analyze this specific type's constructors
+        AnalyzeConstructorsForType(context.Compilation, concreteType, context.ReportDiagnostic);
+    }
+
+    private static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
+    {
+        var containingType = methodSymbol.ContainingType?.OriginalDefinition;
+        if (containingType == null)
+        {
+            return false;
+        }
+
+        return containingType.ContainingNamespace?.Name == "Splat" &&
+               containingType.Name == "SplatRegistrations" &&
+               methodSymbol.Name == methodName &&
+               !methodSymbol.IsExtensionMethod;
+    }
+
+    private static void AnalyzeConstructorsForType(
+        Compilation compilation,
+        ITypeSymbol typeSymbol,
+        Action<Diagnostic> reportDiagnostic)
+    {
+        // Only analyze classes and structs
+        if (typeSymbol.TypeKind != TypeKind.Class && typeSymbol.TypeKind != TypeKind.Struct)
+        {
+            return;
+        }
+
+        var namedType = (INamedTypeSymbol)typeSymbol;
+
         // Cache attribute symbol for comparison (avoids repeated string allocations)
-        var constructorAttributeSymbol = context.Compilation.GetTypeByMetadataName(
+        var constructorAttributeSymbol = compilation.GetTypeByMetadataName(
             "Splat.DependencyInjection.DependencyInjectionConstructorAttribute");
 
         // Single-pass counting (eliminates 3 List allocations and repeated GetAttributes() calls)
@@ -161,7 +206,7 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
 
                     if (ctorIsMarked)
                     {
-                        context.ReportDiagnostic(Diagnostic.Create(
+                        reportDiagnostic(Diagnostic.Create(
                             SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
                             ctor.Locations.Length > 0 ? ctor.Locations[0] : Location.None,
                             namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
@@ -174,7 +219,7 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
                 if (firstMarked.DeclaredAccessibility < Accessibility.Internal)
                 {
                     // SPLATDI004: Constructor must be public or internal
-                    context.ReportDiagnostic(Diagnostic.Create(
+                    reportDiagnostic(Diagnostic.Create(
                         SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
                         firstMarked.Locations.Length > 0 ? firstMarked.Locations[0] : Location.None,
                         namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
@@ -188,7 +233,7 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         if (accessibleCount > 1)
         {
             // SPLATDI001: Multiple constructors without attribute
-            context.ReportDiagnostic(Diagnostic.Create(
+            reportDiagnostic(Diagnostic.Create(
                 SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
                 namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None,
                 namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));

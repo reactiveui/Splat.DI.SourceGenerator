@@ -14,4 +14,6 @@ internal sealed record ConstructorParameter(
     string ParameterName,
     string TypeFullName,
     bool IsLazy,
-    string? LazyInnerType) : IEquatable<ConstructorParameter>;
+    string? LazyInnerType,
+    bool IsCollection,
+    string? CollectionItemType) : IEquatable<ConstructorParameter>;

@@ -36,6 +36,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -58,6 +66,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -96,6 +112,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -118,6 +142,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -160,6 +192,14 @@ public class ConstructorCodeFixProviderTests
 
                 public interface IService1 { }
                 public interface IService2 { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -187,6 +227,14 @@ public class ConstructorCodeFixProviderTests
 
                 public interface IService1 { }
                 public interface IService2 { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -228,6 +276,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -254,6 +310,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -291,6 +355,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestStruct>();
+                    }
+                }
             }
             """;
 
@@ -313,6 +385,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestStruct>();
+                    }
+                }
             }
             """;
 
@@ -352,6 +432,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -376,6 +464,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -419,6 +515,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -447,6 +551,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -484,6 +596,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -506,6 +626,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
