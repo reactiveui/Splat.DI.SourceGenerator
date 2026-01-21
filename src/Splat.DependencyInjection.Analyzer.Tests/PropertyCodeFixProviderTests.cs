@@ -2,6 +2,10 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CodeFixes;
+using TUnit.Assertions;
+
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
 /// <summary>
@@ -10,6 +14,19 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class PropertyCodeFixProviderTests
 {
+    /// <summary>
+    /// Tests that the provider configuration is valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task Provider_Configuration_IsValid()
+    {
+        var provider = new CodeFixes.PropertyCodeFixProvider();
+
+        await Assert.That(provider.FixableDiagnosticIds).Contains(Splat.DependencyInjection.SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable.Id);
+        await Assert.That(provider.GetFixAllProvider()).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
+    }
+
     /// <summary>
     /// Tests that the code fix changes a private setter to public.
     /// Verifies the first code action (index 0) makes the setter public.

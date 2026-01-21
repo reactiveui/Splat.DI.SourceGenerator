@@ -2,6 +2,10 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CodeFixes;
+using TUnit.Assertions;
+
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
 /// <summary>
@@ -10,6 +14,19 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class ConstructorCodeFixProviderTests
 {
+    /// <summary>
+    /// Tests that the provider configuration is valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task Provider_Configuration_IsValid()
+    {
+        var provider = new CodeFixes.ConstructorCodeFixProvider();
+
+        await Assert.That(provider.FixableDiagnosticIds).Contains(Splat.DependencyInjection.SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute.Id);
+        await Assert.That(provider.GetFixAllProvider()).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
+    }
+
     /// <summary>
     /// Tests that the code fix adds the DependencyInjectionConstructor attribute to the first (parameterless) constructor.
     /// Verifies the code action at index 0 targets the constructor with zero parameters.

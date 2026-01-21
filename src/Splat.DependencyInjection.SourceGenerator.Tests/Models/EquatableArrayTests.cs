@@ -257,4 +257,17 @@ public class EquatableArrayTests
         await Assert.That(array1 == array2).IsTrue();
         await Assert.That(array1.GetHashCode()).IsEqualTo(array2.GetHashCode());
     }
+
+    /// <summary>
+    /// Tests that GetHashCode consistency is maintained across equal arrays.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task EquatableArray_EqualArrays_GetHashCode_AreEqual()
+    {
+        var array1 = new EquatableArray<string>(new[] { "a", "b", "c" });
+        var array2 = new EquatableArray<string>(new[] { "a", "b", "c" });
+
+        await Assert.That(array1.GetHashCode()).IsEqualTo(array2.GetHashCode());
+    }
 }
