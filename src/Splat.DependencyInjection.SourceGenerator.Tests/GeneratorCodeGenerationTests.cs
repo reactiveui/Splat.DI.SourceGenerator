@@ -4,11 +4,11 @@
 
 using System.Collections.Immutable;
 using System.Text;
+
 using Microsoft.CodeAnalysis;
+
+using Splat.DependencyInjection.SourceGenerator.CodeGeneration;
 using Splat.DependencyInjection.SourceGenerator.Models;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
@@ -34,7 +34,7 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateTransientRegistration(sb, registration);
+        CodeGenerator.GenerateTransientRegistration(sb, registration);
 
         var result = sb.ToString();
         await Assert.That(result).Contains("resolver.Register<global::Test.IService>");
@@ -53,19 +53,19 @@ public class GeneratorCodeGenerationTests
             ConcreteTypeFullName: "global::Test.Service",
             ConstructorParameters: new EquatableArray<ConstructorParameter>(new[]
             {
-                new ConstructorParameter("dep1", "global::Test.IDep1", false, null),
-                new ConstructorParameter("dep2", "global::Test.IDep2", false, null)
+                new ConstructorParameter("dep1", "global::Test.IDep1", false, null, false, null),
+                new ConstructorParameter("dep2", "global::Test.IDep2", false, null, false, null)
             }),
             PropertyInjections: default,
             ContractValue: null,
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateTransientRegistration(sb, registration);
+        CodeGenerator.GenerateTransientRegistration(sb, registration);
 
         var result = sb.ToString();
-        await Assert.That(result).Contains("(global::Test.IDep1)resolver.GetService(typeof(global::Test.IDep1))");
-        await Assert.That(result).Contains("(global::Test.IDep2)resolver.GetService(typeof(global::Test.IDep2))");
+        await Assert.That(result).Contains("resolver.GetService<global::Test.IDep1>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IDep1' not registered with Splat resolver.\")");
+        await Assert.That(result).Contains("resolver.GetService<global::Test.IDep2>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IDep2' not registered with Splat resolver.\")");
     }
 
     /// <summary>
@@ -88,10 +88,10 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateTransientRegistration(sb, registration);
+        CodeGenerator.GenerateTransientRegistration(sb, registration);
 
         var result = sb.ToString();
-        await Assert.That(result).Contains("{ Prop1 = (global::Test.IProp1)resolver.GetService(typeof(global::Test.IProp1)), Prop2 = (global::Test.IProp2)resolver.GetService(typeof(global::Test.IProp2)) }");
+        await Assert.That(result).Contains("{ Prop1 = resolver.GetService<global::Test.IProp1>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IProp1' not registered with Splat resolver.\"), Prop2 = resolver.GetService<global::Test.IProp2>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IProp2' not registered with Splat resolver.\") }");
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateTransientRegistration(sb, registration);
+        CodeGenerator.GenerateTransientRegistration(sb, registration);
 
         var result = sb.ToString();
         await Assert.That(result).Contains(", \"MyContract\"");
@@ -133,7 +133,7 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateLazySingletonRegistration(sb, registration);
+        CodeGenerator.GenerateLazySingletonRegistration(sb, registration);
 
         var result = sb.ToString();
         await Assert.That(result).Contains("global::System.Lazy<global::Test.IService> lazy");
@@ -159,7 +159,7 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateLazySingletonRegistration(sb, registration);
+        CodeGenerator.GenerateLazySingletonRegistration(sb, registration);
 
         var result = sb.ToString();
         await Assert.That(result).Contains(", global::System.Threading.LazyThreadSafetyMode.ExecutionAndPublication");
@@ -175,7 +175,7 @@ public class GeneratorCodeGenerationTests
         var transients = ImmutableArray<TransientRegistrationInfo>.Empty;
         var lazySingletons = ImmutableArray<LazySingletonRegistrationInfo>.Empty;
 
-        var result = Generator.GenerateSetupIOCMethod(transients, lazySingletons);
+        var result = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
 
         await Assert.That(result).Contains("// <auto-generated/>");
         await Assert.That(result).Contains("#nullable enable annotations");
@@ -194,7 +194,7 @@ public class GeneratorCodeGenerationTests
         var transients = ImmutableArray<TransientRegistrationInfo>.Empty;
         var lazySingletons = ImmutableArray<LazySingletonRegistrationInfo>.Empty;
 
-        var result = Generator.GenerateSetupIOCMethod(transients, lazySingletons);
+        var result = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
 
         await Assert.That(result).Contains("[global::System.CodeDom.Compiler.GeneratedCodeAttribute(");
         await Assert.That(result).Contains("Splat.DependencyInjection.SourceGenerator");
@@ -226,7 +226,7 @@ public class GeneratorCodeGenerationTests
                 null,
                 Location.None));
 
-        var result = Generator.GenerateSetupIOCMethod(transients, lazySingletons);
+        var result = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
 
         await Assert.That(result).Contains("resolver.Register<global::Test.IService1>");
         await Assert.That(result).Contains("new global::Test.Service1()");
@@ -255,10 +255,10 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateLazySingletonRegistration(sb, registration);
+        CodeGenerator.GenerateLazySingletonRegistration(sb, registration);
 
         var result = sb.ToString();
-        await Assert.That(result).Contains("{ Prop1 = (global::Test.IProp1)resolver.GetService(typeof(global::Test.IProp1)), Prop2 = (global::Test.IProp2)resolver.GetService(typeof(global::Test.IProp2)) }");
+        await Assert.That(result).Contains("{ Prop1 = resolver.GetService<global::Test.IProp1>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IProp1' not registered with Splat resolver.\"), Prop2 = resolver.GetService<global::Test.IProp2>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IProp2' not registered with Splat resolver.\") }");
     }
 
     /// <summary>
@@ -273,8 +273,8 @@ public class GeneratorCodeGenerationTests
             ConcreteTypeFullName: "global::Test.Service",
             ConstructorParameters: new EquatableArray<ConstructorParameter>(new[]
             {
-                new ConstructorParameter("dep1", "global::Test.IDep1", false, null),
-                new ConstructorParameter("dep2", "global::Test.IDep2", false, null)
+                new ConstructorParameter("dep1", "global::Test.IDep1", false, null, false, null),
+                new ConstructorParameter("dep2", "global::Test.IDep2", false, null, false, null)
             }),
             PropertyInjections: default,
             ContractValue: null,
@@ -282,11 +282,11 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateLazySingletonRegistration(sb, registration);
+        CodeGenerator.GenerateLazySingletonRegistration(sb, registration);
 
         var result = sb.ToString();
-        await Assert.That(result).Contains("(global::Test.IDep1)resolver.GetService(typeof(global::Test.IDep1))");
-        await Assert.That(result).Contains("(global::Test.IDep2)resolver.GetService(typeof(global::Test.IDep2))");
+        await Assert.That(result).Contains("resolver.GetService<global::Test.IDep1>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IDep1' not registered with Splat resolver.\")");
+        await Assert.That(result).Contains("resolver.GetService<global::Test.IDep2>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::Test.IDep2' not registered with Splat resolver.\")");
     }
 
     /// <summary>
@@ -306,7 +306,7 @@ public class GeneratorCodeGenerationTests
             InvocationLocation: Location.None);
 
         var sb = new StringBuilder();
-        Generator.GenerateLazySingletonRegistration(sb, registration);
+        CodeGenerator.GenerateLazySingletonRegistration(sb, registration);
 
         var result = sb.ToString();
         await Assert.That(result).Contains(", \"MyContract\"");

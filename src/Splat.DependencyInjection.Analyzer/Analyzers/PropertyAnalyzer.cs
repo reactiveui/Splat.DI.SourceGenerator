@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -35,43 +34,37 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterSymbolAction(AnalyzeProperty, SymbolKind.Property);
+        // Use RegisterCompilationStartAction for access to the compilation-wide attribute symbol
+        context.RegisterCompilationStartAction(compilationContext =>
+        {
+            // Try both possible attribute locations (namespace-level from generator, or user-defined)
+            var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName("Splat.DependencyInjectionPropertyAttribute");
+
+            // Only register the symbol action if the attribute exists in this compilation
+            if (propertyAttributeSymbol != null)
+            {
+                compilationContext.RegisterSymbolAction(
+                    symbolContext => AnalyzeProperty(symbolContext, propertyAttributeSymbol),
+                    SymbolKind.Property);
+            }
+        });
     }
 
-    private static void AnalyzeProperty(SymbolAnalysisContext context)
+    private static void AnalyzeProperty(SymbolAnalysisContext context, INamedTypeSymbol propertyAttributeSymbol)
     {
         var property = (IPropertySymbol)context.Symbol;
-
-        // Cache attribute symbol for comparison (avoids repeated string allocations)
-        var propertyAttributeSymbol = context.Compilation.GetTypeByMetadataName(
-            "Splat.DependencyInjection.DependencyInjectionPropertyAttribute");
 
         // Check if property has [DependencyInjectionProperty] attribute (manual loop to avoid LINQ allocation)
         var attrs = property.GetAttributes();
         var hasAttribute = false;
 
-        if (propertyAttributeSymbol != null)
+        // Fast path: symbol comparison (no string allocations)
+        for (var i = 0; i < attrs.Length; i++)
         {
-            // Fast path: symbol comparison
-            for (var i = 0; i < attrs.Length; i++)
+            if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, propertyAttributeSymbol))
             {
-                if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, propertyAttributeSymbol))
-                {
-                    hasAttribute = true;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            // Fallback: string comparison (for test scenarios where metadata lookup may fail)
-            for (var i = 0; i < attrs.Length; i++)
-            {
-                if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.PropertyAttribute)
-                {
-                    hasAttribute = true;
-                    break;
-                }
+                hasAttribute = true;
+                break;
             }
         }
 

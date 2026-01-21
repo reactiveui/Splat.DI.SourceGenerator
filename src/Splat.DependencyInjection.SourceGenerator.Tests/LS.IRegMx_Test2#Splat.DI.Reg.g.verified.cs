@@ -23,7 +23,6 @@ namespace Splat
                 global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete2());
                 resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest>(() => lazy.Value, "Test2");
-            }
-        }
+            }        }
     }
 }

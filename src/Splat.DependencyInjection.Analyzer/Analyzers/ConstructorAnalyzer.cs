@@ -4,10 +4,10 @@
 
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Splat.DependencyInjection.Analyzer.Analyzers;
 
@@ -19,8 +19,6 @@ namespace Splat.DependencyInjection.Analyzer.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class ConstructorAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
-
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
@@ -39,159 +37,33 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterSymbolAction(AnalyzeNamedType, SymbolKind.NamedType);
+        context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
     }
 
-    private static void AnalyzeNamedType(SymbolAnalysisContext context)
+    private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
-        var namedType = (INamedTypeSymbol)context.Symbol;
+        var invocation = (IInvocationOperation)context.Operation;
+        var method = invocation.TargetMethod;
 
-        // Only analyze classes and structs
-        if (namedType.TypeKind != TypeKind.Class && namedType.TypeKind != TypeKind.Struct)
+        // Check if it's SplatRegistrations.Register or RegisterLazySingleton
+        if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, "Register") &&
+            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterLazySingleton") &&
+            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterConstant"))
         {
             return;
         }
 
-        // Cache attribute symbol for comparison (avoids repeated string allocations)
-        var constructorAttributeSymbol = context.Compilation.GetTypeByMetadataName(
-            "Splat.DependencyInjection.DependencyInjectionConstructorAttribute");
-
-        // Single-pass counting (eliminates 3 List allocations and repeated GetAttributes() calls)
-        var constructors = namedType.Constructors;
-        var accessibleCount = 0;
-        var markedCount = 0;
-        IMethodSymbol? firstMarked = null;
-        IMethodSymbol? secondMarked = null;
-
-        for (var i = 0; i < constructors.Length; i++)
+        // Extract concrete type from type arguments
+        if (method.TypeArguments.Length == 0 || method.TypeArguments.Length > 2)
         {
-            var ctor = constructors[i];
-
-            if (ctor.IsStatic)
-            {
-                continue;
-            }
-
-            // Check accessibility
-            if (ctor.DeclaredAccessibility >= Accessibility.Internal)
-            {
-                accessibleCount++;
-            }
-
-            // Check for attribute
-            var attrs = ctor.GetAttributes();
-            var isMarked = false;
-
-            if (constructorAttributeSymbol != null)
-            {
-                // Fast path: symbol comparison
-                for (var j = 0; j < attrs.Length; j++)
-                {
-                    if (SymbolEqualityComparer.Default.Equals(attrs[j].AttributeClass, constructorAttributeSymbol))
-                    {
-                        isMarked = true;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                // Fallback: string comparison (for test scenarios where metadata lookup may fail)
-                for (var j = 0; j < attrs.Length; j++)
-                {
-                    if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.ConstructorAttribute)
-                    {
-                        isMarked = true;
-                        break;
-                    }
-                }
-            }
-
-            if (isMarked)
-            {
-                markedCount++;
-                if (firstMarked == null)
-                {
-                    firstMarked = ctor;
-                }
-                else if (secondMarked == null)
-                {
-                    secondMarked = ctor;
-                }
-            }
+            return;
         }
 
-        // If there's a marked constructor, always validate it
-        if (markedCount > 0)
-        {
-            if (markedCount > 1)
-            {
-                // SPLATDI003: Multiple constructors marked - report on all marked constructors
-                for (var i = 0; i < constructors.Length; i++)
-                {
-                    var ctor = constructors[i];
-                    var attrs = ctor.GetAttributes();
-                    var ctorIsMarked = false;
+        var concreteType = method.TypeArguments.Length == 2
+            ? method.TypeArguments[1]
+            : method.TypeArguments[0];
 
-                    // Check if this constructor is marked
-                    if (constructorAttributeSymbol != null)
-                    {
-                        // Fast path: symbol comparison
-                        for (var j = 0; j < attrs.Length; j++)
-                        {
-                            if (SymbolEqualityComparer.Default.Equals(attrs[j].AttributeClass, constructorAttributeSymbol))
-                            {
-                                ctorIsMarked = true;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: string comparison
-                        for (var j = 0; j < attrs.Length; j++)
-                        {
-                            if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == SourceGenerator.Constants.ConstructorAttribute)
-                            {
-                                ctorIsMarked = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (ctorIsMarked)
-                    {
-                        context.ReportDiagnostic(Diagnostic.Create(
-                            SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
-                            ctor.Locations.Length > 0 ? ctor.Locations[0] : Location.None,
-                            namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
-                    }
-                }
-            }
-            else if (firstMarked != null)
-            {
-                // Exactly one constructor is marked - check accessibility
-                if (firstMarked.DeclaredAccessibility < Accessibility.Internal)
-                {
-                    // SPLATDI004: Constructor must be public or internal
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
-                        firstMarked.Locations.Length > 0 ? firstMarked.Locations[0] : Location.None,
-                        namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
-                }
-            }
-
-            return; // Don't check for multiple constructors without attribute if one is marked
-        }
-
-        // No marked constructors - check if we need to warn about multiple accessible constructors
-        if (accessibleCount > 1)
-        {
-            // SPLATDI001: Multiple constructors without attribute
-            context.ReportDiagnostic(Diagnostic.Create(
-                SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
-                namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None,
-                namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
-        }
+        // Analyze this specific type's constructors
+        AnalyzerHelpers.AnalyzeConstructorsForType(context.Compilation, concreteType, context.ReportDiagnostic);
     }
 }

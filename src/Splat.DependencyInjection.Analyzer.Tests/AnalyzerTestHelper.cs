@@ -43,9 +43,9 @@ public static class AnalyzerTestHelper
     /// </summary>
     private static CSharpCompilation CreateCompilation(string source)
     {
-        // Add the attribute definitions so the analyzer can find them
+        // Add the attribute definitions and SplatRegistrations class so the analyzer can find them
         // Note: Attributes must be at namespace level to match Constants.ConstructorAttribute and Constants.PropertyAttribute
-        const string attributeSource = """
+        const string attributeAndExtensionsSource = """
             namespace Splat
             {
                 [System.AttributeUsage(System.AttributeTargets.Property)]
@@ -57,11 +57,30 @@ public static class AnalyzerTestHelper
                 internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
                 {
                 }
+
+                /// <summary>
+                /// Extension methods for the Splat DI source generator.
+                /// </summary>
+                internal static partial class SplatRegistrations
+                {
+                    public static void Register<TInterface, TConcrete>() { }
+                    public static void Register<TInterface, TConcrete>(string contract) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>() { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(System.Threading.LazyThreadSafetyMode mode) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(string contract) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(string contract, System.Threading.LazyThreadSafetyMode mode) { }
+                    public static void Register<T>() { }
+                    public static void Register<T>(string contract) { }
+                    public static void RegisterLazySingleton<T>() { }
+                    public static void RegisterLazySingleton<T>(string contract) { }
+                    public static void RegisterConstant<T>(T instance) { }
+                    public static void RegisterConstant<T>(T instance, string contract) { }
+                }
             }
             """;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
-        var attributeTree = CSharpSyntaxTree.ParseText(attributeSource);
+        var attributeTree = CSharpSyntaxTree.ParseText(attributeAndExtensionsSource);
 
         // Get references for the current runtime
         var references = new List<MetadataReference>();

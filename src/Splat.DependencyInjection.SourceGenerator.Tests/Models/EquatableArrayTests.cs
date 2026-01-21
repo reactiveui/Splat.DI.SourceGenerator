@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections;
+
 using Splat.DependencyInjection.SourceGenerator.Models;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests.Models;
 
@@ -255,6 +253,19 @@ public class EquatableArrayTests
 
         await Assert.That(array1.Equals(array2)).IsTrue();
         await Assert.That(array1 == array2).IsTrue();
+        await Assert.That(array1.GetHashCode()).IsEqualTo(array2.GetHashCode());
+    }
+
+    /// <summary>
+    /// Tests that GetHashCode consistency is maintained across equal arrays.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task EquatableArray_EqualArrays_GetHashCode_AreEqual()
+    {
+        var array1 = new EquatableArray<string>(new[] { "a", "b", "c" });
+        var array2 = new EquatableArray<string>(new[] { "a", "b", "c" });
+
         await Assert.That(array1.GetHashCode()).IsEqualTo(array2.GetHashCode());
     }
 }

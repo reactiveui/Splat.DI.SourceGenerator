@@ -14,9 +14,8 @@ namespace Splat
     {
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ITest1>(() => new global::Test.TestConcrete1((global::Test.IService1)resolver.GetService(typeof(global::Test.IService1)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))), "Test1");
-            resolver.Register<global::Test.ITest2>(() => new global::Test.TestConcrete2((global::Test.IService1)resolver.GetService(typeof(global::Test.IService1)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))), "Test1");
-            resolver.Register<global::Test.ITest3>(() => new global::Test.TestConcrete3((global::Test.IService1)resolver.GetService(typeof(global::Test.IService1)), (global::Test.IService2)resolver.GetService(typeof(global::Test.IService2))), "Test1");
-        }
+            resolver.Register<global::Test.ITest1>(() => new global::Test.TestConcrete1(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")), "Test1");
+            resolver.Register<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")), "Test1");
+            resolver.Register<global::Test.ITest3>(() => new global::Test.TestConcrete3(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test1" + " not registered with Splat resolver.")), "Test1");        }
     }
 }

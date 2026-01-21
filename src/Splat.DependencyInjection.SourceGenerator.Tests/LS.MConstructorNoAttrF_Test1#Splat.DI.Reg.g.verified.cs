@@ -13,7 +13,6 @@ namespace Splat
     internal static partial class SplatRegistrations
     {
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
-        {
-        }
+        {        }
     }
 }

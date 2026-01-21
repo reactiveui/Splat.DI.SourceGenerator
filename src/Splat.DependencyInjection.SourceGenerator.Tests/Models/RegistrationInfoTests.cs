@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis;
+
 using Splat.DependencyInjection.SourceGenerator.Models;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests.Models;
 
@@ -26,7 +24,7 @@ public class RegistrationInfoTests
         var location = Location.None;
         var constructorParams = new EquatableArray<ConstructorParameter>(new[]
         {
-            new ConstructorParameter("param1", "global::System.String", false, null)
+            new ConstructorParameter("param1", "global::System.String", false, null, false, null)
         });
         var propertyInjections = new EquatableArray<PropertyInjection>(new[]
         {
@@ -158,7 +156,7 @@ public class RegistrationInfoTests
         var location = Location.None;
         var constructorParams = new EquatableArray<ConstructorParameter>(new[]
         {
-            new ConstructorParameter("param1", "global::System.String", false, null)
+            new ConstructorParameter("param1", "global::System.String", false, null, false, null)
         });
         var propertyInjections = new EquatableArray<PropertyInjection>(new[]
         {

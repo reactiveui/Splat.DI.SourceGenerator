@@ -2,6 +2,11 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CodeFixes;
+
+using TUnit.Assertions;
+
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
 /// <summary>
@@ -10,6 +15,19 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class ConstructorCodeFixProviderTests
 {
+    /// <summary>
+    /// Tests that the provider configuration is valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task Provider_Configuration_IsValid()
+    {
+        var provider = new CodeFixes.ConstructorCodeFixProvider();
+
+        await Assert.That(provider.FixableDiagnosticIds).Contains(Splat.DependencyInjection.SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute.Id);
+        await Assert.That(provider.GetFixAllProvider()).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
+    }
+
     /// <summary>
     /// Tests that the code fix adds the DependencyInjectionConstructor attribute to the first (parameterless) constructor.
     /// Verifies the code action at index 0 targets the constructor with zero parameters.
@@ -36,6 +54,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -58,6 +84,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -96,6 +130,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -118,6 +160,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -160,6 +210,14 @@ public class ConstructorCodeFixProviderTests
 
                 public interface IService1 { }
                 public interface IService2 { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -187,6 +245,14 @@ public class ConstructorCodeFixProviderTests
 
                 public interface IService1 { }
                 public interface IService2 { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -228,6 +294,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -254,6 +328,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -291,6 +373,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestStruct>();
+                    }
+                }
             }
             """;
 
@@ -313,6 +403,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestStruct>();
+                    }
+                }
             }
             """;
 
@@ -352,6 +450,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -376,6 +482,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -419,6 +533,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -447,6 +569,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -484,6 +614,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -506,6 +644,14 @@ public class ConstructorCodeFixProviderTests
                 }
 
                 public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<TestClass>();
+                    }
+                }
             }
             """;
 
@@ -516,5 +662,110 @@ public class ConstructorCodeFixProviderTests
             codeActionIndex: 0); // Select first constructor
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests that ConstructorCodeFixProvider works when constructor has no leading trivia.
+    /// This hits the specific branch in AddAttributeAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConstructorCodeFix_NoLeadingTrivia()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            namespace Test {
+                public class TestClass {
+                    public TestClass() {}
+                    public TestClass(int i) {}
+                }
+                public class Startup {
+                    public void Configure() {
+                        Register<TestClass>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+    }
+
+    /// <summary>
+    /// Tests that ConstructorCodeFixProvider works when constructor has existing attributes but no leading trivia.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConstructorCodeFix_ExistingAttribute_NoLeadingTrivia()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+            using System;
+            namespace Test {
+                public class TestClass {
+                    [Obsolete]public TestClass() {}
+                    public TestClass(int i) {}
+                }
+                public class Startup {
+                    public void Configure() {
+                        Register<TestClass>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+        await Assert.That(fixedCode).Contains("[Obsolete]public TestClass()");
+    }
+
+    /// <summary>
+    /// Tests that the code fix works correctly for a nested class.
+    /// This validates the ancestor walk logic in RegisterCodeFixesAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task NestedClass_AppliesFix()
+    {
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public class Outer
+                {
+                    public class Inner
+                    {
+                        public Inner() {}
+                        public Inner(IService service) {}
+                    }
+                }
+
+                public interface IService { }
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        Register<Outer.Inner>();
+                    }
+                }
+            }
+            """;
+
+        var fixedCode = await CodeFixTestHelper.ApplyCodeFixAsync<
+            Analyzers.ConstructorAnalyzer,
+            CodeFixes.ConstructorCodeFixProvider>(code);
+
+        await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
     }
 }

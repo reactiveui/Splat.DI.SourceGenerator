@@ -86,9 +86,9 @@ public static class CodeFixTestHelper
     /// </summary>
     private static Document CreateDocument(string source)
     {
-        // Add the attribute definitions so the analyzer can find them
+        // Add the attribute definitions and SplatRegistrations class so the analyzer can find them
         // Note: Attributes must be at namespace level to match Constants.ConstructorAttribute and Constants.PropertyAttribute
-        const string attributeSource = """
+        const string attributeAndExtensionsSource = """
             namespace Splat
             {
                 [System.AttributeUsage(System.AttributeTargets.Property)]
@@ -99,6 +99,25 @@ public static class CodeFixTestHelper
                 [System.AttributeUsage(System.AttributeTargets.Constructor)]
                 internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
                 {
+                }
+
+                /// <summary>
+                /// Extension methods for the Splat DI source generator.
+                /// </summary>
+                internal static partial class SplatRegistrations
+                {
+                    public static void Register<TInterface, TConcrete>() { }
+                    public static void Register<TInterface, TConcrete>(string contract) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>() { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(System.Threading.LazyThreadSafetyMode mode) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(string contract) { }
+                    public static void RegisterLazySingleton<TInterface, TConcrete>(string contract, System.Threading.LazyThreadSafetyMode mode) { }
+                    public static void Register<T>() { }
+                    public static void Register<T>(string contract) { }
+                    public static void RegisterLazySingleton<T>() { }
+                    public static void RegisterLazySingleton<T>(string contract) { }
+                    public static void RegisterConstant<T>(T instance) { }
+                    public static void RegisterConstant<T>(T instance, string contract) { }
                 }
             }
             """;
@@ -128,7 +147,7 @@ public static class CodeFixTestHelper
                 nullableContextOptions: NullableContextOptions.Enable));
 
         // Add attribute definitions first
-        project = project.AddDocument("Attributes.cs", attributeSource).Project;
+        project = project.AddDocument("Attributes.cs", attributeAndExtensionsSource).Project;
 
         // Then add the test source
         return project.AddDocument("Test.cs", source);

@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis;
+
 using Splat.DependencyInjection.SourceGenerator.Models;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests.Models;
 
