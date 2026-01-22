@@ -21,7 +21,8 @@
   <Project Path="Splat.DependencyInjection.Analyzer/Splat.DependencyInjection.Analyzer.csproj" />
   <Project Path="Splat.DependencyInjection.SourceGenerator/Splat.DependencyInjection.SourceGenerator.csproj" />
   <Folder Name="/tests/">
-    <Project Path="Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj" />
-    <Project Path="Splat.DependencyInjection.SourceGenerator.Tests/Splat.DependencyInjection.SourceGenerator.Tests.csproj" />
+    <Project Path="tests/Splat.DependencyInjection.Analyzer.Tests/Splat.DependencyInjection.Analyzer.Tests.csproj" />
+    <Project Path="tests/Splat.DependencyInjection.SourceGenerator.Tests/Splat.DependencyInjection.SourceGenerator.Tests.csproj" />
+    <Project Path="tests/Splat.DI.SourceGenerator.TestApp/Splat.DI.SourceGenerator.TestApp.csproj" />
   </Folder>
 </Solution>
