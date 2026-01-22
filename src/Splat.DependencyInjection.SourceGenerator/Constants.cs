@@ -34,103 +34,138 @@ internal static class Constants
         namespace {{NamespaceName}}
         {
             /// <summary>
-            /// Extension methods for the Splat DI source generator.
+            /// Provides extension methods for the Splat dependency injection source generator.
+            /// This class contains marker methods that are analyzed at compile-time to generate
+            /// dependency injection registrations.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{_assemblyName.Name}}", "{{_assemblyName.Version}}")]
             internal static partial class {{ClassName}}
             {
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a transient dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/>.
+                /// A new instance of <typeparamref name="TConcrete"/> will be created each time <typeparamref name="TInterface"/> is resolved.
                 /// </summary>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
                 public static void Register<TInterface, TConcrete>()
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a transient dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/> with a contract.
+                /// A new instance of <typeparamref name="TConcrete"/> will be created each time <typeparamref name="TInterface"/> is resolved with the specified contract.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
                 public static void Register<TInterface, TConcrete>(string contract)
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a lazy singleton dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/>.
+                /// A single instance of <typeparamref name="TConcrete"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
                 public static void RegisterLazySingleton<TInterface, TConcrete>()
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a lazy singleton dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/> with specified thread safety mode.
+                /// A single instance of <typeparamref name="TConcrete"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
-                /// <param name="mode">The threading mode.</param>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
+                /// <param name="mode">The <see cref="System.Threading.LazyThreadSafetyMode"/> specifying how the singleton should be initialized in multi-threaded scenarios.</param>
                 public static void RegisterLazySingleton<TInterface, TConcrete>(System.Threading.LazyThreadSafetyMode mode)
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a lazy singleton dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/> with a contract.
+                /// A single instance of <typeparamref name="TConcrete"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
                 public static void RegisterLazySingleton<TInterface, TConcrete>(string contract)
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a lazy singleton dependency mapping from <typeparamref name="TInterface"/> to <typeparamref name="TConcrete"/> with a contract and specified thread safety mode.
+                /// A single instance of <typeparamref name="TConcrete"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
-                /// <param name="mode">The threading mode.</param>
+                /// <typeparam name="TInterface">The interface or base type to register.</typeparam>
+                /// <typeparam name="TConcrete">The concrete type that implements <typeparamref name="TInterface"/>.</typeparam>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
+                /// <param name="mode">The <see cref="System.Threading.LazyThreadSafetyMode"/> specifying how the singleton should be initialized in multi-threaded scenarios.</param>
                 public static void RegisterLazySingleton<TInterface, TConcrete>(string contract, System.Threading.LazyThreadSafetyMode mode)
                 {
                 }
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a transient dependency for type <typeparamref name="T"/>.
+                /// A new instance of <typeparamref name="T"/> will be created each time it is resolved.
                 /// </summary>
+                /// <typeparam name="T">The type to register.</typeparam>
                 public static void Register<T>()
                 {
                 }
 
 
                 /// <summary>
-                /// Registers a class with its concrete class.
+                /// Registers a transient dependency for type <typeparamref name="T"/> with a contract.
+                /// A new instance of <typeparamref name="T"/> will be created each time it is resolved with the specified contract.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
+                /// <typeparam name="T">The type to register.</typeparam>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
                 public static void Register<T>(string contract)
                 {
                 }
 
                 /// <summary>
-                /// Registers a lazy class with its concrete class.
+                /// Registers a lazy singleton dependency for type <typeparamref name="T"/>.
+                /// A single instance of <typeparamref name="T"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
+                /// <typeparam name="T">The type to register.</typeparam>
                 public static void RegisterLazySingleton<T>()
                 {
                 }
 
 
                 /// <summary>
-                /// Registers a lazy class with its concrete class.
+                /// Registers a lazy singleton dependency for type <typeparamref name="T"/> with a contract.
+                /// A single instance of <typeparamref name="T"/> will be created on first resolution and reused for all subsequent resolutions.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
+                /// <typeparam name="T">The type to register.</typeparam>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
                 public static void RegisterLazySingleton<T>(string contract)
                 {
                 }
 
                 /// <summary>
-                /// Proxy for the Splat SetService.
+                /// Registers a constant (singleton) instance of type <typeparamref name="T"/> with the dependency resolver.
+                /// This method is a proxy for <see cref="Splat.IMutableDependencyResolver.RegisterConstant{T}(T, string?)"/>.
                 /// </summary>
-                public static void RegisterConstant<T>(T instance) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance);
+                /// <typeparam name="T">The type of the instance to register. Must be a reference type.</typeparam>
+                /// <param name="instance">The instance to register as a constant.</param>
+                public static void RegisterConstant<T>(T instance) where T : class => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance);
 
                 /// <summary>
-                /// Proxy for the Splat SetService.
+                /// Registers a constant (singleton) instance of type <typeparamref name="T"/> with the dependency resolver using a contract.
+                /// This method is a proxy for <see cref="Splat.IMutableDependencyResolver.RegisterConstant{T}(T, string?)"/>.
                 /// </summary>
-                /// <param name="contract">Optional contract.</param>
-                public static void RegisterConstant<T>(T instance, string contract) => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
+                /// <typeparam name="T">The type of the instance to register. Must be a reference type.</typeparam>
+                /// <param name="instance">The instance to register as a constant.</param>
+                /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
+                public static void RegisterConstant<T>(T instance, string contract) where T : class => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
 
                 /// <summary>
-                /// Registers the registrations.
+                /// Initializes the dependency injection container by registering all dependencies with the default <see cref="Splat.Locator"/>.
+                /// This method should be called once during application startup after all registration calls have been made.
                 /// </summary>
                 public static void SetupIOC()
                 {
@@ -138,9 +173,10 @@ internal static class Constants
                 }
 
                 /// <summary>
-                /// Registers the registrations.
+                /// Initializes the dependency injection container by registering all dependencies with the specified resolver.
+                /// This method should be called once during application startup after all registration calls have been made.
                 /// </summary>
-                /// <param name="resolver">The resolver to register with.</param>
+                /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
                 public static void SetupIOC(Splat.IDependencyResolver resolver)
                 {
                     SetupIOCInternal(resolver);
@@ -151,16 +187,30 @@ internal static class Constants
             }
 
             /// <summary>
-            /// Makes the property get added by the DI engine.
+            /// Marks a property to be injected by the dependency injection engine.
+            /// Properties marked with this attribute will have their values automatically
+            /// resolved and set by the DI container during object construction.
             /// </summary>
+            /// <remarks>
+            /// The property must have an accessible setter (public, internal, or internal protected).
+            /// The property type must be registered in the DI container, or resolution will fail at runtime.
+            /// </remarks>
             [System.AttributeUsage(System.AttributeTargets.Property), Microsoft.CodeAnalysis.Embedded]
             internal sealed class DependencyInjectionPropertyAttribute : System.Attribute
             {
             }
 
             /// <summary>
-            /// Makes this the constructor used by the DI engine.
+            /// Marks a constructor as the preferred constructor for dependency injection.
+            /// When a class has multiple constructors, this attribute specifies which constructor
+            /// the DI engine should use for object construction.
             /// </summary>
+            /// <remarks>
+            /// Only one constructor per class should be marked with this attribute.
+            /// If multiple constructors exist without this attribute, the analyzer will generate
+            /// diagnostic warning SPLATDI001.
+            /// The constructor must be accessible (public, internal, or internal protected).
+            /// </remarks>
             [System.AttributeUsage(System.AttributeTargets.Constructor), Microsoft.CodeAnalysis.Embedded]
             internal sealed class DependencyInjectionConstructorAttribute : System.Attribute
             {
