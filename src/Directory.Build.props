@@ -16,6 +16,7 @@
     <PackageReleaseNotes>https://github.com/reactiveui/Splat.DI.SourceGenerator/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/reactiveui/Splat.DI.SourceGenerator</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -55,8 +56,9 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\images\logo.png" Pack="true" PackagePath="\" />
     <None Include="$(MSBuildThisFileDirectory)..\LICENSE" Pack="true" PackagePath="LICENSE" />
-    <None Include="$(MSBuildThisFileDirectory)..\logo.png" Pack="true" PackagePath="" />
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
