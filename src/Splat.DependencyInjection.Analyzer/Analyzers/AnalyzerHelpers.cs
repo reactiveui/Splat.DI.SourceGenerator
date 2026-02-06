@@ -29,8 +29,8 @@ internal static class AnalyzerHelpers
             return false;
         }
 
-        return containingType.ContainingNamespace?.Name == "Splat" &&
-               containingType.Name == "SplatRegistrations" &&
+        return containingType.ContainingNamespace?.Name == SourceGenerator.Constants.NamespaceName &&
+               containingType.Name == SourceGenerator.Constants.ClassName &&
                methodSymbol.Name == methodName &&
                !methodSymbol.IsExtensionMethod;
     }
@@ -56,7 +56,7 @@ internal static class AnalyzerHelpers
 
         // Cache attribute symbol
         var constructorAttributeSymbol = compilation.GetTypeByMetadataName(
-            "Splat.DependencyInjectionConstructorAttribute");
+            SourceGenerator.Constants.ConstructorAttributeMetadataName);
 
         var analysis = GetConstructorAnalysis(namedType, constructorAttributeSymbol);
 

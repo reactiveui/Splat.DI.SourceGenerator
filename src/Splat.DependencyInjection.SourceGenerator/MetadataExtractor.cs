@@ -37,7 +37,7 @@ internal static class MetadataExtractor
             return null;
         }
 
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "Register"))
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegister))
         {
             return null;
         }
@@ -94,7 +94,7 @@ internal static class MetadataExtractor
             return null;
         }
 
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "RegisterLazySingleton"))
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegisterLazySingleton))
         {
             return null;
         }
@@ -214,7 +214,7 @@ internal static class MetadataExtractor
             string? lazyInnerType = null;
 
             if (paramType is INamedTypeSymbol namedType &&
-                namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Lazy<T>")
+                namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == Constants.LazyOpenGenericTypeName)
             {
                 isLazy = true;
                 if (namedType.TypeArguments.Length > 0)
@@ -227,7 +227,7 @@ internal static class MetadataExtractor
             string? collectionItemType = null;
 
             if (paramType is INamedTypeSymbol namedCollType &&
-                namedCollType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Collections.Generic.IEnumerable<T>")
+                namedCollType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == Constants.EnumerableOpenGenericTypeName)
             {
                 isCollection = true;
                 if (namedCollType.TypeArguments.Length > 0)

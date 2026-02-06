@@ -63,7 +63,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
         // Offer to add public setter
         context.RegisterCodeFix(
             CodeAction.Create(
-                title: "Add public setter",
+                title: Constants.CodeFixAddPublicSetter,
                 createChangedDocument: c => AddPublicSetterAsync(context.Document, propertyDeclaration, c),
                 equivalenceKey: nameof(AddPublicSetterAsync)),
             diagnostic);
@@ -71,7 +71,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
         // Offer to add internal setter
         context.RegisterCodeFix(
             CodeAction.Create(
-                title: "Add internal setter",
+                title: Constants.CodeFixAddInternalSetter,
                 createChangedDocument: c => AddInternalSetterAsync(context.Document, propertyDeclaration, c),
                 equivalenceKey: nameof(AddInternalSetterAsync)),
             diagnostic);

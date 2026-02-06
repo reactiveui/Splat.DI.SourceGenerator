@@ -15,10 +15,27 @@ internal static class Constants
     public const string ConstructorAttribute = "global::Splat.DependencyInjectionConstructorAttribute";
     public const string PropertyAttribute = "global::Splat.DependencyInjectionPropertyAttribute";
 
+    public const string ConstructorAttributeMetadataName = "Splat.DependencyInjectionConstructorAttribute";
+    public const string PropertyAttributeMetadataName = "Splat.DependencyInjectionPropertyAttribute";
+    public const string ConstructorAttributeShortName = "DependencyInjectionConstructor";
+
     public const string ResolverType = "Splat.IDependencyResolver";
     public const string ResolverParameterName = "resolver";
 
     public const string IocMethod = "SetupIOCInternal";
+
+    public const string MethodNameRegister = "Register";
+    public const string MethodNameRegisterLazySingleton = "RegisterLazySingleton";
+
+    public const string ParameterNameContract = "contract";
+    public const string ParameterNameMode = "mode";
+
+    public const string LazyOpenGenericTypeName = "global::System.Lazy<T>";
+    public const string EnumerableOpenGenericTypeName = "global::System.Collections.Generic.IEnumerable<T>";
+
+    public const string EmbeddedAttributeFileName = "Microsoft.CodeAnalysis.EmbeddedAttribute.g.cs";
+    public const string ExtensionMethodFileName = "Splat.DI.g.cs";
+    public const string RegistrationFileName = "Splat.DI.Reg.g.cs";
 
     private static readonly AssemblyName _assemblyName = typeof(Constants).Assembly.GetName();
 

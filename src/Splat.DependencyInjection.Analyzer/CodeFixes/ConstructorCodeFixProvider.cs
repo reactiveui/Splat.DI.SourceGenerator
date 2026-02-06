@@ -90,8 +90,8 @@ public class ConstructorCodeFixProvider : CodeFixProvider
         {
             var parameterCount = constructor.ParameterList.Parameters.Count;
             var title = parameterCount == 0
-                ? "Add [DependencyInjectionConstructor] to parameterless constructor"
-                : $"Add [DependencyInjectionConstructor] to constructor with {parameterCount} parameter(s)";
+                ? $"Add [{SourceGenerator.Constants.ConstructorAttributeShortName}] to parameterless constructor"
+                : $"Add [{SourceGenerator.Constants.ConstructorAttributeShortName}] to constructor with {parameterCount} parameter(s)";
 
             context.RegisterCodeFix(
                 CodeAction.Create(
@@ -115,7 +115,7 @@ public class ConstructorCodeFixProvider : CodeFixProvider
 
         // Create attribute syntax
         var attribute = SyntaxFactory.Attribute(
-            SyntaxFactory.ParseName("DependencyInjectionConstructor"));
+            SyntaxFactory.ParseName(SourceGenerator.Constants.ConstructorAttributeShortName));
 
         // If the constructor has no existing attributes and has leading trivia (like XML documentation),
         // we need to move that trivia to the new attribute list

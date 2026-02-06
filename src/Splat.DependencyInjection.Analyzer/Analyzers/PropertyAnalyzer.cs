@@ -38,7 +38,7 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(compilationContext =>
         {
             // Try both possible attribute locations (namespace-level from generator, or user-defined)
-            var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName("Splat.DependencyInjectionPropertyAttribute");
+            var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName(SourceGenerator.Constants.PropertyAttributeMetadataName);
 
             // Only register the symbol action if the attribute exists in this compilation
             if (propertyAttributeSymbol != null)

@@ -32,8 +32,8 @@ internal static class RoslynHelpers
 
         return invocation.Expression switch
         {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "Register" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "Register" } => true,
+            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
             _ => false
         };
     }
@@ -53,8 +53,8 @@ internal static class RoslynHelpers
 
         return invocation.Expression switch
         {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
+            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
             _ => false
         };
     }
@@ -141,7 +141,7 @@ internal static class RoslynHelpers
             var argument = invocation.ArgumentList.Arguments[i];
             var parameter = methodSymbol.Parameters[i];
 
-            if (parameter.Name != "contract")
+            if (parameter.Name != Constants.ParameterNameContract)
             {
                 continue;
             }
@@ -211,7 +211,7 @@ internal static class RoslynHelpers
             var argument = invocation.ArgumentList.Arguments[i];
             var parameter = methodSymbol.Parameters[i];
 
-            if (parameter.Name != "mode")
+            if (parameter.Name != Constants.ParameterNameMode)
             {
                 continue;
             }
