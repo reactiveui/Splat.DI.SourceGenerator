@@ -10,7 +10,6 @@ internal static class Constants
 {
     public const string ClassName = "SplatRegistrations";
     public const string NamespaceName = "Splat";
-    public const string LocatorGetService = "GetService";
 
     public const string ConstructorAttribute = "global::Splat.DependencyInjectionConstructorAttribute";
     public const string PropertyAttribute = "global::Splat.DependencyInjectionPropertyAttribute";
@@ -18,11 +17,6 @@ internal static class Constants
     public const string ConstructorAttributeMetadataName = "Splat.DependencyInjectionConstructorAttribute";
     public const string PropertyAttributeMetadataName = "Splat.DependencyInjectionPropertyAttribute";
     public const string ConstructorAttributeShortName = "DependencyInjectionConstructor";
-
-    public const string ResolverType = "Splat.IDependencyResolver";
-    public const string ResolverParameterName = "resolver";
-
-    public const string IocMethod = "SetupIOCInternal";
 
     public const string MethodNameRegister = "Register";
     public const string MethodNameRegisterLazySingleton = "RegisterLazySingleton";
