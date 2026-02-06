@@ -31,7 +31,9 @@ internal static class Constants
     public const string ParameterNameMode = "mode";
 
     public const string LazyOpenGenericTypeName = "global::System.Lazy<T>";
+    public const string LazyMetadataName = "System.Lazy`1";
     public const string EnumerableOpenGenericTypeName = "global::System.Collections.Generic.IEnumerable<T>";
+    public const string EnumerableMetadataName = "System.Collections.Generic.IEnumerable`1";
 
     public const string EmbeddedAttributeFileName = "Microsoft.CodeAnalysis.EmbeddedAttribute.g.cs";
     public const string ExtensionMethodFileName = "Splat.DI.g.cs";

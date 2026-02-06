@@ -53,13 +53,16 @@ internal static class MetadataExtractor
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
 
-        var constructorParams = ExtractConstructorParameters(concreteType);
+        var compilation = semanticModel.Compilation;
+        var symbols = ResolveWellKnownSymbols(compilation);
+
+        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
         {
             return null;
         }
 
-        var propertyInjections = ExtractPropertyInjections(concreteType);
+        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
         if (propertyInjections == null)
         {
             return null;
@@ -110,13 +113,16 @@ internal static class MetadataExtractor
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
 
-        var constructorParams = ExtractConstructorParameters(concreteType);
+        var compilation = semanticModel.Compilation;
+        var symbols = ResolveWellKnownSymbols(compilation);
+
+        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
         {
             return null;
         }
 
-        var propertyInjections = ExtractPropertyInjections(concreteType);
+        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
         if (propertyInjections == null)
         {
             return null;
@@ -139,8 +145,9 @@ internal static class MetadataExtractor
     /// Extracts constructor parameters for a type.
     /// </summary>
     /// <param name="concreteType">The type to extract from.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
     /// <returns>Array of constructor parameters or null.</returns>
-    internal static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType)
+    internal static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType, WellKnownSymbols symbols)
     {
         var members = concreteType.GetMembers();
         var constructors = new List<IMethodSymbol>(capacity: 4);
@@ -165,19 +172,7 @@ internal static class MetadataExtractor
             for (var i = 0; i < constructorCount; i++)
             {
                 var constructor = constructors[i];
-                var attrs = constructor.GetAttributes();
-                var hasAttribute = false;
-
-                for (var j = 0; j < attrs.Length; j++)
-                {
-                    if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.ConstructorAttribute)
-                    {
-                        hasAttribute = true;
-                        break;
-                    }
-                }
-
-                if (hasAttribute)
+                if (HasAttribute(constructor, symbols.ConstructorAttribute, Constants.ConstructorAttribute))
                 {
                     if (selectedConstructor != null)
                     {
@@ -214,7 +209,7 @@ internal static class MetadataExtractor
             string? lazyInnerType = null;
 
             if (paramType is INamedTypeSymbol namedType &&
-                namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == Constants.LazyOpenGenericTypeName)
+                IsOriginalDefinition(namedType, symbols.LazyType, Constants.LazyOpenGenericTypeName))
             {
                 isLazy = true;
                 if (namedType.TypeArguments.Length > 0)
@@ -227,7 +222,7 @@ internal static class MetadataExtractor
             string? collectionItemType = null;
 
             if (paramType is INamedTypeSymbol namedCollType &&
-                namedCollType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == Constants.EnumerableOpenGenericTypeName)
+                IsOriginalDefinition(namedCollType, symbols.EnumerableType, Constants.EnumerableOpenGenericTypeName))
             {
                 isCollection = true;
                 if (namedCollType.TypeArguments.Length > 0)
@@ -252,8 +247,9 @@ internal static class MetadataExtractor
     /// Extracts property injections for a type.
     /// </summary>
     /// <param name="concreteType">The type to extract from.</param>
+    /// <param name="propertyAttributeSymbol">Pre-resolved property attribute symbol for efficient comparison.</param>
     /// <returns>Array of property injections or null.</returns>
-    internal static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType)
+    internal static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType, INamedTypeSymbol? propertyAttributeSymbol)
     {
         var properties = new List<PropertyInjection>(capacity: 4);
         var allTypes = RoslynHelpers.GetBaseTypesAndThis(concreteType);
@@ -267,19 +263,7 @@ internal static class MetadataExtractor
                     continue;
                 }
 
-                var attrs = property.GetAttributes();
-                var hasAttribute = false;
-
-                for (var i = 0; i < attrs.Length; i++)
-                {
-                    if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.PropertyAttribute)
-                    {
-                        hasAttribute = true;
-                        break;
-                    }
-                }
-
-                if (!hasAttribute)
+                if (!HasAttribute(property, propertyAttributeSymbol, Constants.PropertyAttribute))
                 {
                     continue;
                 }
@@ -298,4 +282,78 @@ internal static class MetadataExtractor
 
         return properties.ToArray();
     }
+
+    /// <summary>
+    /// Resolves well-known type symbols from the compilation for efficient symbol comparison.
+    /// </summary>
+    /// <param name="compilation">The compilation to resolve symbols from.</param>
+    /// <returns>A struct containing the resolved symbols (any may be null if not found).</returns>
+    internal static WellKnownSymbols ResolveWellKnownSymbols(Compilation compilation) => new(
+        ConstructorAttribute: compilation.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName),
+        PropertyAttribute: compilation.GetTypeByMetadataName(Constants.PropertyAttributeMetadataName),
+        LazyType: compilation.GetTypeByMetadataName(Constants.LazyMetadataName)?.OriginalDefinition as INamedTypeSymbol,
+        EnumerableType: compilation.GetTypeByMetadataName(Constants.EnumerableMetadataName)?.OriginalDefinition as INamedTypeSymbol);
+
+    /// <summary>
+    /// Checks if a symbol has a specific attribute using symbol comparison (fast path)
+    /// with string comparison fallback when the attribute symbol is not available.
+    /// </summary>
+    /// <param name="symbol">The symbol to check for attributes.</param>
+    /// <param name="attributeSymbol">The pre-resolved attribute symbol (may be null).</param>
+    /// <param name="attributeDisplayString">The fully qualified display string fallback.</param>
+    /// <returns>True if the symbol has the specified attribute.</returns>
+    internal static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol, string attributeDisplayString)
+    {
+        var attrs = symbol.GetAttributes();
+        if (attributeSymbol != null)
+        {
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, attributeSymbol))
+                {
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == attributeDisplayString)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a named type's original definition matches an expected type using symbol comparison (fast path)
+    /// with string comparison fallback when the expected symbol is not available.
+    /// </summary>
+    /// <param name="namedType">The named type to check.</param>
+    /// <param name="expectedSymbol">The pre-resolved expected type symbol (may be null).</param>
+    /// <param name="expectedDisplayString">The fully qualified display string fallback.</param>
+    /// <returns>True if the named type's original definition matches.</returns>
+    internal static bool IsOriginalDefinition(INamedTypeSymbol namedType, INamedTypeSymbol? expectedSymbol, string expectedDisplayString)
+    {
+        return expectedSymbol != null
+            ? SymbolEqualityComparer.Default.Equals(namedType.OriginalDefinition, expectedSymbol)
+            : namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == expectedDisplayString;
+    }
+
+    /// <summary>
+    /// Pre-resolved well-known symbols for efficient comparison without string allocations.
+    /// </summary>
+    /// <param name="ConstructorAttribute">The DependencyInjectionConstructorAttribute symbol.</param>
+    /// <param name="PropertyAttribute">The DependencyInjectionPropertyAttribute symbol.</param>
+    /// <param name="LazyType">The System.Lazy open generic type symbol.</param>
+    /// <param name="EnumerableType">The IEnumerable open generic type symbol.</param>
+    internal readonly record struct WellKnownSymbols(
+        INamedTypeSymbol? ConstructorAttribute,
+        INamedTypeSymbol? PropertyAttribute,
+        INamedTypeSymbol? LazyType,
+        INamedTypeSymbol? EnumerableType);
 }
