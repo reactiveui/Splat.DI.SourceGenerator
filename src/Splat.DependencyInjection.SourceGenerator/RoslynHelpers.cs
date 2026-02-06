@@ -156,17 +156,40 @@ internal static class RoslynHelpers
             }
 
             // Handle non-literal expressions (constant fields, properties, etc.)
-            // Preserve the expression as written by the user (e.g., TestNamespace.Constants.MyContract)
-            // This maintains the reference rather than inlining the value
+            // We need to fully qualify the reference to avoid CS0103 errors in generated code
+            // when the symbol is from a different namespace (GitHub issue: Keys from different namespace)
             var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
             if (symbolInfo.Symbol != null)
             {
-                // Use the expression syntax as written to preserve namespace qualifications
-                return expression.ToString();
+                return GetFullyQualifiedMemberReference(symbolInfo.Symbol);
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets a fully qualified reference string for a symbol (field, property, or other member).
+    /// For fields/properties, returns the fully qualified containing type plus the member name.
+    /// For other symbols, returns the fully qualified name directly.
+    /// </summary>
+    /// <param name="symbol">The symbol to get the fully qualified reference for.</param>
+    /// <returns>A fully qualified reference string safe for use in generated code.</returns>
+    internal static string GetFullyQualifiedMemberReference(ISymbol symbol)
+    {
+        // For fields and properties, we need to build: global::Namespace.Type.MemberName
+        if (symbol is IFieldSymbol or IPropertySymbol)
+        {
+            var containingType = symbol.ContainingType;
+            if (containingType != null)
+            {
+                var fullyQualifiedTypeName = containingType.ToDisplayString(_fullyQualifiedFormat);
+                return $"{fullyQualifiedTypeName}.{symbol.Name}";
+            }
+        }
+
+        // For other symbols (e.g., local variables, parameters), return the display string
+        return symbol.ToDisplayString(_fullyQualifiedFormat);
     }
 
     /// <summary>

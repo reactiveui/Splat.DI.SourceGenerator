@@ -508,12 +508,13 @@ public class ConstructorAnalyzerTests
     }
 
     /// <summary>
-    /// Tests that RegisterConstant with multiple constructors reports diagnostics.
-    /// Verifies constant registrations are also analyzed correctly.
+    /// Tests that RegisterConstant with multiple constructors does NOT report diagnostics.
+    /// RegisterConstant takes a pre-instantiated object, so constructor analysis is not needed.
+    /// This is a regression test for GitHub issue #292.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
-    public async Task RegisterConstantWithMultipleConstructors_ReportsDiagnostic()
+    public async Task RegisterConstantWithMultipleConstructors_NoDiagnostic()
     {
         const string code = """
             using Splat;
@@ -547,9 +548,60 @@ public class ConstructorAnalyzerTests
 
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
-        await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
-        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+        // RegisterConstant should NOT trigger constructor analysis - the instance is already created
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Tests that RegisterConstant with an external library type having multiple constructors does NOT report diagnostics.
+    /// This is a regression test for GitHub issue #292 (Jot.Tracker scenario).
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task RegisterConstantWithExternalTypeMultipleConstructors_NoDiagnostic()
+    {
+        // Simulates the Jot.Tracker scenario from issue #292
+        const string code = """
+            using Splat;
+            using static Splat.SplatRegistrations;
+
+            namespace ExternalLibrary
+            {
+                // Simulates Jot.Tracker which has multiple constructors
+                public class Tracker
+                {
+                    public Tracker()
+                    {
+                    }
+
+                    public Tracker(IStore store)
+                    {
+                    }
+                }
+
+                public interface IStore { }
+            }
+
+            namespace Test
+            {
+                using ExternalLibrary;
+
+                public class Startup
+                {
+                    public void ConfigureDI()
+                    {
+                        // User creates instance themselves - no DI constructor needed
+                        var tracker = new Tracker();
+                        RegisterConstant(tracker);
+                    }
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
+
+        // RegisterConstant should NOT trigger constructor analysis - the instance is already created
+        await Assert.That(diagnostics.Length).IsEqualTo(0);
     }
 
     /// <summary>

@@ -46,9 +46,10 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         var method = invocation.TargetMethod;
 
         // Check if it's SplatRegistrations.Register or RegisterLazySingleton
+        // Note: RegisterConstant is NOT included because it takes a pre-instantiated object,
+        // so constructor analysis is not needed (GitHub issue #292)
         if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, "Register") &&
-            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterLazySingleton") &&
-            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterConstant"))
+            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterLazySingleton"))
         {
             return;
         }

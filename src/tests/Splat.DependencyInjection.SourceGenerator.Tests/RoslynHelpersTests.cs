@@ -237,9 +237,9 @@ public class RoslynHelpersTests
         var namedLiteralContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[1], semanticModel, CancellationToken.None);
         await Assert.That(namedLiteralContract).IsEqualTo("\"NamedLiteralContract\"");
 
-        // 3. Constant
+        // 3. Constant - should be fully qualified for use in generated code
         var constantContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[2], semanticModel, CancellationToken.None);
-        await Assert.That(constantContract).IsEqualTo("TestNamespace.Constants.MyContract");
+        await Assert.That(constantContract).IsEqualTo("global::TestNamespace.Constants.MyContract");
     }
 
     /// <summary>
@@ -589,5 +589,168 @@ public class RoslynHelpersTests
 
         var result = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocation, semanticModel, CancellationToken.None);
         await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for static field.
+    /// This is a regression test for the issue where contract keys from different namespaces
+    /// were not fully qualified in generated code.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_StaticField_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace MyNamespace.Keys
+            {
+                public static class RegistrationKeys
+                {
+                    public static string Key1 = "Key1";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var keysType = compilation.GetTypeByMetadataName("MyNamespace.Keys.RegistrationKeys");
+        await Assert.That(keysType).IsNotNull();
+
+        var fieldSymbol = keysType!.GetMembers("Key1").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::MyNamespace.Keys.RegistrationKeys.Key1");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for static property.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_StaticProperty_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Config
+            {
+                public static class Settings
+                {
+                    public static string ConnectionString { get; } = "test";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var settingsType = compilation.GetTypeByMetadataName("Config.Settings");
+        await Assert.That(settingsType).IsNotNull();
+
+        var propertySymbol = settingsType!.GetMembers("ConnectionString").OfType<IPropertySymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(propertySymbol);
+
+        await Assert.That(result).IsEqualTo("global::Config.Settings.ConnectionString");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for const field.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_ConstField_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Constants
+            {
+                public static class ContractNames
+                {
+                    public const string DefaultContract = "Default";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var constantsType = compilation.GetTypeByMetadataName("Constants.ContractNames");
+        await Assert.That(constantsType).IsNotNull();
+
+        var fieldSymbol = constantsType!.GetMembers("DefaultContract").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::Constants.ContractNames.DefaultContract");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference handles nested classes correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_NestedClass_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Outer
+            {
+                public class Container
+                {
+                    public static class Inner
+                    {
+                        public static string Value = "test";
+                    }
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var innerType = compilation.GetTypeByMetadataName("Outer.Container+Inner");
+        await Assert.That(innerType).IsNotNull();
+
+        var fieldSymbol = innerType!.GetMembers("Value").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::Outer.Container.Inner.Value");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference handles local variables.
+    /// Local variables don't have a containing type in the same way as fields/properties.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_LocalVariable_ReturnsDisplayString()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public class Test
+            {
+                public void Run()
+                {
+                    var localVar = "test";
+                    System.Console.WriteLine(localVar);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Console).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+
+        // Find the reference to localVar in Console.WriteLine(localVar)
+        var identifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
+            .Where(id => id.Identifier.Text == "localVar")
+            .ToList();
+
+        // Get the second occurrence (the usage, not the declaration)
+        var localVarUsage = identifiers.Last();
+        var symbolInfo = semanticModel.GetSymbolInfo(localVarUsage);
+
+        await Assert.That(symbolInfo.Symbol).IsNotNull();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(symbolInfo.Symbol!);
+
+        // Local variables return their simple name via ToDisplayString
+        await Assert.That(result).IsEqualTo("localVar");
     }
 }
