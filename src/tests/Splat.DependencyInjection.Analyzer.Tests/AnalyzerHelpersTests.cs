@@ -2,6 +2,8 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -139,6 +141,32 @@ public class AnalyzerHelpersTests
         // Pass null for attribute symbol to force fallback
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(markedCtor, null)).IsTrue();
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(unmarkedCtor, null)).IsFalse();
+    }
+
+    /// <summary>
+    /// Tests IsConstructorMarked fallback path returns false when attribute does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsConstructorMarked_FallbackPath_NonMatchingAttribute_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public class TestClass {
+                [System.Obsolete]
+                public TestClass() {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var testClass = compilation.GetTypeByMetadataName("TestClass");
+        await Assert.That(testClass).IsNotNull();
+
+        var ctor = testClass!.Constructors.First(c => !c.IsImplicitlyDeclared);
+
+        // ctor has [Obsolete], null symbol forces string fallback - should not match
+        await Assert.That(AnalyzerHelpers.IsConstructorMarked(ctor, null)).IsFalse();
     }
 
     /// <summary>
@@ -312,5 +340,160 @@ public class AnalyzerHelpersTests
         await Assert.That(diagnostics).Count().IsEqualTo(2);
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI003");
         await Assert.That(diagnostics[1].Id).IsEqualTo("SPLATDI003");
+    }
+
+    /// <summary>
+    /// Tests IsContainedInSplatRegistrations returns false for null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsContainedInSplatRegistrations_Null_ReturnsFalse()
+    {
+        await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(null)).IsFalse();
+    }
+
+    /// <summary>
+    /// Tests IsContainedInSplatRegistrations returns true for Splat.SplatRegistrations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsContainedInSplatRegistrations_SplatRegistrations_ReturnsTrue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var type = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+
+        await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(type)).IsTrue();
+    }
+
+    /// <summary>
+    /// Tests IsContainedInSplatRegistrations returns false for a type in the wrong namespace.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsContainedInSplatRegistrations_WrongNamespace_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Other {
+                public static class SplatRegistrations {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var type = compilation.GetTypeByMetadataName("Other.SplatRegistrations");
+
+        await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(type)).IsFalse();
+    }
+
+    /// <summary>
+    /// Tests GetFirstLocation returns Location.None for an empty locations array.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFirstLocation_EmptyArray_ReturnsLocationNone()
+    {
+        var result = AnalyzerHelpers.GetFirstLocation(ImmutableArray<Location>.Empty);
+
+        await Assert.That(result).IsEqualTo(Location.None);
+    }
+
+    /// <summary>
+    /// Tests GetFirstLocation returns the first location when locations are present.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFirstLocation_WithLocations_ReturnsFirst()
+    {
+        var tree = CSharpSyntaxTree.ParseText("class C {}");
+        var location = tree.GetRoot().GetLocation();
+        var locations = ImmutableArray.Create(location);
+
+        var result = AnalyzerHelpers.GetFirstLocation(locations);
+
+        await Assert.That(result).IsEqualTo(location);
+    }
+
+    /// <summary>
+    /// Tests ReportDiagnostics reports SPLATDI001 when multiple accessible constructors exist without marked constructor.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ReportDiagnostics_MultipleAccessibleNoMarked_ReportsSPLATDI001()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public class TestClass {
+                public TestClass() {}
+                public TestClass(int i) {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
+        var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(2, 0, null, null);
+        var diagnostics = new List<Diagnostic>();
+
+        AnalyzerHelpers.ReportDiagnostics(analysis, namedType, null, diagnostics.Add);
+
+        await Assert.That(diagnostics).Count().IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+    }
+
+    /// <summary>
+    /// Tests ReportDiagnostics reports nothing when only one accessible constructor exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ReportDiagnostics_SingleAccessible_NoDiagnostic()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("public class TestClass { public TestClass() {} }");
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
+        var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(1, 0, null, null);
+        var diagnostics = new List<Diagnostic>();
+
+        AnalyzerHelpers.ReportDiagnostics(analysis, namedType, null, diagnostics.Add);
+
+        await Assert.That(diagnostics).IsEmpty();
+    }
+
+    /// <summary>
+    /// Tests ReportDiagnostics reports SPLATDI004 when a single marked constructor is not accessible.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ReportDiagnostics_MarkedPrivateConstructor_ReportsSPLATDI004()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+            }
+            public class TestClass {
+                [Splat.DependencyInjectionConstructor]
+                private TestClass() {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
+        var privateCtor = namedType.Constructors.First(c => !c.IsImplicitlyDeclared);
+        var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(0, 1, privateCtor, null);
+        var diagnostics = new List<Diagnostic>();
+
+        AnalyzerHelpers.ReportDiagnostics(analysis, namedType, null, diagnostics.Add);
+
+        await Assert.That(diagnostics).Count().IsEqualTo(1);
+        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI004");
     }
 }

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Immutable;
 
 using Microsoft.CodeAnalysis;
 
@@ -13,6 +14,9 @@ namespace Splat.DependencyInjection.Analyzer.Analyzers;
 /// </summary>
 internal static class AnalyzerHelpers
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for attribute string comparison fallback.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>
@@ -23,14 +27,7 @@ internal static class AnalyzerHelpers
     /// <returns>True if the method is from SplatRegistrations with the specified name.</returns>
     public static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
     {
-        var containingType = methodSymbol.ContainingType?.OriginalDefinition;
-        if (containingType == null)
-        {
-            return false;
-        }
-
-        return containingType.ContainingNamespace?.Name == "Splat" &&
-               containingType.Name == "SplatRegistrations" &&
+        return IsContainedInSplatRegistrations(methodSymbol.ContainingType?.OriginalDefinition) &&
                methodSymbol.Name == methodName &&
                !methodSymbol.IsExtensionMethod;
     }
@@ -56,11 +53,27 @@ internal static class AnalyzerHelpers
 
         // Cache attribute symbol
         var constructorAttributeSymbol = compilation.GetTypeByMetadataName(
-            "Splat.DependencyInjectionConstructorAttribute");
+            SourceGenerator.Constants.ConstructorAttributeMetadataName);
 
         var analysis = GetConstructorAnalysis(namedType, constructorAttributeSymbol);
 
         ReportDiagnostics(analysis, namedType, constructorAttributeSymbol, reportDiagnostic);
+    }
+
+    /// <summary>
+    /// Checks if a type symbol represents the SplatRegistrations class in the Splat namespace.
+    /// </summary>
+    /// <param name="containingType">The containing type (may be null if the method has no containing type).</param>
+    /// <returns>True if the type is Splat.SplatRegistrations.</returns>
+    internal static bool IsContainedInSplatRegistrations(INamedTypeSymbol? containingType)
+    {
+        if (containingType == null)
+        {
+            return false;
+        }
+
+        return containingType.ContainingNamespace?.Name == SourceGenerator.Constants.NamespaceName &&
+               containingType.Name == SourceGenerator.Constants.ClassName;
     }
 
     /// <summary>
@@ -144,7 +157,17 @@ internal static class AnalyzerHelpers
         return false;
     }
 
-    private static void ReportDiagnostics(
+    /// <summary>
+    /// Reports diagnostics based on constructor analysis results.
+    /// Reports SPLATDI003 when multiple constructors are marked, SPLATDI004 when a marked
+    /// constructor is not accessible, and SPLATDI001 when multiple accessible constructors
+    /// exist without a marked constructor.
+    /// </summary>
+    /// <param name="analysis">The constructor analysis result.</param>
+    /// <param name="namedType">The type being analyzed.</param>
+    /// <param name="constructorAttributeSymbol">The attribute symbol to check for (may be null).</param>
+    /// <param name="reportDiagnostic">Action to report diagnostics.</param>
+    internal static void ReportDiagnostics(
         ConstructorAnalysisResult analysis,
         INamedTypeSymbol namedType,
         INamedTypeSymbol? constructorAttributeSymbol,
@@ -164,7 +187,7 @@ internal static class AnalyzerHelpers
                     {
                         reportDiagnostic(Diagnostic.Create(
                             SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
-                            ctor.Locations.Length > 0 ? ctor.Locations[0] : Location.None,
+                            GetFirstLocation(ctor.Locations),
                             namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
                     }
                 }
@@ -177,7 +200,7 @@ internal static class AnalyzerHelpers
                     // SPLATDI004: Constructor must be public or internal
                     reportDiagnostic(Diagnostic.Create(
                         SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
-                        analysis.FirstMarked.Locations.Length > 0 ? analysis.FirstMarked.Locations[0] : Location.None,
+                        GetFirstLocation(analysis.FirstMarked.Locations),
                         namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
                 }
             }
@@ -191,10 +214,18 @@ internal static class AnalyzerHelpers
             // SPLATDI001: Multiple constructors without attribute
             reportDiagnostic(Diagnostic.Create(
                 SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
-                namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None,
+                GetFirstLocation(namedType.Locations),
                 namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
         }
     }
+
+    /// <summary>
+    /// Gets the first location from a locations array, or <see cref="Location.None"/> if empty.
+    /// </summary>
+    /// <param name="locations">The locations array.</param>
+    /// <returns>The first location or <see cref="Location.None"/>.</returns>
+    internal static Location GetFirstLocation(ImmutableArray<Location> locations)
+        => locations.Length > 0 ? locations[0] : Location.None;
 
     /// <summary>
     /// Result of constructor analysis.

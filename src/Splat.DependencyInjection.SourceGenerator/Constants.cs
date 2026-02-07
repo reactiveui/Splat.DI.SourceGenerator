@@ -6,20 +6,67 @@ using System.Reflection;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
+/// <summary>
+/// Constants used throughout the source generator for attribute names, method names,
+/// type names, and generated file names.
+/// </summary>
 internal static class Constants
 {
+    /// <summary>The class name of the SplatRegistrations marker class.</summary>
     public const string ClassName = "SplatRegistrations";
-    public const string NamespaceName = "Splat";
-    public const string LocatorGetService = "GetService";
 
+    /// <summary>The namespace containing the SplatRegistrations class.</summary>
+    public const string NamespaceName = "Splat";
+
+    /// <summary>Fully qualified display string for the DependencyInjectionConstructorAttribute.</summary>
     public const string ConstructorAttribute = "global::Splat.DependencyInjectionConstructorAttribute";
+
+    /// <summary>Fully qualified display string for the DependencyInjectionPropertyAttribute.</summary>
     public const string PropertyAttribute = "global::Splat.DependencyInjectionPropertyAttribute";
 
-    public const string ResolverType = "Splat.IDependencyResolver";
-    public const string ResolverParameterName = "resolver";
+    /// <summary>Metadata name for resolving the DependencyInjectionConstructorAttribute via compilation.</summary>
+    public const string ConstructorAttributeMetadataName = "Splat.DependencyInjectionConstructorAttribute";
 
-    public const string IocMethod = "SetupIOCInternal";
+    /// <summary>Metadata name for resolving the DependencyInjectionPropertyAttribute via compilation.</summary>
+    public const string PropertyAttributeMetadataName = "Splat.DependencyInjectionPropertyAttribute";
 
+    /// <summary>Short name of the DependencyInjectionConstructor attribute (without namespace).</summary>
+    public const string ConstructorAttributeShortName = "DependencyInjectionConstructor";
+
+    /// <summary>Method name for transient registrations.</summary>
+    public const string MethodNameRegister = "Register";
+
+    /// <summary>Method name for lazy singleton registrations.</summary>
+    public const string MethodNameRegisterLazySingleton = "RegisterLazySingleton";
+
+    /// <summary>Parameter name for the contract key in registration methods.</summary>
+    public const string ParameterNameContract = "contract";
+
+    /// <summary>Parameter name for the thread safety mode in lazy singleton methods.</summary>
+    public const string ParameterNameMode = "mode";
+
+    /// <summary>Fully qualified display string for the open generic <see cref="System.Lazy{T}"/> type.</summary>
+    public const string LazyOpenGenericTypeName = "global::System.Lazy<T>";
+
+    /// <summary>Metadata name for resolving <see cref="System.Lazy{T}"/> via compilation.</summary>
+    public const string LazyMetadataName = "System.Lazy`1";
+
+    /// <summary>Fully qualified display string for the open generic IEnumerable type.</summary>
+    public const string EnumerableOpenGenericTypeName = "global::System.Collections.Generic.IEnumerable<T>";
+
+    /// <summary>Metadata name for resolving IEnumerable via compilation.</summary>
+    public const string EnumerableMetadataName = "System.Collections.Generic.IEnumerable`1";
+
+    /// <summary>File name for the generated EmbeddedAttribute source.</summary>
+    public const string EmbeddedAttributeFileName = "Microsoft.CodeAnalysis.EmbeddedAttribute.g.cs";
+
+    /// <summary>File name for the generated marker methods and attributes source.</summary>
+    public const string ExtensionMethodFileName = "Splat.DI.g.cs";
+
+    /// <summary>File name for the generated registration implementation source.</summary>
+    public const string RegistrationFileName = "Splat.DI.Reg.g.cs";
+
+    /// <summary>The assembly name of the source generator, used in GeneratedCodeAttribute.</summary>
     private static readonly AssemblyName _assemblyName = typeof(Constants).Assembly.GetName();
 
     public static string ExtensionMethodText => $$"""

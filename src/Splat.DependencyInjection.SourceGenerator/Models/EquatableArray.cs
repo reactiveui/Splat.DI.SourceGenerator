@@ -16,6 +16,9 @@ namespace Splat.DependencyInjection.SourceGenerator.Models;
 internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumerable<T>
     where T : IEquatable<T>
 {
+    /// <summary>
+    /// The underlying array, or null if default-constructed.
+    /// </summary>
     private readonly T[]? _array;
 
     /// <summary>

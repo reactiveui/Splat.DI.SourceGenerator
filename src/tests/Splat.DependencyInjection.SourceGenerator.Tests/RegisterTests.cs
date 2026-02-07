@@ -346,4 +346,198 @@ public sealed class RegisterTests() : TestBase("Register")
 
         return TestHelper.TestPass(source, "TestContract", GetType());
     }
+
+    /// <summary>
+    /// Validates that contract keys from a different namespace are fully qualified in generated code.
+    /// This is a regression test for the issue where Keys.Key1 from a different namespace
+    /// causes CS0103 "The name 'Keys' does not exist in the current context" in generated code.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task ContractKeyFromDifferentNamespace()
+    {
+        var source = """
+            using System;
+            using Splat;
+            using Test.Keys;
+
+            namespace Test.Keys
+            {
+                public static class RegistrationKeys
+                {
+                    public static string Key1 = "Key1";
+                    public static string Key2 = "Key2";
+                }
+            }
+
+            namespace Test.Services
+            {
+                using Test.Keys;
+
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IService, ServiceImpl>(RegistrationKeys.Key1);
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceImpl : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "Key1", GetType());
+    }
+
+    /// <summary>
+    /// Validates that contract keys from a nested static class in a different namespace are fully qualified.
+    /// This tests the scenario where the key is accessed via a simple name after a using directive.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task ContractKeyFromDifferentNamespaceWithSimpleName()
+    {
+        var source = """
+            using System;
+            using Splat;
+            using ConsoleApp.NS1;
+
+            namespace ConsoleApp.NS1
+            {
+                public static class Keys
+                {
+                    public static string Key1 = "Key1";
+                    public static string Key2 = "Key2";
+                }
+            }
+
+            namespace ConsoleApp.NS2
+            {
+                using ConsoleApp.NS1;
+
+                public class Class1
+                {
+                    static Class1()
+                    {
+                        SplatRegistrations.Register<Class1>(Keys.Key1);
+                    }
+                }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "Key1", GetType());
+    }
+
+    /// <summary>
+    /// Validates that contract keys from a method invocation are preserved as-is in generated code.
+    /// This is a regression test for the issue where ToDisplayString on an IMethodSymbol produces
+    /// a signature-like string (e.g., "global::Test.ContractHelper.GetContractKey()") that may not
+    /// be a valid expression. The original invocation expression should be preserved verbatim.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task ContractKeyFromMethodInvocation()
+    {
+        var source = """
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public static class ContractHelper
+                {
+                    public static string GetContractKey() => "DynamicKey";
+                }
+
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IService, ServiceImpl>(ContractHelper.GetContractKey());
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceImpl : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "MethodResult", GetType());
+    }
+
+    /// <summary>
+    /// Validates that contract keys from a static property in a different namespace are fully qualified.
+    /// This tests the IPropertySymbol path (as opposed to IFieldSymbol) to ensure properties
+    /// are handled the same way fields are when fully qualifying references.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task ContractKeyFromPropertyInDifferentNamespace()
+    {
+        var source = """
+            using System;
+            using Splat;
+
+            namespace Test.Config
+            {
+                public static class Settings
+                {
+                    public static string ContractName { get; } = "MyContract";
+                }
+            }
+
+            namespace Test.Services
+            {
+                using Test.Config;
+
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IService, ServiceImpl>(Settings.ContractName);
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceImpl : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "ContractName", GetType());
+    }
+
+    /// <summary>
+    /// Validates that contract keys using const string fields are handled correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public Task ContractKeyFromConstField()
+    {
+        var source = """
+            using System;
+            using Splat;
+
+            namespace Test
+            {
+                public static class Constants
+                {
+                    public const string ServiceKey = "MyServiceKey";
+                }
+
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        SplatRegistrations.Register<IService, ServiceImpl>(Constants.ServiceKey);
+                    }
+                }
+
+                public interface IService { }
+                public class ServiceImpl : IService { }
+            }
+            """;
+
+        return TestHelper.TestPass(source, "MyServiceKey", GetType());
+    }
 }

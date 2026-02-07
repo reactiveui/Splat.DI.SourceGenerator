@@ -12,6 +12,9 @@ namespace Splat.DependencyInjection.SourceGenerator.Models;
 /// Represents a property injection for dependency injection.
 /// This is a cache-friendly POCO - contains only primitive data and Location for diagnostics.
 /// </summary>
+/// <param name="PropertyName">The name of the property to inject.</param>
+/// <param name="TypeFullName">The fully qualified type name of the property.</param>
+/// <param name="PropertyLocation">The source location of the property declaration.</param>
 internal sealed record PropertyInjection(
     string PropertyName,
     string TypeFullName,

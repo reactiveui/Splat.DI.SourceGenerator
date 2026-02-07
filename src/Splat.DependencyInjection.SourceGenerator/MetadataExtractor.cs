@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 using Microsoft.CodeAnalysis;
@@ -17,10 +19,20 @@ namespace Splat.DependencyInjection.SourceGenerator;
 /// </summary>
 internal static class MetadataExtractor
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for type name extraction.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>
-    /// Extracts metadata for a Register call.
+    /// Cache for well-known symbols keyed by compilation instance.
+    /// Uses weak references to compilation keys to prevent memory leaks.
+    /// </summary>
+    private static readonly ConditionalWeakTable<Compilation, WellKnownSymbolsBox> _symbolsCache = new();
+
+    /// <summary>
+    /// Extracts metadata for a Register call. Resolves the method symbol from the generator
+    /// syntax context and delegates to <see cref="ExtractRegisterMetadataFromSymbol"/>.
     /// </summary>
     /// <param name="context">The generator syntax context.</param>
     /// <param name="ct">The cancellation token.</param>
@@ -37,7 +49,27 @@ internal static class MetadataExtractor
             return null;
         }
 
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "Register"))
+        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
+        return ExtractRegisterMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
+    }
+
+    /// <summary>
+    /// Extracts metadata for a Register call from a resolved method symbol.
+    /// </summary>
+    /// <param name="methodSymbol">The resolved method symbol.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Transient registration info or null.</returns>
+    internal static TransientRegistrationInfo? ExtractRegisterMetadataFromSymbol(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        WellKnownSymbols symbols,
+        CancellationToken ct)
+    {
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegister))
         {
             return null;
         }
@@ -53,13 +85,13 @@ internal static class MetadataExtractor
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
 
-        var constructorParams = ExtractConstructorParameters(concreteType);
+        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
         {
             return null;
         }
 
-        var propertyInjections = ExtractPropertyInjections(concreteType);
+        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
         if (propertyInjections == null)
         {
             return null;
@@ -77,7 +109,8 @@ internal static class MetadataExtractor
     }
 
     /// <summary>
-    /// Extracts metadata for a RegisterLazySingleton call.
+    /// Extracts metadata for a RegisterLazySingleton call. Resolves the method symbol from the generator
+    /// syntax context and delegates to <see cref="ExtractLazySingletonMetadataFromSymbol"/>.
     /// </summary>
     /// <param name="context">The generator syntax context.</param>
     /// <param name="ct">The cancellation token.</param>
@@ -94,7 +127,27 @@ internal static class MetadataExtractor
             return null;
         }
 
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, "RegisterLazySingleton"))
+        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
+        return ExtractLazySingletonMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
+    }
+
+    /// <summary>
+    /// Extracts metadata for a RegisterLazySingleton call from a resolved method symbol.
+    /// </summary>
+    /// <param name="methodSymbol">The resolved method symbol.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Lazy singleton registration info or null.</returns>
+    internal static LazySingletonRegistrationInfo? ExtractLazySingletonMetadataFromSymbol(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        WellKnownSymbols symbols,
+        CancellationToken ct)
+    {
+        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegisterLazySingleton))
         {
             return null;
         }
@@ -110,13 +163,13 @@ internal static class MetadataExtractor
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
 
-        var constructorParams = ExtractConstructorParameters(concreteType);
+        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
         {
             return null;
         }
 
-        var propertyInjections = ExtractPropertyInjections(concreteType);
+        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
         if (propertyInjections == null)
         {
             return null;
@@ -139,8 +192,9 @@ internal static class MetadataExtractor
     /// Extracts constructor parameters for a type.
     /// </summary>
     /// <param name="concreteType">The type to extract from.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
     /// <returns>Array of constructor parameters or null.</returns>
-    internal static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType)
+    internal static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType, WellKnownSymbols symbols)
     {
         var members = concreteType.GetMembers();
         var constructors = new List<IMethodSymbol>(capacity: 4);
@@ -165,19 +219,7 @@ internal static class MetadataExtractor
             for (var i = 0; i < constructorCount; i++)
             {
                 var constructor = constructors[i];
-                var attrs = constructor.GetAttributes();
-                var hasAttribute = false;
-
-                for (var j = 0; j < attrs.Length; j++)
-                {
-                    if (attrs[j].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.ConstructorAttribute)
-                    {
-                        hasAttribute = true;
-                        break;
-                    }
-                }
-
-                if (hasAttribute)
+                if (HasAttribute(constructor, symbols.ConstructorAttribute, Constants.ConstructorAttribute))
                 {
                     if (selectedConstructor != null)
                     {
@@ -214,7 +256,7 @@ internal static class MetadataExtractor
             string? lazyInnerType = null;
 
             if (paramType is INamedTypeSymbol namedType &&
-                namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Lazy<T>")
+                IsOriginalDefinition(namedType, symbols.LazyType, Constants.LazyOpenGenericTypeName))
             {
                 isLazy = true;
                 if (namedType.TypeArguments.Length > 0)
@@ -227,7 +269,7 @@ internal static class MetadataExtractor
             string? collectionItemType = null;
 
             if (paramType is INamedTypeSymbol namedCollType &&
-                namedCollType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == "global::System.Collections.Generic.IEnumerable<T>")
+                IsOriginalDefinition(namedCollType, symbols.EnumerableType, Constants.EnumerableOpenGenericTypeName))
             {
                 isCollection = true;
                 if (namedCollType.TypeArguments.Length > 0)
@@ -252,8 +294,9 @@ internal static class MetadataExtractor
     /// Extracts property injections for a type.
     /// </summary>
     /// <param name="concreteType">The type to extract from.</param>
+    /// <param name="propertyAttributeSymbol">Pre-resolved property attribute symbol for efficient comparison.</param>
     /// <returns>Array of property injections or null.</returns>
-    internal static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType)
+    internal static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType, INamedTypeSymbol? propertyAttributeSymbol)
     {
         var properties = new List<PropertyInjection>(capacity: 4);
         var allTypes = RoslynHelpers.GetBaseTypesAndThis(concreteType);
@@ -267,19 +310,7 @@ internal static class MetadataExtractor
                     continue;
                 }
 
-                var attrs = property.GetAttributes();
-                var hasAttribute = false;
-
-                for (var i = 0; i < attrs.Length; i++)
-                {
-                    if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == Constants.PropertyAttribute)
-                    {
-                        hasAttribute = true;
-                        break;
-                    }
-                }
-
-                if (!hasAttribute)
+                if (!HasAttribute(property, propertyAttributeSymbol, Constants.PropertyAttribute))
                 {
                     continue;
                 }
@@ -292,10 +323,102 @@ internal static class MetadataExtractor
                 properties.Add(new PropertyInjection(
                     PropertyName: property.Name,
                     TypeFullName: property.Type.ToDisplayString(_fullyQualifiedFormat),
-                    PropertyLocation: property.Locations.Length > 0 ? property.Locations[0] : Location.None));
+                    PropertyLocation: GetFirstLocation(property.Locations)));
             }
         }
 
         return properties.ToArray();
     }
+
+    /// <summary>
+    /// Resolves well-known type symbols from the compilation for efficient symbol comparison.
+    /// Results are cached per <see cref="Compilation"/> instance using a <see cref="ConditionalWeakTable{TKey, TValue}"/>
+    /// so that repeated calls within the same compilation (e.g., across multiple syntax transforms) avoid redundant lookups.
+    /// </summary>
+    /// <param name="compilation">The compilation to resolve symbols from.</param>
+    /// <returns>A struct containing the resolved symbols (any may be null if not found).</returns>
+    internal static WellKnownSymbols ResolveWellKnownSymbols(Compilation compilation)
+        => _symbolsCache.GetValue(compilation, static c => new WellKnownSymbolsBox(new(
+            ConstructorAttribute: c.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName),
+            PropertyAttribute: c.GetTypeByMetadataName(Constants.PropertyAttributeMetadataName),
+            LazyType: c.GetTypeByMetadataName(Constants.LazyMetadataName)?.OriginalDefinition as INamedTypeSymbol,
+            EnumerableType: c.GetTypeByMetadataName(Constants.EnumerableMetadataName)?.OriginalDefinition as INamedTypeSymbol))).Value;
+
+    /// <summary>
+    /// Checks if a symbol has a specific attribute using symbol comparison (fast path)
+    /// with string comparison fallback when the attribute symbol is not available.
+    /// </summary>
+    /// <param name="symbol">The symbol to check for attributes.</param>
+    /// <param name="attributeSymbol">The pre-resolved attribute symbol (may be null).</param>
+    /// <param name="attributeDisplayString">The fully qualified display string fallback.</param>
+    /// <returns>True if the symbol has the specified attribute.</returns>
+    internal static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol, string attributeDisplayString)
+    {
+        var attrs = symbol.GetAttributes();
+        if (attributeSymbol != null)
+        {
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, attributeSymbol))
+                {
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < attrs.Length; i++)
+            {
+                if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == attributeDisplayString)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a named type's original definition matches an expected type using symbol comparison (fast path)
+    /// with string comparison fallback when the expected symbol is not available.
+    /// </summary>
+    /// <param name="namedType">The named type to check.</param>
+    /// <param name="expectedSymbol">The pre-resolved expected type symbol (may be null).</param>
+    /// <param name="expectedDisplayString">The fully qualified display string fallback.</param>
+    /// <returns>True if the named type's original definition matches.</returns>
+    internal static bool IsOriginalDefinition(INamedTypeSymbol namedType, INamedTypeSymbol? expectedSymbol, string expectedDisplayString)
+    {
+        return expectedSymbol != null
+            ? SymbolEqualityComparer.Default.Equals(namedType.OriginalDefinition, expectedSymbol)
+            : namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == expectedDisplayString;
+    }
+
+    /// <summary>
+    /// Gets the first location from a locations array, or <see cref="Location.None"/> if empty.
+    /// </summary>
+    /// <param name="locations">The locations array.</param>
+    /// <returns>The first location or <see cref="Location.None"/>.</returns>
+    internal static Location GetFirstLocation(ImmutableArray<Location> locations)
+        => locations.Length > 0 ? locations[0] : Location.None;
+
+    /// <summary>
+    /// Pre-resolved well-known symbols for efficient comparison without string allocations.
+    /// </summary>
+    /// <param name="ConstructorAttribute">The DependencyInjectionConstructorAttribute symbol.</param>
+    /// <param name="PropertyAttribute">The DependencyInjectionPropertyAttribute symbol.</param>
+    /// <param name="LazyType">The System.Lazy open generic type symbol.</param>
+    /// <param name="EnumerableType">The IEnumerable open generic type symbol.</param>
+    internal readonly record struct WellKnownSymbols(
+        INamedTypeSymbol? ConstructorAttribute,
+        INamedTypeSymbol? PropertyAttribute,
+        INamedTypeSymbol? LazyType,
+        INamedTypeSymbol? EnumerableType);
+
+    /// <summary>
+    /// Reference-type wrapper for <see cref="WellKnownSymbols"/> to satisfy
+    /// <see cref="ConditionalWeakTable{TKey, TValue}"/> value type constraint.
+    /// </summary>
+    /// <param name="Value">The well-known symbols to wrap.</param>
+    private sealed record WellKnownSymbolsBox(WellKnownSymbols Value);
 }

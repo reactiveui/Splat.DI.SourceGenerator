@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
@@ -517,5 +519,167 @@ public class PropertyCodeFixProviderTests
             codeActionIndex: 0); // "Add public setter"
 
         await Assert.That(TestUtilities.AreEquivalent(expectedFixed, actualFixed)).IsTrue();
+    }
+
+    /// <summary>
+    /// Verifies BuildSetterModifiers returns empty token list when property already has the same modifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task BuildSetterModifiers_PropertyHasSameModifier_ReturnsEmpty()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+
+        var result = CodeFixes.PropertyCodeFixProvider.BuildSetterModifiers(property, SyntaxKind.PublicKeyword);
+
+        await Assert.That(result.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Verifies BuildSetterModifiers returns modifier when property has different accessibility.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task BuildSetterModifiers_PropertyHasDifferentModifier_ReturnsModifier()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+
+        var result = CodeFixes.PropertyCodeFixProvider.BuildSetterModifiers(property, SyntaxKind.InternalKeyword);
+
+        await Assert.That(result.Count).IsEqualTo(1);
+        await Assert.That(result[0].Text).IsEqualTo("internal");
+    }
+
+    /// <summary>
+    /// Verifies ConvertExpressionBodiedProperty transforms to accessor list with getter and setter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConvertExpressionBodiedProperty_CreatesGetterAndSetter()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { private int _f; public int Foo => _f; }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var setterModifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword));
+
+        var result = CodeFixes.PropertyCodeFixProvider.ConvertExpressionBodiedProperty(property, setterModifiers);
+
+        await Assert.That(result.AccessorList).IsNotNull();
+        await Assert.That(result.ExpressionBody).IsNull();
+        await Assert.That(result.AccessorList!.Accessors.Count).IsEqualTo(2);
+
+        var getter = result.AccessorList.Accessors[0];
+        var setter = result.AccessorList.Accessors[1];
+        await Assert.That(getter.Kind()).IsEqualTo(SyntaxKind.GetAccessorDeclaration);
+        await Assert.That(setter.Kind()).IsEqualTo(SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(1);
+        await Assert.That(setter.Modifiers[0].Text).IsEqualTo("internal");
+    }
+
+    /// <summary>
+    /// Verifies ConvertExpressionBodiedProperty with empty modifiers produces setter without modifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ConvertExpressionBodiedProperty_EmptyModifiers_NoSetterModifier()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { private int _f; public int Foo => _f; }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var setterModifiers = SyntaxFactory.TokenList();
+
+        var result = CodeFixes.PropertyCodeFixProvider.ConvertExpressionBodiedProperty(property, setterModifiers);
+
+        var setter = result.AccessorList!.Accessors[1];
+        await Assert.That(setter.Kind()).IsEqualTo(SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Verifies AddSetterToGetterOnlyProperty adds a setter to a getter-only property.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AddSetterToGetterOnlyProperty_AddsSetter()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var setterModifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword));
+
+        var result = CodeFixes.PropertyCodeFixProvider.AddSetterToGetterOnlyProperty(property, setterModifiers);
+
+        await Assert.That(result.AccessorList!.Accessors.Count).IsEqualTo(2);
+
+        var setter = result.AccessorList.Accessors[1];
+        await Assert.That(setter.Kind()).IsEqualTo(SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(1);
+        await Assert.That(setter.Modifiers[0].Text).IsEqualTo("internal");
+    }
+
+    /// <summary>
+    /// Verifies AddSetterToGetterOnlyProperty with empty modifiers adds setter without modifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AddSetterToGetterOnlyProperty_EmptyModifiers_NoSetterModifier()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var setterModifiers = SyntaxFactory.TokenList();
+
+        var result = CodeFixes.PropertyCodeFixProvider.AddSetterToGetterOnlyProperty(property, setterModifiers);
+
+        var setter = result.AccessorList!.Accessors[1];
+        await Assert.That(setter.Kind()).IsEqualTo(SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Verifies UpdateExistingSetterModifiers changes a private setter to internal.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task UpdateExistingSetterModifiers_PrivateToInternal()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; private set; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var existingSetter = property.AccessorList!.Accessors
+            .First(a => a.Kind() == SyntaxKind.SetAccessorDeclaration);
+        var setterModifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword));
+
+        var result = CodeFixes.PropertyCodeFixProvider.UpdateExistingSetterModifiers(property, existingSetter, setterModifiers);
+
+        var setter = result.AccessorList!.Accessors
+            .First(a => a.Kind() == SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(1);
+        await Assert.That(setter.Modifiers[0].Text).IsEqualTo("internal");
+    }
+
+    /// <summary>
+    /// Verifies UpdateExistingSetterModifiers with empty modifiers removes the existing modifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task UpdateExistingSetterModifiers_RemovesModifier()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public class C { public int Foo { get; private set; } }");
+        var root = await tree.GetRootAsync();
+        var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+        var existingSetter = property.AccessorList!.Accessors
+            .First(a => a.Kind() == SyntaxKind.SetAccessorDeclaration);
+        var setterModifiers = SyntaxFactory.TokenList();
+
+        var result = CodeFixes.PropertyCodeFixProvider.UpdateExistingSetterModifiers(property, existingSetter, setterModifiers);
+
+        var setter = result.AccessorList!.Accessors
+            .First(a => a.Kind() == SyntaxKind.SetAccessorDeclaration);
+        await Assert.That(setter.Modifiers.Count).IsEqualTo(0);
     }
 }

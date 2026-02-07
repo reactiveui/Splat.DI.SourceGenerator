@@ -17,6 +17,9 @@ namespace Splat.DependencyInjection.Analyzer.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class PropertyAnalyzer : DiagnosticAnalyzer
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for diagnostic messages.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <inheritdoc/>
@@ -38,7 +41,7 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(compilationContext =>
         {
             // Try both possible attribute locations (namespace-level from generator, or user-defined)
-            var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName("Splat.DependencyInjectionPropertyAttribute");
+            var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName(SourceGenerator.Constants.PropertyAttributeMetadataName);
 
             // Only register the symbol action if the attribute exists in this compilation
             if (propertyAttributeSymbol != null)
@@ -50,6 +53,12 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         });
     }
 
+    /// <summary>
+    /// Analyzes a property symbol to check if it has the DependencyInjectionProperty attribute
+    /// and validates that its setter is accessible (public or internal).
+    /// </summary>
+    /// <param name="context">The symbol analysis context.</param>
+    /// <param name="propertyAttributeSymbol">The resolved DependencyInjectionPropertyAttribute symbol.</param>
     private static void AnalyzeProperty(SymbolAnalysisContext context, INamedTypeSymbol propertyAttributeSymbol)
     {
         var property = (IPropertySymbol)context.Symbol;

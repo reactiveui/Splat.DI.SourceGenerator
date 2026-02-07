@@ -23,6 +23,7 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.TestConcrete>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")) { ServiceProperty = resolver.GetService<global::Test.IServiceProperty>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty' not registered with Splat resolver.") });        }
+            resolver.Register<global::Test.TestConcrete>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")) { ServiceProperty = resolver.GetService<global::Test.IServiceProperty>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty' not registered with Splat resolver.") });
+        }
     }
 }

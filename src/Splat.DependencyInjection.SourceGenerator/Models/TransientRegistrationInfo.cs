@@ -10,6 +10,12 @@ namespace Splat.DependencyInjection.SourceGenerator.Models;
 /// Represents a transient registration (created per resolve).
 /// This is a cache-friendly POCO - contains only primitive data, no ISymbol/SyntaxNode references.
 /// </summary>
+/// <param name="InterfaceTypeFullName">The fully qualified type name of the interface being registered.</param>
+/// <param name="ConcreteTypeFullName">The fully qualified type name of the concrete implementation.</param>
+/// <param name="ConstructorParameters">The constructor parameters for the concrete type.</param>
+/// <param name="PropertyInjections">The property injections for the concrete type.</param>
+/// <param name="ContractValue">The optional contract key value, or null for unkeyed registrations.</param>
+/// <param name="InvocationLocation">The source location of the registration invocation.</param>
 internal sealed record TransientRegistrationInfo(
     string InterfaceTypeFullName,
     string ConcreteTypeFullName,

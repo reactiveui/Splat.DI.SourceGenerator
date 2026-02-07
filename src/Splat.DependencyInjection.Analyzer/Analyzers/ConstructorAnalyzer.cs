@@ -40,15 +40,21 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
     }
 
+    /// <summary>
+    /// Analyzes an invocation operation to check if it is a SplatRegistrations.Register or
+    /// RegisterLazySingleton call, and validates the concrete type's constructors.
+    /// </summary>
+    /// <param name="context">The operation analysis context.</param>
     private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
         var invocation = (IInvocationOperation)context.Operation;
         var method = invocation.TargetMethod;
 
         // Check if it's SplatRegistrations.Register or RegisterLazySingleton
-        if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, "Register") &&
-            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterLazySingleton") &&
-            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, "RegisterConstant"))
+        // Note: RegisterConstant is NOT included because it takes a pre-instantiated object,
+        // so constructor analysis is not needed (GitHub issue #292)
+        if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegister) &&
+            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegisterLazySingleton))
         {
             return;
         }

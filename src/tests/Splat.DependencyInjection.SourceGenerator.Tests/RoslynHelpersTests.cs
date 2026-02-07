@@ -237,9 +237,9 @@ public class RoslynHelpersTests
         var namedLiteralContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[1], semanticModel, CancellationToken.None);
         await Assert.That(namedLiteralContract).IsEqualTo("\"NamedLiteralContract\"");
 
-        // 3. Constant
+        // 3. Constant - should be fully qualified for use in generated code
         var constantContract = RoslynHelpers.ExtractContractParameter(registerMethod, invocations[2], semanticModel, CancellationToken.None);
-        await Assert.That(constantContract).IsEqualTo("TestNamespace.Constants.MyContract");
+        await Assert.That(constantContract).IsEqualTo("global::TestNamespace.Constants.MyContract");
     }
 
     /// <summary>
@@ -588,6 +588,655 @@ public class RoslynHelpersTests
         var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
 
         var result = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for static field.
+    /// This is a regression test for the issue where contract keys from different namespaces
+    /// were not fully qualified in generated code.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_StaticField_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace MyNamespace.Keys
+            {
+                public static class RegistrationKeys
+                {
+                    public static string Key1 = "Key1";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var keysType = compilation.GetTypeByMetadataName("MyNamespace.Keys.RegistrationKeys");
+        await Assert.That(keysType).IsNotNull();
+
+        var fieldSymbol = keysType!.GetMembers("Key1").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::MyNamespace.Keys.RegistrationKeys.Key1");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for static property.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_StaticProperty_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Config
+            {
+                public static class Settings
+                {
+                    public static string ConnectionString { get; } = "test";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var settingsType = compilation.GetTypeByMetadataName("Config.Settings");
+        await Assert.That(settingsType).IsNotNull();
+
+        var propertySymbol = settingsType!.GetMembers("ConnectionString").OfType<IPropertySymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(propertySymbol);
+
+        await Assert.That(result).IsEqualTo("global::Config.Settings.ConnectionString");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference returns fully qualified reference for const field.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_ConstField_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Constants
+            {
+                public static class ContractNames
+                {
+                    public const string DefaultContract = "Default";
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var constantsType = compilation.GetTypeByMetadataName("Constants.ContractNames");
+        await Assert.That(constantsType).IsNotNull();
+
+        var fieldSymbol = constantsType!.GetMembers("DefaultContract").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::Constants.ContractNames.DefaultContract");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference handles nested classes correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_NestedClass_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Outer
+            {
+                public class Container
+                {
+                    public static class Inner
+                    {
+                        public static string Value = "test";
+                    }
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var innerType = compilation.GetTypeByMetadataName("Outer.Container+Inner");
+        await Assert.That(innerType).IsNotNull();
+
+        var fieldSymbol = innerType!.GetMembers("Value").OfType<IFieldSymbol>().First();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(fieldSymbol);
+
+        await Assert.That(result).IsEqualTo("global::Outer.Container.Inner.Value");
+    }
+
+    /// <summary>
+    /// Verifies GetFullyQualifiedMemberReference handles local variables.
+    /// Local variables don't have a containing type in the same way as fields/properties.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMemberReference_LocalVariable_ReturnsDisplayString()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public class Test
+            {
+                public void Run()
+                {
+                    var localVar = "test";
+                    System.Console.WriteLine(localVar);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Console).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+
+        // Find the reference to localVar in Console.WriteLine(localVar)
+        var identifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
+            .Where(id => id.Identifier.Text == "localVar")
+            .ToList();
+
+        // Get the second occurrence (the usage, not the declaration)
+        var localVarUsage = identifiers.Last();
+        var symbolInfo = semanticModel.GetSymbolInfo(localVarUsage);
+
+        await Assert.That(symbolInfo.Symbol).IsNotNull();
+        var result = RoslynHelpers.GetFullyQualifiedMemberReference(symbolInfo.Symbol!);
+
+        // Local variables return their simple name via ToDisplayString
+        await Assert.That(result).IsEqualTo("localVar");
+    }
+
+    /// <summary>
+    /// Verifies that ExtractContractParameter correctly extracts the contract value
+    /// when named arguments are provided out of the positional order.
+    /// This is a regression test for the bug where positional indexing broke
+    /// named argument resolution (e.g., <c>RegisterLazySingleton(mode: ..., contract: "key")</c>).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_NamedArgumentOutOfOrder_ExtractsValue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using System.Threading;
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(string contract, LazyThreadSafetyMode mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.RegisterLazySingleton<string>(mode: LazyThreadSafetyMode.None, contract: "MyKey");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.LazyThreadSafetyMode).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        var contract = RoslynHelpers.ExtractContractParameter(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(contract).IsEqualTo("\"MyKey\"");
+    }
+
+    /// <summary>
+    /// Verifies that ExtractLazyThreadSafetyMode correctly extracts the mode value
+    /// when named arguments are provided out of the positional order.
+    /// This is a regression test for the bug where positional indexing broke
+    /// named argument resolution (e.g., <c>RegisterLazySingleton(contract: "key", mode: ...)</c>).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazyThreadSafetyMode_NamedArgumentOutOfOrder_ExtractsValue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using System.Threading;
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(string contract, LazyThreadSafetyMode mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.RegisterLazySingleton<string>(mode: LazyThreadSafetyMode.None, contract: "MyKey");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.LazyThreadSafetyMode).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        var mode = RoslynHelpers.ExtractLazyThreadSafetyMode(registerMethod, invocation, semanticModel, CancellationToken.None);
+        await Assert.That(mode).Contains("None");
+    }
+
+    /// <summary>
+    /// Verifies that ResolveParameterForArgument returns the correct parameter
+    /// for a positional argument (no named colon syntax).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveParameterForArgument_PositionalArgument_ReturnsCorrectParameter()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(string contract, int mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    Splat.SplatRegistrations.RegisterLazySingleton<string>("key", 42);
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        var arg0 = invocation.ArgumentList.Arguments[0];
+        var param0 = RoslynHelpers.ResolveParameterForArgument(arg0, method, 0);
+        await Assert.That(param0).IsNotNull();
+        await Assert.That(param0!.Name).IsEqualTo("contract");
+
+        var arg1 = invocation.ArgumentList.Arguments[1];
+        var param1 = RoslynHelpers.ResolveParameterForArgument(arg1, method, 1);
+        await Assert.That(param1).IsNotNull();
+        await Assert.That(param1!.Name).IsEqualTo("mode");
+    }
+
+    /// <summary>
+    /// Verifies that ResolveParameterForArgument returns the correct parameter
+    /// for a named argument, even when passed out of positional order.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveParameterForArgument_NamedArgumentOutOfOrder_ReturnsCorrectParameter()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<T>(string contract, int mode) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    Splat.SplatRegistrations.RegisterLazySingleton<string>(mode: 42, contract: "key");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("RegisterLazySingleton").OfType<IMethodSymbol>().First();
+
+        // arg[0] is "mode: 42" but positional index 0 is "contract" — named resolution should win
+        var arg0 = invocation.ArgumentList.Arguments[0];
+        var param0 = RoslynHelpers.ResolveParameterForArgument(arg0, method, 0);
+        await Assert.That(param0).IsNotNull();
+        await Assert.That(param0!.Name).IsEqualTo("mode");
+
+        // arg[1] is "contract: \"key\"" but positional index 1 is "mode" — named resolution should win
+        var arg1 = invocation.ArgumentList.Arguments[1];
+        var param1 = RoslynHelpers.ResolveParameterForArgument(arg1, method, 1);
+        await Assert.That(param1).IsNotNull();
+        await Assert.That(param1!.Name).IsEqualTo("contract");
+    }
+
+    /// <summary>
+    /// Verifies that ResolveParameterForArgument returns null when a named argument
+    /// references a parameter name that does not exist on the method.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveParameterForArgument_UnknownNamedArgument_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    Splat.SplatRegistrations.Register<string>(nonexistent: "key");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        var arg = invocation.ArgumentList.Arguments[0];
+        var param = RoslynHelpers.ResolveParameterForArgument(arg, method, 0);
+        await Assert.That(param).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies that ResolveParameterForArgument returns null when the positional index
+    /// exceeds the number of method parameters (bounds check).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveParameterForArgument_IndexExceedsBounds_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    Splat.SplatRegistrations.Register<string>("key");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        // Method has 1 parameter (contract), but pass positional index 5
+        var arg = invocation.ArgumentList.Arguments[0];
+        var param = RoslynHelpers.ResolveParameterForArgument(arg, method, 5);
+        await Assert.That(param).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies that ResolveParameterForArgument returns null when the positional index is negative.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveParameterForArgument_NegativeIndex_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract) {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    Splat.SplatRegistrations.Register<string>("key");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var method = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        var arg = invocation.ArgumentList.Arguments[0];
+        var param = RoslynHelpers.ResolveParameterForArgument(arg, method, -1);
+        await Assert.That(param).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies that GetFullyQualifiedMethodInvocation fully qualifies a basic static method call.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMethodInvocation_BasicStaticCall_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Test {
+                public static class ContractHelper {
+                    public static string GetContractKey() => "key";
+                }
+            }
+            public class Usage {
+                public void M() { Test.ContractHelper.GetContractKey(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = RoslynHelpers.GetFullyQualifiedMethodInvocation(methodSymbol, invocation);
+
+        await Assert.That(result).IsEqualTo("global::Test.ContractHelper.GetContractKey()");
+    }
+
+    /// <summary>
+    /// Verifies that GetFullyQualifiedMethodInvocation handles nested classes correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMethodInvocation_NestedClass_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Ns {
+                public class Outer {
+                    public static class Inner {
+                        public static string GetKey() => "key";
+                    }
+                }
+            }
+            public class Usage {
+                public void M() { Ns.Outer.Inner.GetKey(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = RoslynHelpers.GetFullyQualifiedMethodInvocation(methodSymbol, invocation);
+
+        await Assert.That(result).IsEqualTo("global::Ns.Outer.Inner.GetKey()");
+    }
+
+    /// <summary>
+    /// Verifies that GetFullyQualifiedMethodInvocation preserves generic type arguments on the method name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMethodInvocation_GenericMethod_PreservesTypeArguments()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Ns {
+                public static class Helper {
+                    public static string GetKey<T>() => typeof(T).Name;
+                }
+            }
+            public class Usage {
+                public void M() { Ns.Helper.GetKey<string>(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = RoslynHelpers.GetFullyQualifiedMethodInvocation(methodSymbol, invocation);
+
+        await Assert.That(result).IsEqualTo("global::Ns.Helper.GetKey<string>()");
+    }
+
+    /// <summary>
+    /// Verifies that GetFullyQualifiedMethodInvocation preserves the original arguments.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFullyQualifiedMethodInvocation_WithArguments_PreservesArguments()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Ns {
+                public static class Helper {
+                    public static string GetKey(string arg) => arg;
+                }
+            }
+            public class Usage {
+                public void M() { Ns.Helper.GetKey("arg"); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = RoslynHelpers.GetFullyQualifiedMethodInvocation(methodSymbol, invocation);
+
+        await Assert.That(result).IsEqualTo("global::Ns.Helper.GetKey(\"arg\")");
+    }
+
+    /// <summary>
+    /// Verifies that ExtractContractParameter fully qualifies method invocation contract keys.
+    /// This is a regression test for the issue where method invocation contract keys
+    /// were emitted unqualified in generated code.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_MethodInvocation_ReturnsFullyQualified()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>(string contract = null) {}
+                }
+            }
+            namespace Test {
+                public static class ContractHelper {
+                    public static string GetContractKey() => "key";
+                }
+            }
+            public class Usage {
+                public void Run() {
+                    SplatRegistrations.Register<string>(Test.ContractHelper.GetContractKey());
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .First(i => i.Expression.ToString().Contains("Register"));
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        var result = RoslynHelpers.ExtractContractParameter(registerMethod, invocation, semanticModel, CancellationToken.None);
+
+        await Assert.That(result).IsEqualTo("global::Test.ContractHelper.GetContractKey()");
+    }
+
+    /// <summary>
+    /// Verifies that ExtractContractParameter returns null gracefully when there are
+    /// more arguments than method parameters (bounds check via ResolveParameterForArgument).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractContractParameter_MoreArgsThanParams_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using Splat;
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register<T>() {}
+                }
+            }
+            public class Test {
+                public void Run() {
+                    SplatRegistrations.Register<string>("extra", "args");
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var root = await syntaxTree.GetRootAsync();
+        var invocation = root.DescendantNodes().OfType<InvocationExpressionSyntax>().First();
+
+        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        await Assert.That(splatReg).IsNotNull();
+        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
+
+        // Method has 0 parameters but invocation has 2 arguments (malformed code).
+        // Should not throw IndexOutOfRangeException.
+        var result = RoslynHelpers.ExtractContractParameter(registerMethod, invocation, semanticModel, CancellationToken.None);
         await Assert.That(result).IsNull();
     }
 }

@@ -4,6 +4,8 @@
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using TUnit.Assertions;
 
@@ -767,5 +769,111 @@ public class ConstructorCodeFixProviderTests
             CodeFixes.ConstructorCodeFixProvider>(code);
 
         await Assert.That(fixedCode).Contains("[DependencyInjectionConstructor]");
+    }
+
+    /// <summary>
+    /// Tests AddAttributeAsync directly on a constructor with leading trivia (XML docs).
+    /// Validates the trivia is preserved and moved to the attribute list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AddAttributeAsync_ConstructorWithLeadingTrivia_PreservesTrivia()
+    {
+        const string source = """
+            public class Foo
+            {
+                /// <summary>My ctor.</summary>
+                public Foo() { }
+            }
+            """;
+
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
+        var root = await document.GetSyntaxRootAsync();
+        var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
+
+        var result = await CodeFixes.ConstructorCodeFixProvider.AddAttributeAsync(document, constructor, CancellationToken.None);
+        var resultText = (await result.GetTextAsync()).ToString();
+
+        await Assert.That(resultText).Contains("[DependencyInjectionConstructor]");
+        await Assert.That(resultText).Contains("/// <summary>My ctor.</summary>");
+    }
+
+    /// <summary>
+    /// Tests AddAttributeAsync directly on a constructor with no leading trivia.
+    /// Validates the attribute is added without trivia issues.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AddAttributeAsync_ConstructorWithNoTrivia_AddsAttribute()
+    {
+        const string source = "public class Foo { public Foo() { } }";
+
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
+        var root = await document.GetSyntaxRootAsync();
+        var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
+
+        var result = await CodeFixes.ConstructorCodeFixProvider.AddAttributeAsync(document, constructor, CancellationToken.None);
+        var resultText = (await result.GetTextAsync()).ToString();
+
+        await Assert.That(resultText).Contains("[DependencyInjectionConstructor]");
+    }
+
+    /// <summary>
+    /// Tests AddAttributeAsync on a constructor that already has an existing attribute.
+    /// Validates the new attribute is prepended to the existing attribute list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task AddAttributeAsync_ConstructorWithExistingAttribute_PrependsAttribute()
+    {
+        const string source = """
+            using System;
+
+            public class Foo
+            {
+                [Obsolete]
+                public Foo() { }
+            }
+            """;
+
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
+        var root = await document.GetSyntaxRootAsync();
+        var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
+
+        var result = await CodeFixes.ConstructorCodeFixProvider.AddAttributeAsync(document, constructor, CancellationToken.None);
+        var resultText = (await result.GetTextAsync()).ToString();
+
+        await Assert.That(resultText).Contains("[DependencyInjectionConstructor]");
+        await Assert.That(resultText).Contains("[Obsolete]");
+    }
+
+    /// <summary>
+    /// Creates a simple Document from source code for direct unit testing.
+    /// The caller is responsible for disposing the returned workspace.
+    /// </summary>
+    /// <param name="source">The C# source code.</param>
+    /// <returns>A tuple containing the Document and the AdhocWorkspace that must be disposed by the caller.</returns>
+    private static (Document Document, AdhocWorkspace Workspace) CreateSimpleDocument(string source)
+    {
+        var projectId = ProjectId.CreateNewId("TestProject");
+        var workspace = new AdhocWorkspace();
+        var solution = workspace.CurrentSolution
+            .AddProject(projectId, "TestProject", "TestProject", LanguageNames.CSharp)
+            .AddMetadataReference(projectId, MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var systemRuntime = System.AppDomain.CurrentDomain.GetAssemblies()
+            .FirstOrDefault(a => a.GetName().Name == "System.Runtime");
+        if (systemRuntime != null)
+        {
+            solution = solution.AddMetadataReference(projectId, MetadataReference.CreateFromFile(systemRuntime.Location));
+        }
+
+        var document = solution.GetProject(projectId)!
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddDocument("Test.cs", source);
+        return (document, workspace);
     }
 }

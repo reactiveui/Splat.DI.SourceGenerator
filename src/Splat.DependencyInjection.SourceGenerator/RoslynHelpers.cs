@@ -15,6 +15,9 @@ namespace Splat.DependencyInjection.SourceGenerator;
 /// </summary>
 internal static class RoslynHelpers
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for type name resolution.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>
@@ -32,8 +35,8 @@ internal static class RoslynHelpers
 
         return invocation.Expression switch
         {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "Register" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "Register" } => true,
+            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
             _ => false
         };
     }
@@ -53,8 +56,8 @@ internal static class RoslynHelpers
 
         return invocation.Expression switch
         {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: "RegisterLazySingleton" } => true,
+            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
+            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
             _ => false
         };
     }
@@ -139,9 +142,9 @@ internal static class RoslynHelpers
         for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
         {
             var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
+            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
 
-            if (parameter.Name != "contract")
+            if (parameter == null || parameter.Name != Constants.ParameterNameContract)
             {
                 continue;
             }
@@ -156,17 +159,80 @@ internal static class RoslynHelpers
             }
 
             // Handle non-literal expressions (constant fields, properties, etc.)
-            // Preserve the expression as written by the user (e.g., TestNamespace.Constants.MyContract)
-            // This maintains the reference rather than inlining the value
+            // We need to fully qualify the reference to avoid CS0103 errors in generated code
+            // when the symbol is from a different namespace (GitHub issue: Keys from different namespace)
             var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
+            if (symbolInfo.Symbol is IFieldSymbol or IPropertySymbol)
+            {
+                return GetFullyQualifiedMemberReference(symbolInfo.Symbol);
+            }
+
+            // Handle method invocation expressions by fully qualifying the containing type
+            // while preserving the original argument list from the syntax tree.
+            if (symbolInfo.Symbol is IMethodSymbol invokedMethod
+                && expression is InvocationExpressionSyntax contractInvocation
+                && invokedMethod.ContainingType != null)
+            {
+                return GetFullyQualifiedMethodInvocation(invokedMethod, contractInvocation);
+            }
+
+            // For other resolved symbols (locals, etc.)
+            // preserve the expression as written since ToDisplayString may produce
+            // a signature-like string that is not a valid expression in generated code
             if (symbolInfo.Symbol != null)
             {
-                // Use the expression syntax as written to preserve namespace qualifications
                 return expression.ToString();
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets a fully qualified reference string for a symbol (field, property, or other member).
+    /// For fields/properties, returns the fully qualified containing type plus the member name.
+    /// For other symbols, returns the fully qualified name directly.
+    /// </summary>
+    /// <param name="symbol">The symbol to get the fully qualified reference for.</param>
+    /// <returns>A fully qualified reference string safe for use in generated code.</returns>
+    internal static string GetFullyQualifiedMemberReference(ISymbol symbol)
+    {
+        // For fields and properties, we need to build: global::Namespace.Type.MemberName
+        if (symbol is IFieldSymbol or IPropertySymbol)
+        {
+            var containingType = symbol.ContainingType;
+            if (containingType != null)
+            {
+                var fullyQualifiedTypeName = containingType.ToDisplayString(_fullyQualifiedFormat);
+                return $"{fullyQualifiedTypeName}.{symbol.Name}";
+            }
+        }
+
+        // For other symbols (e.g., local variables, parameters), return the display string
+        return symbol.ToDisplayString(_fullyQualifiedFormat);
+    }
+
+    /// <summary>
+    /// Gets a fully qualified method invocation string for use in generated code.
+    /// Fully qualifies the containing type while preserving the method name (including type arguments)
+    /// and the original argument list from the syntax tree.
+    /// </summary>
+    /// <param name="invokedMethod">The method symbol being invoked.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <returns>A fully qualified method invocation string safe for use in generated code.</returns>
+    internal static string GetFullyQualifiedMethodInvocation(IMethodSymbol invokedMethod, InvocationExpressionSyntax invocation)
+    {
+        var fullyQualifiedTypeName = invokedMethod.ContainingType!.ToDisplayString(_fullyQualifiedFormat);
+
+        // Extract method name from syntax to preserve type arguments (e.g., GetKey<string>)
+        var methodName = invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.ToString(),
+            SimpleNameSyntax simpleName => simpleName.ToString(),
+            _ => invokedMethod.Name
+        };
+
+        return $"{fullyQualifiedTypeName}.{methodName}{invocation.ArgumentList}";
     }
 
     /// <summary>
@@ -186,9 +252,9 @@ internal static class RoslynHelpers
         for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
         {
             var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
+            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
 
-            if (parameter.Name != "mode")
+            if (parameter == null || parameter.Name != Constants.ParameterNameMode)
             {
                 continue;
             }
@@ -203,5 +269,40 @@ internal static class RoslynHelpers
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Resolves the method parameter that corresponds to a given invocation argument,
+    /// handling both positional and named arguments correctly.
+    /// </summary>
+    /// <param name="argument">The argument syntax from the invocation.</param>
+    /// <param name="methodSymbol">The method symbol being invoked.</param>
+    /// <param name="positionalIndex">The zero-based positional index of the argument in the argument list.</param>
+    /// <returns>The corresponding parameter symbol, or <see langword="null"/> if the parameter cannot be resolved.</returns>
+    internal static IParameterSymbol? ResolveParameterForArgument(
+        ArgumentSyntax argument,
+        IMethodSymbol methodSymbol,
+        int positionalIndex)
+    {
+        if (argument.NameColon != null)
+        {
+            var argumentName = argument.NameColon.Name.Identifier.Text;
+            for (int j = 0; j < methodSymbol.Parameters.Length; j++)
+            {
+                if (methodSymbol.Parameters[j].Name == argumentName)
+                {
+                    return methodSymbol.Parameters[j];
+                }
+            }
+
+            return null;
+        }
+
+        if (positionalIndex < 0 || positionalIndex >= methodSymbol.Parameters.Length)
+        {
+            return null;
+        }
+
+        return methodSymbol.Parameters[positionalIndex];
     }
 }

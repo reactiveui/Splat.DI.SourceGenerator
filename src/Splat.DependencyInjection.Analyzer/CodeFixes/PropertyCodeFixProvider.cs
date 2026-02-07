@@ -63,37 +63,30 @@ public class PropertyCodeFixProvider : CodeFixProvider
         // Offer to add public setter
         context.RegisterCodeFix(
             CodeAction.Create(
-                title: "Add public setter",
-                createChangedDocument: c => AddPublicSetterAsync(context.Document, propertyDeclaration, c),
-                equivalenceKey: nameof(AddPublicSetterAsync)),
+                title: Constants.CodeFixAddPublicSetter,
+                createChangedDocument: c => AddSetterAsync(context.Document, propertyDeclaration, SyntaxKind.PublicKeyword, c),
+                equivalenceKey: Constants.CodeFixAddPublicSetter),
             diagnostic);
 
         // Offer to add internal setter
         context.RegisterCodeFix(
             CodeAction.Create(
-                title: "Add internal setter",
-                createChangedDocument: c => AddInternalSetterAsync(context.Document, propertyDeclaration, c),
-                equivalenceKey: nameof(AddInternalSetterAsync)),
+                title: Constants.CodeFixAddInternalSetter,
+                createChangedDocument: c => AddSetterAsync(context.Document, propertyDeclaration, SyntaxKind.InternalKeyword, c),
+                equivalenceKey: Constants.CodeFixAddInternalSetter),
             diagnostic);
     }
 
-    private static async Task<Document> AddPublicSetterAsync(
-        Document document,
-        PropertyDeclarationSyntax property,
-        CancellationToken cancellationToken)
-    {
-        return await AddSetterAsync(document, property, SyntaxKind.PublicKeyword, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<Document> AddInternalSetterAsync(
-        Document document,
-        PropertyDeclarationSyntax property,
-        CancellationToken cancellationToken)
-    {
-        return await AddSetterAsync(document, property, SyntaxKind.InternalKeyword, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<Document> AddSetterAsync(
+    /// <summary>
+    /// Orchestrates adding or updating a property setter with the specified accessibility modifier.
+    /// Determines the property shape and delegates to the appropriate transformation method.
+    /// </summary>
+    /// <param name="document">The document containing the property.</param>
+    /// <param name="property">The property syntax to modify.</param>
+    /// <param name="accessorModifier">The <see cref="SyntaxKind"/> accessibility modifier for the setter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The modified document with the updated setter.</returns>
+    internal static async Task<Document> AddSetterAsync(
         Document document,
         PropertyDeclarationSyntax property,
         SyntaxKind accessorModifier,
@@ -105,53 +98,13 @@ public class PropertyCodeFixProvider : CodeFixProvider
             return document;
         }
 
-        // Determine if the setter needs an explicit modifier
-        // If the property already has the same accessibility, the setter doesn't need a modifier
-        bool needsModifier = true;
-        var modifiers = property.Modifiers;
-        for (var i = 0; i < modifiers.Count; i++)
-        {
-            if (modifiers[i].IsKind(accessorModifier))
-            {
-                needsModifier = false;
-                break;
-            }
-        }
-
-        var setterModifiers = needsModifier
-            ? SyntaxFactory.TokenList(SyntaxFactory.Token(accessorModifier))
-            : SyntaxFactory.TokenList();
+        var setterModifiers = BuildSetterModifiers(property, accessorModifier);
 
         PropertyDeclarationSyntax newProperty;
 
         if (property.AccessorList == null)
         {
-            // Expression-bodied property - convert to property with getter and setter
-            var getter = SyntaxFactory.AccessorDeclaration(
-                SyntaxKind.GetAccessorDeclaration,
-                SyntaxFactory.List<AttributeListSyntax>(),
-                SyntaxFactory.TokenList(),
-                SyntaxFactory.Token(SyntaxKind.GetKeyword),
-                null,
-                SyntaxFactory.ArrowExpressionClause(property.ExpressionBody!.Expression),
-                SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-            var setter = SyntaxFactory.AccessorDeclaration(
-                SyntaxKind.SetAccessorDeclaration,
-                SyntaxFactory.List<AttributeListSyntax>(),
-                setterModifiers,
-                SyntaxFactory.Token(SyntaxKind.SetKeyword),
-                null,
-                null,
-                SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-            var accessorList = SyntaxFactory.AccessorList(
-                SyntaxFactory.List(new[] { getter, setter }));
-
-            newProperty = property
-                .WithAccessorList(accessorList)
-                .WithExpressionBody(null)
-                .WithSemicolonToken(default);
+            newProperty = ConvertExpressionBodiedProperty(property, setterModifiers);
         }
         else
         {
@@ -167,28 +120,107 @@ public class PropertyCodeFixProvider : CodeFixProvider
                 }
             }
 
-            if (existingSetter == null)
-            {
-                // Has getter but no setter - add setter
-                var setter = SyntaxFactory.AccessorDeclaration(
-                        SyntaxKind.SetAccessorDeclaration)
-                    .WithModifiers(setterModifiers)
-                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-                var newAccessorList = property.AccessorList.AddAccessors(setter);
-                newProperty = property.WithAccessorList(newAccessorList);
-            }
-            else
-            {
-                // Has setter with wrong accessibility - update it
-                var newSetter = existingSetter.WithModifiers(setterModifiers);
-
-                var newAccessorList = property.AccessorList.ReplaceNode(existingSetter, newSetter);
-                newProperty = property.WithAccessorList(newAccessorList);
-            }
+            newProperty = existingSetter == null
+                ? AddSetterToGetterOnlyProperty(property, setterModifiers)
+                : UpdateExistingSetterModifiers(property, existingSetter, setterModifiers);
         }
 
         var newRoot = root.ReplaceNode(property, newProperty);
         return document.WithSyntaxRoot(newRoot);
+    }
+
+    /// <summary>
+    /// Builds the setter modifier token list, omitting the modifier if the property already
+    /// has the same accessibility (to avoid redundant modifiers like <c>public int Foo { get; public set; }</c>).
+    /// </summary>
+    /// <param name="property">The property to check modifiers on.</param>
+    /// <param name="accessorModifier">The desired accessibility modifier.</param>
+    /// <returns>A token list containing the modifier, or an empty list if redundant.</returns>
+    internal static SyntaxTokenList BuildSetterModifiers(PropertyDeclarationSyntax property, SyntaxKind accessorModifier)
+    {
+        var modifiers = property.Modifiers;
+        for (var i = 0; i < modifiers.Count; i++)
+        {
+            if (modifiers[i].IsKind(accessorModifier))
+            {
+                return SyntaxFactory.TokenList();
+            }
+        }
+
+        return SyntaxFactory.TokenList(SyntaxFactory.Token(accessorModifier));
+    }
+
+    /// <summary>
+    /// Converts an expression-bodied property to a property with an accessor list containing
+    /// both a getter (preserving the expression body) and a setter.
+    /// </summary>
+    /// <param name="property">The expression-bodied property to convert.</param>
+    /// <param name="setterModifiers">The modifier tokens for the setter.</param>
+    /// <returns>The transformed property with getter and setter accessors.</returns>
+    internal static PropertyDeclarationSyntax ConvertExpressionBodiedProperty(
+        PropertyDeclarationSyntax property,
+        SyntaxTokenList setterModifiers)
+    {
+        var getter = SyntaxFactory.AccessorDeclaration(
+            SyntaxKind.GetAccessorDeclaration,
+            SyntaxFactory.List<AttributeListSyntax>(),
+            SyntaxFactory.TokenList(),
+            SyntaxFactory.Token(SyntaxKind.GetKeyword),
+            null,
+            SyntaxFactory.ArrowExpressionClause(property.ExpressionBody!.Expression),
+            SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+        var setter = SyntaxFactory.AccessorDeclaration(
+            SyntaxKind.SetAccessorDeclaration,
+            SyntaxFactory.List<AttributeListSyntax>(),
+            setterModifiers,
+            SyntaxFactory.Token(SyntaxKind.SetKeyword),
+            null,
+            null,
+            SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+        var accessorList = SyntaxFactory.AccessorList(
+            SyntaxFactory.List(new[] { getter, setter }));
+
+        return property
+            .WithAccessorList(accessorList)
+            .WithExpressionBody(null)
+            .WithSemicolonToken(default);
+    }
+
+    /// <summary>
+    /// Adds a setter accessor to a property that only has a getter.
+    /// </summary>
+    /// <param name="property">The getter-only property.</param>
+    /// <param name="setterModifiers">The modifier tokens for the setter.</param>
+    /// <returns>The property with the setter added.</returns>
+    internal static PropertyDeclarationSyntax AddSetterToGetterOnlyProperty(
+        PropertyDeclarationSyntax property,
+        SyntaxTokenList setterModifiers)
+    {
+        var setter = SyntaxFactory.AccessorDeclaration(
+                SyntaxKind.SetAccessorDeclaration)
+            .WithModifiers(setterModifiers)
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+        var newAccessorList = property.AccessorList!.AddAccessors(setter);
+        return property.WithAccessorList(newAccessorList);
+    }
+
+    /// <summary>
+    /// Updates the accessibility modifiers on an existing setter accessor.
+    /// </summary>
+    /// <param name="property">The property containing the setter.</param>
+    /// <param name="existingSetter">The existing setter accessor to update.</param>
+    /// <param name="setterModifiers">The new modifier tokens for the setter.</param>
+    /// <returns>The property with the updated setter modifiers.</returns>
+    internal static PropertyDeclarationSyntax UpdateExistingSetterModifiers(
+        PropertyDeclarationSyntax property,
+        AccessorDeclarationSyntax existingSetter,
+        SyntaxTokenList setterModifiers)
+    {
+        var newSetter = existingSetter.WithModifiers(setterModifiers);
+        var newAccessorList = property.AccessorList!.ReplaceNode(existingSetter, newSetter);
+        return property.WithAccessorList(newAccessorList);
     }
 }

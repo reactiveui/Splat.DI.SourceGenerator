@@ -27,12 +27,12 @@ public class Generator : IIncrementalGenerator
         {
             // Emit EmbeddedAttribute first to avoid conflicts with InternalsVisibleTo
             ctx.AddSource(
-                "Microsoft.CodeAnalysis.EmbeddedAttribute.g.cs",
+                Constants.EmbeddedAttributeFileName,
                 SourceText.From(Constants.EmbeddedAttributeText, Encoding.UTF8));
 
             // Emit marker attributes and extension methods
             ctx.AddSource(
-                "Splat.DI.g.cs",
+                Constants.ExtensionMethodFileName,
                 SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
         });
 
@@ -61,6 +61,11 @@ public class Generator : IIncrementalGenerator
         context.RegisterSourceOutput(allRegistrations, GenerateCode);
     }
 
+    /// <summary>
+    /// Generates the source output for all collected registrations.
+    /// </summary>
+    /// <param name="context">The source production context for emitting generated source.</param>
+    /// <param name="data">The combined transient and lazy singleton registration data.</param>
     private static void GenerateCode(
         SourceProductionContext context,
         (ImmutableArray<TransientRegistrationInfo> Transients, ImmutableArray<LazySingletonRegistrationInfo> LazySingletons) data)
@@ -69,6 +74,6 @@ public class Generator : IIncrementalGenerator
 
         // Generate code only for valid registrations (invalid ones were filtered out in transform)
         var code = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
-        context.AddSource("Splat.DI.Reg.g.cs", SourceText.From(code, Encoding.UTF8));
+        context.AddSource(Constants.RegistrationFileName, SourceText.From(code, Encoding.UTF8));
     }
 }

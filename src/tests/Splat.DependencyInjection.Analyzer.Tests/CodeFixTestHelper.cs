@@ -35,7 +35,8 @@ public static class CodeFixTestHelper
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFixProvider : CodeFixProvider, new()
     {
-        var document = CreateDocument(source);
+        var (document, workspace) = CreateDocument(source);
+        using var disposableWorkspace = workspace;
         var compilation = await document.Project.GetCompilationAsync();
         var analyzer = new TAnalyzer();
         var codeFixProvider = new TCodeFixProvider();
@@ -83,8 +84,9 @@ public static class CodeFixTestHelper
 
     /// <summary>
     /// Creates a Document from source code with necessary references.
+    /// The caller is responsible for disposing the returned workspace.
     /// </summary>
-    private static Document CreateDocument(string source)
+    private static (Document Document, AdhocWorkspace Workspace) CreateDocument(string source)
     {
         // Add the attribute definitions and SplatRegistrations class so the analyzer can find them
         // Note: Attributes must be at namespace level to match Constants.ConstructorAttribute and Constants.PropertyAttribute
@@ -125,8 +127,8 @@ public static class CodeFixTestHelper
         const string projectName = "TestProject";
         var projectId = ProjectId.CreateNewId(projectName);
 
-        var solution = new AdhocWorkspace()
-            .CurrentSolution
+        var workspace = new AdhocWorkspace();
+        var solution = workspace.CurrentSolution
             .AddProject(projectId, projectName, projectName, LanguageNames.CSharp)
             .AddMetadataReference(projectId, MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
             .AddMetadataReference(projectId, MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location))
@@ -150,6 +152,6 @@ public static class CodeFixTestHelper
         project = project.AddDocument("Attributes.cs", attributeAndExtensionsSource).Project;
 
         // Then add the test source
-        return project.AddDocument("Test.cs", source);
+        return (project.AddDocument("Test.cs", source), workspace);
     }
 }
