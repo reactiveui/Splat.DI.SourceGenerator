@@ -142,9 +142,9 @@ internal static class RoslynHelpers
         for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
         {
             var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
+            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
 
-            if (parameter.Name != Constants.ParameterNameContract)
+            if (parameter == null || parameter.Name != Constants.ParameterNameContract)
             {
                 continue;
             }
@@ -220,9 +220,9 @@ internal static class RoslynHelpers
         for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
         {
             var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = methodSymbol.Parameters[i];
+            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
 
-            if (parameter.Name != Constants.ParameterNameMode)
+            if (parameter == null || parameter.Name != Constants.ParameterNameMode)
             {
                 continue;
             }
@@ -237,5 +237,35 @@ internal static class RoslynHelpers
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Resolves the method parameter that corresponds to a given invocation argument,
+    /// handling both positional and named arguments correctly.
+    /// </summary>
+    /// <param name="argument">The argument syntax from the invocation.</param>
+    /// <param name="methodSymbol">The method symbol being invoked.</param>
+    /// <param name="positionalIndex">The zero-based positional index of the argument in the argument list.</param>
+    /// <returns>The corresponding parameter symbol, or <see langword="null"/> if the parameter cannot be resolved.</returns>
+    internal static IParameterSymbol? ResolveParameterForArgument(
+        ArgumentSyntax argument,
+        IMethodSymbol methodSymbol,
+        int positionalIndex)
+    {
+        if (argument.NameColon != null)
+        {
+            var argumentName = argument.NameColon.Name.Identifier.Text;
+            for (int j = 0; j < methodSymbol.Parameters.Length; j++)
+            {
+                if (methodSymbol.Parameters[j].Name == argumentName)
+                {
+                    return methodSymbol.Parameters[j];
+                }
+            }
+
+            return null;
+        }
+
+        return methodSymbol.Parameters[positionalIndex];
     }
 }
