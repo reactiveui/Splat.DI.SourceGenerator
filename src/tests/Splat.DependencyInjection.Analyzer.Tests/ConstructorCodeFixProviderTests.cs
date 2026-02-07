@@ -787,7 +787,8 @@ public class ConstructorCodeFixProviderTests
             }
             """;
 
-        var document = CreateSimpleDocument(source);
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
         var root = await document.GetSyntaxRootAsync();
         var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
 
@@ -808,7 +809,8 @@ public class ConstructorCodeFixProviderTests
     {
         const string source = "public class Foo { public Foo() { } }";
 
-        var document = CreateSimpleDocument(source);
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
         var root = await document.GetSyntaxRootAsync();
         var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
 
@@ -836,7 +838,8 @@ public class ConstructorCodeFixProviderTests
             }
             """;
 
-        var document = CreateSimpleDocument(source);
+        var (document, workspace) = CreateSimpleDocument(source);
+        using var disposableWorkspace = workspace;
         var root = await document.GetSyntaxRootAsync();
         var constructor = root!.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First();
 
@@ -849,14 +852,15 @@ public class ConstructorCodeFixProviderTests
 
     /// <summary>
     /// Creates a simple Document from source code for direct unit testing.
+    /// The caller is responsible for disposing the returned workspace.
     /// </summary>
     /// <param name="source">The C# source code.</param>
-    /// <returns>A Document containing the source.</returns>
-    private static Document CreateSimpleDocument(string source)
+    /// <returns>A tuple containing the Document and the AdhocWorkspace that must be disposed by the caller.</returns>
+    private static (Document Document, AdhocWorkspace Workspace) CreateSimpleDocument(string source)
     {
         var projectId = ProjectId.CreateNewId("TestProject");
-        var solution = new AdhocWorkspace()
-            .CurrentSolution
+        var workspace = new AdhocWorkspace();
+        var solution = workspace.CurrentSolution
             .AddProject(projectId, "TestProject", "TestProject", LanguageNames.CSharp)
             .AddMetadataReference(projectId, MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
@@ -867,8 +871,9 @@ public class ConstructorCodeFixProviderTests
             solution = solution.AddMetadataReference(projectId, MetadataReference.CreateFromFile(systemRuntime.Location));
         }
 
-        return solution.GetProject(projectId)!
+        var document = solution.GetProject(projectId)!
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddDocument("Test.cs", source);
+        return (document, workspace);
     }
 }
