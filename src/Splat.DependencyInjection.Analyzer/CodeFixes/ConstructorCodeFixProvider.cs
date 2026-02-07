@@ -102,7 +102,14 @@ public class ConstructorCodeFixProvider : CodeFixProvider
         }
     }
 
-    private static async Task<Document> AddAttributeAsync(
+    /// <summary>
+    /// Adds the [DependencyInjectionConstructor] attribute to the specified constructor.
+    /// </summary>
+    /// <param name="document">The document containing the constructor.</param>
+    /// <param name="constructor">The constructor syntax to add the attribute to.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The modified document with the attribute added.</returns>
+    internal static async Task<Document> AddAttributeAsync(
         Document document,
         ConstructorDeclarationSyntax constructor,
         CancellationToken cancellationToken)

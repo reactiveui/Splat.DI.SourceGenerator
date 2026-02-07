@@ -40,6 +40,11 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
         context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
     }
 
+    /// <summary>
+    /// Analyzes an invocation operation to check if it is a SplatRegistrations.Register or
+    /// RegisterLazySingleton call, and validates the concrete type's constructors.
+    /// </summary>
+    /// <param name="context">The operation analysis context.</param>
     private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
         var invocation = (IInvocationOperation)context.Operation;

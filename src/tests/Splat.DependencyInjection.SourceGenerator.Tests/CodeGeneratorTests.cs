@@ -109,4 +109,166 @@ public class CodeGeneratorTests
         await Assert.That(result).Contains("resolver.Register<global::System.Lazy<IService>>(() => lazy);");
         await Assert.That(result).Contains("resolver.Register<IService>(() => lazy.Value);");
     }
+
+    /// <summary>
+    /// Verifies GetResolutionString returns a GetService call for a simple type without contract.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetResolutionString_SimpleType_NoContract()
+    {
+        var result = CodeGenerator.GetResolutionString("global::MyApp.IService", false, null, null);
+
+        await Assert.That(result).IsEqualTo(
+            "resolver.GetService<global::MyApp.IService>() ?? throw new global::System.InvalidOperationException(\"Dependency 'global::MyApp.IService' not registered with Splat resolver.\")");
+    }
+
+    /// <summary>
+    /// Verifies GetResolutionString returns a GetService call with contract parameter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetResolutionString_SimpleType_WithContract()
+    {
+        var result = CodeGenerator.GetResolutionString("global::MyApp.IService", false, null, "\"key1\"");
+
+        await Assert.That(result).Contains("resolver.GetService<global::MyApp.IService>(\"key1\")");
+        await Assert.That(result).Contains("with contract");
+    }
+
+    /// <summary>
+    /// Verifies GetResolutionString returns a GetServices call for a collection type without contract.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetResolutionString_CollectionType_NoContract()
+    {
+        var result = CodeGenerator.GetResolutionString("global::System.Collections.Generic.IEnumerable<global::MyApp.IService>", true, "global::MyApp.IService", null);
+
+        await Assert.That(result).IsEqualTo("resolver.GetServices<global::MyApp.IService>()");
+    }
+
+    /// <summary>
+    /// Verifies GetResolutionString returns a GetServices call for a collection type with contract.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetResolutionString_CollectionType_WithContract()
+    {
+        var result = CodeGenerator.GetResolutionString("global::System.Collections.Generic.IEnumerable<global::MyApp.IService>", true, "global::MyApp.IService", "\"key1\"");
+
+        await Assert.That(result).IsEqualTo("resolver.GetServices<global::MyApp.IService>(\"key1\")");
+    }
+
+    /// <summary>
+    /// Verifies GetConstructorArguments returns empty string for no parameters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetConstructorArguments_Empty_ReturnsEmpty()
+    {
+        var result = CodeGenerator.GetConstructorArguments(new EquatableArray<ConstructorParameter>([]), null);
+
+        await Assert.That(result).IsEqualTo(string.Empty);
+    }
+
+    /// <summary>
+    /// Verifies GetConstructorArguments produces comma-separated resolution strings for multiple parameters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetConstructorArguments_MultipleParams_CommaSeparated()
+    {
+        var parameters = new EquatableArray<ConstructorParameter>([
+            new ConstructorParameter("a", "IServiceA", false, null, false, null),
+            new ConstructorParameter("b", "IServiceB", false, null, false, null)
+        ]);
+
+        var result = CodeGenerator.GetConstructorArguments(parameters, null);
+
+        await Assert.That(result).Contains("resolver.GetService<IServiceA>()");
+        await Assert.That(result).Contains("resolver.GetService<IServiceB>()");
+        await Assert.That(result).Contains(", ");
+    }
+
+    /// <summary>
+    /// Verifies GetConstructorArguments handles a collection parameter correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetConstructorArguments_CollectionParam_UsesGetServices()
+    {
+        var parameters = new EquatableArray<ConstructorParameter>([
+            new ConstructorParameter("items", "global::System.Collections.Generic.IEnumerable<IItem>", false, null, true, "IItem")
+        ]);
+
+        var result = CodeGenerator.GetConstructorArguments(parameters, null);
+
+        await Assert.That(result).IsEqualTo("resolver.GetServices<IItem>()");
+    }
+
+    /// <summary>
+    /// Verifies GetPropertyInitializer returns empty string for no properties.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetPropertyInitializer_Empty_ReturnsEmpty()
+    {
+        var result = CodeGenerator.GetPropertyInitializer(new EquatableArray<PropertyInjection>([]), null);
+
+        await Assert.That(result).IsEqualTo(string.Empty);
+    }
+
+    /// <summary>
+    /// Verifies GetPropertyInitializer produces correct object initializer syntax.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetPropertyInitializer_SingleProperty_ReturnsInitializer()
+    {
+        var properties = new EquatableArray<PropertyInjection>([
+            new PropertyInjection("Logger", "ILogger", Location.None)
+        ]);
+
+        var result = CodeGenerator.GetPropertyInitializer(properties, null);
+
+        await Assert.That(result).Contains("Logger = resolver.GetService<ILogger>()");
+        await Assert.That(result).StartsWith(" { ");
+        await Assert.That(result).EndsWith(" }");
+    }
+
+    /// <summary>
+    /// Verifies GetPropertyInitializer uses contract value when provided.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetPropertyInitializer_WithContract_PassesContract()
+    {
+        var properties = new EquatableArray<PropertyInjection>([
+            new PropertyInjection("Logger", "ILogger", Location.None)
+        ]);
+
+        var result = CodeGenerator.GetPropertyInitializer(properties, "\"named\"");
+
+        await Assert.That(result).Contains("resolver.GetService<ILogger>(\"named\")");
+    }
+
+    /// <summary>
+    /// Verifies GetPropertyInitializer produces comma-separated initializers for multiple properties.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetPropertyInitializer_MultipleProperties_CommaSeparated()
+    {
+        var properties = new EquatableArray<PropertyInjection>([
+            new PropertyInjection("Logger", "ILogger", Location.None),
+            new PropertyInjection("Cache", "ICache", Location.None)
+        ]);
+
+        var result = CodeGenerator.GetPropertyInitializer(properties, null);
+
+        await Assert.That(result).Contains("Logger = ");
+        await Assert.That(result).Contains("Cache = ");
+        await Assert.That(result).Contains(", ");
+    }
 }

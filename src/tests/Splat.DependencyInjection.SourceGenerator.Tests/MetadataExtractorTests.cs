@@ -2,8 +2,11 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+using System.Collections.Immutable;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
@@ -289,6 +292,90 @@ public class MetadataExtractorTests
     }
 
     /// <summary>
+    /// Verifies HasAttribute returns false via symbol comparison when attribute does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task HasAttribute_SymbolPath_NonMatchingAttribute_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+            }
+            public class MyClass {
+                [System.Obsolete]
+                public MyClass() {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("MyClass")!;
+        var ctor = type.Constructors[0];
+        var attributeSymbol = compilation.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName);
+
+        // ctor has [Obsolete] but not [DependencyInjectionConstructor], with non-null symbol
+        var result = MetadataExtractor.HasAttribute(ctor, attributeSymbol, Constants.ConstructorAttribute);
+
+        await Assert.That(result).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies HasAttribute returns false via string fallback when attribute does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task HasAttribute_StringFallback_NonMatchingAttribute_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public class MyClass {
+                [System.Obsolete]
+                public MyClass() {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("MyClass")!;
+        var ctor = type.Constructors[0];
+
+        // ctor has [Obsolete], null symbol forces string fallback - should not match
+        var result = MetadataExtractor.HasAttribute(ctor, null, Constants.ConstructorAttribute);
+
+        await Assert.That(result).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies IsOriginalDefinition matches Lazy via string fallback when symbol is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsOriginalDefinition_StringFallback_LazyType_ReturnsTrue()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            using System;
+            public class MyClass {
+                public MyClass(Lazy<string> lazy) {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Lazy<>).Assembly.Location));
+
+        var type = compilation.GetTypeByMetadataName("MyClass")!;
+        var param = type.Constructors[0].Parameters[0];
+        var namedType = (INamedTypeSymbol)param.Type;
+
+        // Pass null for symbol to force string fallback
+        var result = MetadataExtractor.IsOriginalDefinition(namedType, null, Constants.LazyOpenGenericTypeName);
+
+        await Assert.That(result).IsTrue();
+    }
+
+    /// <summary>
     /// Verifies IsOriginalDefinition matches Lazy via symbol comparison.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -386,5 +473,157 @@ public class MetadataExtractorTests
         await Assert.That(symbols.PropertyAttribute).IsNull();
         await Assert.That(symbols.LazyType).IsNull();
         await Assert.That(symbols.EnumerableType).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractRegisterMetadataFromSymbol returns null for a non-Splat method.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractRegisterMetadataFromSymbol_NonSplatMethod_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public static class Other {
+                public static void Register<T>() {}
+            }
+            public class Usage {
+                public void M() { Other.Register<string>(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = MetadataExtractor.ExtractRegisterMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, CancellationToken.None);
+
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractRegisterMetadataFromSymbol returns null when method has zero type arguments.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractRegisterMetadataFromSymbol_ZeroTypeParams_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register() {}
+                }
+            }
+            public class Usage {
+                public void M() { Splat.SplatRegistrations.Register(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = MetadataExtractor.ExtractRegisterMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, CancellationToken.None);
+
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractLazySingletonMetadataFromSymbol returns null for a non-Splat method.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazySingletonMetadataFromSymbol_NonSplatMethod_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            public static class Other {
+                public static void RegisterLazySingleton<T>() {}
+            }
+            public class Usage {
+                public void M() { Other.RegisterLazySingleton<string>(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = MetadataExtractor.ExtractLazySingletonMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, CancellationToken.None);
+
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractLazySingletonMetadataFromSymbol returns null when method has zero type arguments.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazySingletonMetadataFromSymbol_ZeroTypeParams_ReturnsNull()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton() {}
+                }
+            }
+            public class Usage {
+                public void M() { Splat.SplatRegistrations.RegisterLazySingleton(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var result = MetadataExtractor.ExtractLazySingletonMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, CancellationToken.None);
+
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies GetFirstLocation returns Location.None for an empty locations array.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFirstLocation_EmptyArray_ReturnsLocationNone()
+    {
+        var result = MetadataExtractor.GetFirstLocation(ImmutableArray<Location>.Empty);
+
+        await Assert.That(result).IsEqualTo(Location.None);
+    }
+
+    /// <summary>
+    /// Verifies GetFirstLocation returns the first location when locations are present.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task GetFirstLocation_WithLocations_ReturnsFirst()
+    {
+        var tree = CSharpSyntaxTree.ParseText("class C {}");
+        var location = tree.GetRoot().GetLocation();
+        var locations = ImmutableArray.Create(location);
+
+        var result = MetadataExtractor.GetFirstLocation(locations);
+
+        await Assert.That(result).IsEqualTo(location);
     }
 }

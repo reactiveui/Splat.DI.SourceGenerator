@@ -114,7 +114,13 @@ internal static class CodeGenerator
             """);
     }
 
-    private static string GetConstructorArguments(EquatableArray<ConstructorParameter> parameters, string? contractValue)
+    /// <summary>
+    /// Builds a comma-separated string of constructor arguments with resolved dependencies.
+    /// </summary>
+    /// <param name="parameters">The constructor parameters to generate arguments for.</param>
+    /// <param name="contractValue">The optional contract value for keyed resolution.</param>
+    /// <returns>A comma-separated string of resolved dependency expressions.</returns>
+    internal static string GetConstructorArguments(EquatableArray<ConstructorParameter> parameters, string? contractValue)
     {
         if (parameters.Length == 0)
         {
@@ -131,7 +137,13 @@ internal static class CodeGenerator
         return string.Join(", ", args);
     }
 
-    private static string GetPropertyInitializer(EquatableArray<PropertyInjection> properties, string? contractValue)
+    /// <summary>
+    /// Builds an object initializer string for property injections.
+    /// </summary>
+    /// <param name="properties">The property injections to generate initializers for.</param>
+    /// <param name="contractValue">The optional contract value for keyed resolution.</param>
+    /// <returns>An object initializer expression string, or empty if no properties.</returns>
+    internal static string GetPropertyInitializer(EquatableArray<PropertyInjection> properties, string? contractValue)
     {
         if (properties.Length == 0)
         {
@@ -149,7 +161,15 @@ internal static class CodeGenerator
         return $" {{ {string.Join(", ", props)} }}";
     }
 
-    private static string GetResolutionString(string typeFullName, bool isCollection, string? collectionItemType, string? contractValue)
+    /// <summary>
+    /// Generates a resolver call expression for a single dependency.
+    /// </summary>
+    /// <param name="typeFullName">The fully qualified type name of the dependency.</param>
+    /// <param name="isCollection">Whether the parameter is a collection type.</param>
+    /// <param name="collectionItemType">The item type for collection parameters, or null.</param>
+    /// <param name="contractValue">The optional contract value for keyed resolution.</param>
+    /// <returns>A resolver call expression string.</returns>
+    internal static string GetResolutionString(string typeFullName, bool isCollection, string? collectionItemType, string? contractValue)
     {
         if (isCollection && collectionItemType is not null)
         {

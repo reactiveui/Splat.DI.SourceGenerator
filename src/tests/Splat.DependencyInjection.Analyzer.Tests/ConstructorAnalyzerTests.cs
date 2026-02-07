@@ -11,6 +11,18 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 public class ConstructorAnalyzerTests
 {
     /// <summary>
+    /// Tests that Initialize throws ArgumentNullException when passed a null context.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task Initialize_NullContext_ThrowsArgumentNullException()
+    {
+        var analyzer = new Analyzers.ConstructorAnalyzer();
+
+        await Assert.That(() => analyzer.Initialize(null!)).ThrowsExactly<ArgumentNullException>();
+    }
+
+    /// <summary>
     /// Tests that Register with zero type arguments doesn't trigger analysis.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

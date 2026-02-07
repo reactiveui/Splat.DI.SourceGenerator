@@ -61,6 +61,11 @@ public class Generator : IIncrementalGenerator
         context.RegisterSourceOutput(allRegistrations, GenerateCode);
     }
 
+    /// <summary>
+    /// Generates the source output for all collected registrations.
+    /// </summary>
+    /// <param name="context">The source production context for emitting generated source.</param>
+    /// <param name="data">The combined transient and lazy singleton registration data.</param>
     private static void GenerateCode(
         SourceProductionContext context,
         (ImmutableArray<TransientRegistrationInfo> Transients, ImmutableArray<LazySingletonRegistrationInfo> LazySingletons) data)

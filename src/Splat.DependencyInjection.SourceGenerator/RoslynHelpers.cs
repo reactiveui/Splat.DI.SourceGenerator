@@ -15,6 +15,9 @@ namespace Splat.DependencyInjection.SourceGenerator;
 /// </summary>
 internal static class RoslynHelpers
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for type name resolution.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 
 using Microsoft.CodeAnalysis;
@@ -17,10 +18,14 @@ namespace Splat.DependencyInjection.SourceGenerator;
 /// </summary>
 internal static class MetadataExtractor
 {
+    /// <summary>
+    /// The fully qualified symbol display format used for type name extraction.
+    /// </summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>
-    /// Extracts metadata for a Register call.
+    /// Extracts metadata for a Register call. Resolves the method symbol from the generator
+    /// syntax context and delegates to <see cref="ExtractRegisterMetadataFromSymbol"/>.
     /// </summary>
     /// <param name="context">The generator syntax context.</param>
     /// <param name="ct">The cancellation token.</param>
@@ -37,6 +42,23 @@ internal static class MetadataExtractor
             return null;
         }
 
+        return ExtractRegisterMetadataFromSymbol(methodSymbol, invocation, semanticModel, ct);
+    }
+
+    /// <summary>
+    /// Extracts metadata for a Register call from a resolved method symbol.
+    /// </summary>
+    /// <param name="methodSymbol">The resolved method symbol.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Transient registration info or null.</returns>
+    internal static TransientRegistrationInfo? ExtractRegisterMetadataFromSymbol(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken ct)
+    {
         if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegister))
         {
             return null;
@@ -80,7 +102,8 @@ internal static class MetadataExtractor
     }
 
     /// <summary>
-    /// Extracts metadata for a RegisterLazySingleton call.
+    /// Extracts metadata for a RegisterLazySingleton call. Resolves the method symbol from the generator
+    /// syntax context and delegates to <see cref="ExtractLazySingletonMetadataFromSymbol"/>.
     /// </summary>
     /// <param name="context">The generator syntax context.</param>
     /// <param name="ct">The cancellation token.</param>
@@ -97,6 +120,23 @@ internal static class MetadataExtractor
             return null;
         }
 
+        return ExtractLazySingletonMetadataFromSymbol(methodSymbol, invocation, semanticModel, ct);
+    }
+
+    /// <summary>
+    /// Extracts metadata for a RegisterLazySingleton call from a resolved method symbol.
+    /// </summary>
+    /// <param name="methodSymbol">The resolved method symbol.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Lazy singleton registration info or null.</returns>
+    internal static LazySingletonRegistrationInfo? ExtractLazySingletonMetadataFromSymbol(
+        IMethodSymbol methodSymbol,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken ct)
+    {
         if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegisterLazySingleton))
         {
             return null;
@@ -276,7 +316,7 @@ internal static class MetadataExtractor
                 properties.Add(new PropertyInjection(
                     PropertyName: property.Name,
                     TypeFullName: property.Type.ToDisplayString(_fullyQualifiedFormat),
-                    PropertyLocation: property.Locations.Length > 0 ? property.Locations[0] : Location.None));
+                    PropertyLocation: GetFirstLocation(property.Locations)));
             }
         }
 
@@ -343,6 +383,14 @@ internal static class MetadataExtractor
             ? SymbolEqualityComparer.Default.Equals(namedType.OriginalDefinition, expectedSymbol)
             : namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == expectedDisplayString;
     }
+
+    /// <summary>
+    /// Gets the first location from a locations array, or <see cref="Location.None"/> if empty.
+    /// </summary>
+    /// <param name="locations">The locations array.</param>
+    /// <returns>The first location or <see cref="Location.None"/>.</returns>
+    internal static Location GetFirstLocation(ImmutableArray<Location> locations)
+        => locations.Length > 0 ? locations[0] : Location.None;
 
     /// <summary>
     /// Pre-resolved well-known symbols for efficient comparison without string allocations.
