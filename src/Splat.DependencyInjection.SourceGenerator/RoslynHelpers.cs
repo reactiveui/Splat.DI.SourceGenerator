@@ -167,7 +167,16 @@ internal static class RoslynHelpers
                 return GetFullyQualifiedMemberReference(symbolInfo.Symbol);
             }
 
-            // For other resolved symbols (method invocations, locals, etc.)
+            // Handle method invocation expressions by fully qualifying the containing type
+            // while preserving the original argument list from the syntax tree.
+            if (symbolInfo.Symbol is IMethodSymbol invokedMethod
+                && expression is InvocationExpressionSyntax contractInvocation
+                && invokedMethod.ContainingType != null)
+            {
+                return GetFullyQualifiedMethodInvocation(invokedMethod, contractInvocation);
+            }
+
+            // For other resolved symbols (locals, etc.)
             // preserve the expression as written since ToDisplayString may produce
             // a signature-like string that is not a valid expression in generated code
             if (symbolInfo.Symbol != null)
@@ -201,6 +210,29 @@ internal static class RoslynHelpers
 
         // For other symbols (e.g., local variables, parameters), return the display string
         return symbol.ToDisplayString(_fullyQualifiedFormat);
+    }
+
+    /// <summary>
+    /// Gets a fully qualified method invocation string for use in generated code.
+    /// Fully qualifies the containing type while preserving the method name (including type arguments)
+    /// and the original argument list from the syntax tree.
+    /// </summary>
+    /// <param name="invokedMethod">The method symbol being invoked.</param>
+    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <returns>A fully qualified method invocation string safe for use in generated code.</returns>
+    internal static string GetFullyQualifiedMethodInvocation(IMethodSymbol invokedMethod, InvocationExpressionSyntax invocation)
+    {
+        var fullyQualifiedTypeName = invokedMethod.ContainingType!.ToDisplayString(_fullyQualifiedFormat);
+
+        // Extract method name from syntax to preserve type arguments (e.g., GetKey<string>)
+        var methodName = invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.ToString(),
+            SimpleNameSyntax simpleName => simpleName.ToString(),
+            _ => invokedMethod.Name
+        };
+
+        return $"{fullyQualifiedTypeName}.{methodName}{invocation.ArgumentList}";
     }
 
     /// <summary>
@@ -263,6 +295,11 @@ internal static class RoslynHelpers
                 }
             }
 
+            return null;
+        }
+
+        if (positionalIndex < 0 || positionalIndex >= methodSymbol.Parameters.Length)
+        {
             return null;
         }
 
