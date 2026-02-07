@@ -500,7 +500,7 @@ public class MetadataExtractorTests
         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
 
         var result = MetadataExtractor.ExtractRegisterMetadataFromSymbol(
-            methodSymbol, invocation, semanticModel, CancellationToken.None);
+            methodSymbol, invocation, semanticModel, default, CancellationToken.None);
 
         await Assert.That(result).IsNull();
     }
@@ -532,7 +532,7 @@ public class MetadataExtractorTests
         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
 
         var result = MetadataExtractor.ExtractRegisterMetadataFromSymbol(
-            methodSymbol, invocation, semanticModel, CancellationToken.None);
+            methodSymbol, invocation, semanticModel, default, CancellationToken.None);
 
         await Assert.That(result).IsNull();
     }
@@ -562,7 +562,7 @@ public class MetadataExtractorTests
         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
 
         var result = MetadataExtractor.ExtractLazySingletonMetadataFromSymbol(
-            methodSymbol, invocation, semanticModel, CancellationToken.None);
+            methodSymbol, invocation, semanticModel, default, CancellationToken.None);
 
         await Assert.That(result).IsNull();
     }
@@ -594,7 +594,7 @@ public class MetadataExtractorTests
         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
 
         var result = MetadataExtractor.ExtractLazySingletonMetadataFromSymbol(
-            methodSymbol, invocation, semanticModel, CancellationToken.None);
+            methodSymbol, invocation, semanticModel, default, CancellationToken.None);
 
         await Assert.That(result).IsNull();
     }
@@ -625,5 +625,147 @@ public class MetadataExtractorTests
         var result = MetadataExtractor.GetFirstLocation(locations);
 
         await Assert.That(result).IsEqualTo(location);
+    }
+
+    /// <summary>
+    /// Verifies ResolveWellKnownSymbols returns the same result for the same compilation instance (cache hit).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveWellKnownSymbols_SameCompilation_ReturnsCachedResult()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+                public class DependencyInjectionPropertyAttribute : System.Attribute {}
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Lazy<>).Assembly.Location));
+
+        var first = MetadataExtractor.ResolveWellKnownSymbols(compilation);
+        var second = MetadataExtractor.ResolveWellKnownSymbols(compilation);
+
+        // Struct equality — same symbols should be resolved both times
+        await Assert.That(first).IsEqualTo(second);
+
+        // Verify the symbols are actually populated (not default)
+        await Assert.That(first.ConstructorAttribute).IsNotNull();
+        await Assert.That(first.PropertyAttribute).IsNotNull();
+    }
+
+    /// <summary>
+    /// Verifies ResolveWellKnownSymbols returns independent results for different compilation instances.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ResolveWellKnownSymbols_DifferentCompilations_ReturnsIndependentResults()
+    {
+        var syntaxTree1 = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+                public class DependencyInjectionPropertyAttribute : System.Attribute {}
+            }
+            """);
+
+        var compilation1 = CSharpCompilation.Create("TestAssembly1", [syntaxTree1])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var syntaxTree2 = CSharpSyntaxTree.ParseText("public class Empty {}");
+        var compilation2 = CSharpCompilation.Create("TestAssembly2", [syntaxTree2])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var symbols1 = MetadataExtractor.ResolveWellKnownSymbols(compilation1);
+        var symbols2 = MetadataExtractor.ResolveWellKnownSymbols(compilation2);
+
+        // First compilation has Splat attributes
+        await Assert.That(symbols1.ConstructorAttribute).IsNotNull();
+        await Assert.That(symbols1.PropertyAttribute).IsNotNull();
+
+        // Second compilation does not
+        await Assert.That(symbols2.ConstructorAttribute).IsNull();
+        await Assert.That(symbols2.PropertyAttribute).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies ExtractRegisterMetadataFromSymbol uses the explicitly provided WellKnownSymbols parameter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractRegisterMetadataFromSymbol_WithExplicitSymbols_UsesProvidedSymbols()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+                public class DependencyInjectionPropertyAttribute : System.Attribute {}
+                public static class SplatRegistrations {
+                    public static void Register<TInterface, TConcrete>() {}
+                }
+            }
+            public class MyService {}
+            public interface IMyService {}
+            public class Usage {
+                public void M() { Splat.SplatRegistrations.Register<IMyService, MyService>(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var symbols = MetadataExtractor.ResolveWellKnownSymbols(compilation);
+
+        var result = MetadataExtractor.ExtractRegisterMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, symbols, CancellationToken.None);
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.InterfaceTypeFullName).Contains("IMyService");
+        await Assert.That(result!.ConcreteTypeFullName).Contains("MyService");
+    }
+
+    /// <summary>
+    /// Verifies ExtractLazySingletonMetadataFromSymbol uses the explicitly provided WellKnownSymbols parameter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task ExtractLazySingletonMetadataFromSymbol_WithExplicitSymbols_UsesProvidedSymbols()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public class DependencyInjectionConstructorAttribute : System.Attribute {}
+                public class DependencyInjectionPropertyAttribute : System.Attribute {}
+                public static class SplatRegistrations {
+                    public static void RegisterLazySingleton<TInterface, TConcrete>() {}
+                }
+            }
+            public class MyService {}
+            public interface IMyService {}
+            public class Usage {
+                public void M() { Splat.SplatRegistrations.RegisterLazySingleton<IMyService, MyService>(); }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+        var invocation = syntaxTree.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>().First();
+        var methodSymbol = (IMethodSymbol)semanticModel.GetSymbolInfo(invocation).Symbol!;
+
+        var symbols = MetadataExtractor.ResolveWellKnownSymbols(compilation);
+
+        var result = MetadataExtractor.ExtractLazySingletonMetadataFromSymbol(
+            methodSymbol, invocation, semanticModel, symbols, CancellationToken.None);
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.InterfaceTypeFullName).Contains("IMyService");
+        await Assert.That(result!.ConcreteTypeFullName).Contains("MyService");
     }
 }

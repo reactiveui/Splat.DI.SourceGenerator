@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 using Microsoft.CodeAnalysis;
@@ -24,6 +25,12 @@ internal static class MetadataExtractor
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
     /// <summary>
+    /// Cache for well-known symbols keyed by compilation instance.
+    /// Uses weak references to compilation keys to prevent memory leaks.
+    /// </summary>
+    private static readonly ConditionalWeakTable<Compilation, WellKnownSymbolsBox> _symbolsCache = new();
+
+    /// <summary>
     /// Extracts metadata for a Register call. Resolves the method symbol from the generator
     /// syntax context and delegates to <see cref="ExtractRegisterMetadataFromSymbol"/>.
     /// </summary>
@@ -42,7 +49,8 @@ internal static class MetadataExtractor
             return null;
         }
 
-        return ExtractRegisterMetadataFromSymbol(methodSymbol, invocation, semanticModel, ct);
+        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
+        return ExtractRegisterMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
     }
 
     /// <summary>
@@ -51,12 +59,14 @@ internal static class MetadataExtractor
     /// <param name="methodSymbol">The resolved method symbol.</param>
     /// <param name="invocation">The invocation expression syntax.</param>
     /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>Transient registration info or null.</returns>
     internal static TransientRegistrationInfo? ExtractRegisterMetadataFromSymbol(
         IMethodSymbol methodSymbol,
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
+        WellKnownSymbols symbols,
         CancellationToken ct)
     {
         if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegister))
@@ -74,9 +84,6 @@ internal static class MetadataExtractor
         var concreteType = numberTypeParameters == 2
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
-
-        var compilation = semanticModel.Compilation;
-        var symbols = ResolveWellKnownSymbols(compilation);
 
         var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
@@ -120,7 +127,8 @@ internal static class MetadataExtractor
             return null;
         }
 
-        return ExtractLazySingletonMetadataFromSymbol(methodSymbol, invocation, semanticModel, ct);
+        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
+        return ExtractLazySingletonMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
     }
 
     /// <summary>
@@ -129,12 +137,14 @@ internal static class MetadataExtractor
     /// <param name="methodSymbol">The resolved method symbol.</param>
     /// <param name="invocation">The invocation expression syntax.</param>
     /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>Lazy singleton registration info or null.</returns>
     internal static LazySingletonRegistrationInfo? ExtractLazySingletonMetadataFromSymbol(
         IMethodSymbol methodSymbol,
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
+        WellKnownSymbols symbols,
         CancellationToken ct)
     {
         if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegisterLazySingleton))
@@ -152,9 +162,6 @@ internal static class MetadataExtractor
         var concreteType = numberTypeParameters == 2
             ? methodSymbol.TypeArguments[1]
             : interfaceType;
-
-        var compilation = semanticModel.Compilation;
-        var symbols = ResolveWellKnownSymbols(compilation);
 
         var constructorParams = ExtractConstructorParameters(concreteType, symbols);
         if (constructorParams == null)
@@ -325,14 +332,17 @@ internal static class MetadataExtractor
 
     /// <summary>
     /// Resolves well-known type symbols from the compilation for efficient symbol comparison.
+    /// Results are cached per <see cref="Compilation"/> instance using a <see cref="ConditionalWeakTable{TKey, TValue}"/>
+    /// so that repeated calls within the same compilation (e.g., across multiple syntax transforms) avoid redundant lookups.
     /// </summary>
     /// <param name="compilation">The compilation to resolve symbols from.</param>
     /// <returns>A struct containing the resolved symbols (any may be null if not found).</returns>
-    internal static WellKnownSymbols ResolveWellKnownSymbols(Compilation compilation) => new(
-        ConstructorAttribute: compilation.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName),
-        PropertyAttribute: compilation.GetTypeByMetadataName(Constants.PropertyAttributeMetadataName),
-        LazyType: compilation.GetTypeByMetadataName(Constants.LazyMetadataName)?.OriginalDefinition as INamedTypeSymbol,
-        EnumerableType: compilation.GetTypeByMetadataName(Constants.EnumerableMetadataName)?.OriginalDefinition as INamedTypeSymbol);
+    internal static WellKnownSymbols ResolveWellKnownSymbols(Compilation compilation)
+        => _symbolsCache.GetValue(compilation, static c => new WellKnownSymbolsBox(new(
+            ConstructorAttribute: c.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName),
+            PropertyAttribute: c.GetTypeByMetadataName(Constants.PropertyAttributeMetadataName),
+            LazyType: c.GetTypeByMetadataName(Constants.LazyMetadataName)?.OriginalDefinition as INamedTypeSymbol,
+            EnumerableType: c.GetTypeByMetadataName(Constants.EnumerableMetadataName)?.OriginalDefinition as INamedTypeSymbol))).Value;
 
     /// <summary>
     /// Checks if a symbol has a specific attribute using symbol comparison (fast path)
@@ -404,4 +414,11 @@ internal static class MetadataExtractor
         INamedTypeSymbol? PropertyAttribute,
         INamedTypeSymbol? LazyType,
         INamedTypeSymbol? EnumerableType);
+
+    /// <summary>
+    /// Reference-type wrapper for <see cref="WellKnownSymbols"/> to satisfy
+    /// <see cref="ConditionalWeakTable{TKey, TValue}"/> value type constraint.
+    /// </summary>
+    /// <param name="Value">The well-known symbols to wrap.</param>
+    private sealed record WellKnownSymbolsBox(WellKnownSymbols Value);
 }
