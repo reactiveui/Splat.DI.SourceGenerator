@@ -162,9 +162,17 @@ internal static class RoslynHelpers
             // We need to fully qualify the reference to avoid CS0103 errors in generated code
             // when the symbol is from a different namespace (GitHub issue: Keys from different namespace)
             var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
-            if (symbolInfo.Symbol != null)
+            if (symbolInfo.Symbol is IFieldSymbol or IPropertySymbol)
             {
                 return GetFullyQualifiedMemberReference(symbolInfo.Symbol);
+            }
+
+            // For other resolved symbols (method invocations, locals, etc.)
+            // preserve the expression as written since ToDisplayString may produce
+            // a signature-like string that is not a valid expression in generated code
+            if (symbolInfo.Symbol != null)
+            {
+                return expression.ToString();
             }
         }
 
