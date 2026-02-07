@@ -87,7 +87,7 @@ internal static class CodeGenerator
         var propertyInitializer = GetPropertyInitializer(registration.PropertyInjections, registration.ContractValue);
         var contractArg = registration.ContractValue is not null ? $", {registration.ContractValue}" : string.Empty;
 
-        sb.Append($"            resolver.Register<{registration.InterfaceTypeFullName}>(() => new {registration.ConcreteTypeFullName}({constructorArgs}){propertyInitializer}{contractArg});");
+        sb.AppendLine($"            resolver.Register<{registration.InterfaceTypeFullName}>(() => new {registration.ConcreteTypeFullName}({constructorArgs}){propertyInitializer}{contractArg});");
     }
 
     /// <summary>
@@ -105,7 +105,7 @@ internal static class CodeGenerator
         var lazyModeArg = registration.LazyThreadSafetyMode is not null ? $", {registration.LazyThreadSafetyMode}" : string.Empty;
         var contractArg = registration.ContractValue is not null ? $", {registration.ContractValue}" : string.Empty;
 
-        sb.Append($$"""
+        sb.AppendLine($$"""
                         {
                             {{lazyTypeFullName}} lazy = new {{lazyTypeFullName}}(() => new {{registration.ConcreteTypeFullName}}({{constructorArgs}}){{propertyInitializer}}{{lazyModeArg}});
                             resolver.Register<{{lazyTypeFullName}}>(() => lazy{{contractArg}});

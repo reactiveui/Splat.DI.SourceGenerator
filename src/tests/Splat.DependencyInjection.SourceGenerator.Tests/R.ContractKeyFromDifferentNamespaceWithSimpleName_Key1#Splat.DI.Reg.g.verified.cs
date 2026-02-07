@@ -23,6 +23,7 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::ConsoleApp.NS2.Class1>(() => new global::ConsoleApp.NS2.Class1(), global::ConsoleApp.NS1.Keys.Key1);        }
+            resolver.Register<global::ConsoleApp.NS2.Class1>(() => new global::ConsoleApp.NS2.Class1(), global::ConsoleApp.NS1.Keys.Key1);
+        }
     }
 }

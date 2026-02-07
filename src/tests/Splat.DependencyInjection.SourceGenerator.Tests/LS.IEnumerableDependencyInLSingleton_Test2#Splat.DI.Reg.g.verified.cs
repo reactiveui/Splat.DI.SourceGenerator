@@ -24,11 +24,14 @@ namespace Splat
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
             resolver.Register<global::Test.IService>(() => new global::Test.ServiceA(), "Test2");
+
             resolver.Register<global::Test.IService>(() => new global::Test.ServiceB(), "Test2");
+
             {
                 global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetServices<global::Test.IService>("Test2")));
                 resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest>(() => lazy.Value, "Test2");
-            }        }
+            }
+        }
     }
 }

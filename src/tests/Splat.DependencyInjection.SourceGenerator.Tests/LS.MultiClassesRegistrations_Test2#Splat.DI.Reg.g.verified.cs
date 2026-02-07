@@ -28,15 +28,18 @@ namespace Splat
                 resolver.Register<global::System.Lazy<global::Test.ITest1>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest1>(() => lazy.Value, "Test2");
             }
+
             {
                 global::System.Lazy<global::Test.ITest2> lazy = new global::System.Lazy<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.IService1>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test2" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test2" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest2>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest2>(() => lazy.Value, "Test2");
             }
+
             {
                 global::System.Lazy<global::Test.ITest3> lazy = new global::System.Lazy<global::Test.ITest3>(() => new global::Test.TestConcrete3(resolver.GetService<global::Test.IService1>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test2" + " not registered with Splat resolver."), resolver.GetService<global::Test.IService2>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' with contract " + "Test2" + " not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest3>>(() => lazy, "Test2");
                 resolver.Register<global::Test.ITest3>(() => lazy.Value, "Test2");
-            }        }
+            }
+        }
     }
 }

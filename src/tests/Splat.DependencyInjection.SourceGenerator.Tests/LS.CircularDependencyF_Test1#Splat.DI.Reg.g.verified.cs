@@ -28,10 +28,12 @@ namespace Splat
                 resolver.Register<global::System.Lazy<global::Test.ITest1>>(() => lazy, "Test1");
                 resolver.Register<global::Test.ITest1>(() => lazy.Value, "Test1");
             }
+
             {
                 global::System.Lazy<global::Test.ITest2> lazy = new global::System.Lazy<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.ITest1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.ITest1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
                 resolver.Register<global::System.Lazy<global::Test.ITest2>>(() => lazy);
                 resolver.Register<global::Test.ITest2>(() => lazy.Value);
-            }        }
+            }
+        }
     }
 }

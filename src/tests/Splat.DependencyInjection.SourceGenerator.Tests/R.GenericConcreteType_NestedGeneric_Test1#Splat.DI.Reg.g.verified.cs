@@ -23,6 +23,7 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.IRepository>(() => new global::Test.Repository<global::System.Collections.Generic.List<string>>(), "Test1");        }
+            resolver.Register<global::Test.IRepository>(() => new global::Test.Repository<global::System.Collections.Generic.List<string>>(), "Test1");
+        }
     }
 }

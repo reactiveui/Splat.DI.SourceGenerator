@@ -23,6 +23,7 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::System.Lazy<global::Test.Service1>>() ?? throw new global::System.InvalidOperationException("Dependency 'global::System.Lazy<global::Test.Service1>' not registered with Splat resolver.")));        }
+            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::System.Lazy<global::Test.Service1>>() ?? throw new global::System.InvalidOperationException("Dependency 'global::System.Lazy<global::Test.Service1>' not registered with Splat resolver.")));
+        }
     }
 }
