@@ -6,9 +6,10 @@
 
   <ItemGroup>
     <!-- Testing Framework -->
-    <PackageVersion Include="TUnit" Version="1.12.65" />
-    <PackageVersion Include="Verify.TUnit" Version="31.10.0" />
+    <PackageVersion Include="TUnit" Version="1.12.125" />
+    <PackageVersion Include="Verify.TUnit" Version="31.11.0" />
     <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.4.1" />
 
     <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
@@ -27,10 +28,10 @@
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50" />
     <PackageVersion Include="stylecop.analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.102" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
 
     <!-- Test App Dependencies-->
-    <PackageVersion Include="ReactiveUI" Version="23.1.0-beta.1" />
+    <PackageVersion Include="ReactiveUI" Version="23.1.0-beta.8" />
     <PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.1" />
   </ItemGroup>
 </Project>
