@@ -19,7 +19,7 @@
     <!-- Test Infrastructure -->
     <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.4" />
     <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.4" />
-    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.4" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.6" />
 
     <!-- Dependencies -->
     <PackageVersion Include="Splat" Version="19.2.1" />
