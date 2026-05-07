@@ -31,7 +31,7 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
 
     <!-- Test App Dependencies-->
-    <PackageVersion Include="ReactiveUI" Version="23.1.0-beta.8" />
-    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.1" />
+    <PackageVersion Include="ReactiveUI" Version="23.2.27" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.30" />
   </ItemGroup>
 </Project>
