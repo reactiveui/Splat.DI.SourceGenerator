@@ -22,7 +22,6 @@ jobs:
     uses: reactiveui/actions-common/.github/workflows/workflow-common-release.yml@main
     with:
       solutionFile: Splat.DI.SourceGenerator.slnx
-      versioningTool: minver
       minverMinimumMajorMinor: '2.3'
       bump: ${{ inputs.bump }}
     secrets:
