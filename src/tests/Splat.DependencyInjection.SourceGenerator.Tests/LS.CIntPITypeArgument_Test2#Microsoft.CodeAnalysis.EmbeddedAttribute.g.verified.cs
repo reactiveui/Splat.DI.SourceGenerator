@@ -9,7 +9,7 @@
 
 namespace Microsoft.CodeAnalysis
 {
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Splat.DependencyInjection.SourceGenerator", "2.1.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Splat.DependencyInjection.SourceGenerator", "2.0.0.0")]
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct | System.AttributeTargets.Enum | System.AttributeTargets.Interface | System.AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
     [System.Diagnostics.Conditional("NEVER_DEFINED")]
     internal sealed class EmbeddedAttribute : System.Attribute

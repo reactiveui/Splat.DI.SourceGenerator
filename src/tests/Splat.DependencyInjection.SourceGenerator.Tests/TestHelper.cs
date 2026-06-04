@@ -2,11 +2,14 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
+extern alias analyzer;
+
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
@@ -68,30 +71,36 @@ public static class TestHelper
     /// <param name="file">The source file path of the caller (automatically populated).</param>
     /// <param name="memberName">The member name of the caller (automatically populated).</param>
     /// <returns>A task representing the asynchronous verification operation.</returns>
-    public static Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    public static async Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
     {
         ArgumentNullException.ThrowIfNull(callerType);
 
         var driver = RunGenerator(source, out var compilation, out var generatorDiagnostics);
 
-        // For fail tests, we expect compilation or generator diagnostics
+        // The SPLATDI diagnostics for invalid registrations are reported by the analyzers, not the
+        // source generator, so run them too against the post-generation compilation (so the
+        // generated SplatRegistrations members bind). A fail test passes when the compiler, the
+        // generator, or an analyzer surfaces at least one diagnostic for the invalid input.
+        var analyzerDiagnostics = await GetAnalyzerDiagnosticsAsync(compilation).ConfigureAwait(false);
+
         var allDiagnostics = compilation.GetDiagnostics()
             .Concat(generatorDiagnostics)
-            .Where(d => d.Severity >= DiagnosticSeverity.Error)
+            .Concat(analyzerDiagnostics)
+            .Where(d => d.Severity >= DiagnosticSeverity.Warning)
             .ToImmutableArray();
 
         if (allDiagnostics.Length == 0)
         {
-            Assert.Fail("Expected compilation or generator to produce errors");
+            Assert.Fail("Expected the compiler, generator, or analyzer to produce diagnostics");
         }
 
-        // Log error diagnostics for debugging
+        // Log diagnostics for debugging
         foreach (var diagnostic in allDiagnostics)
         {
             Console.WriteLine($"{diagnostic.Severity}: {diagnostic.GetMessage()}");
         }
 
-        return RunVerify(file, memberName, callerType, driver, contractParameter);
+        await RunVerify(file, memberName, callerType, driver, contractParameter).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -277,5 +286,18 @@ public static class TestHelper
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out outputCompilation, out diagnostics);
 
         return driver;
+    }
+
+    /// <summary>
+    /// Runs the Splat dependency injection analyzers against a compilation and returns their diagnostics.
+    /// </summary>
+    /// <param name="compilation">The compilation to analyze.</param>
+    /// <returns>A task producing the analyzer diagnostics.</returns>
+    private static async Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsAsync(Compilation compilation)
+    {
+        var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
+            new analyzer::Splat.DependencyInjection.Analyzer.Analyzers.ConstructorAnalyzer(),
+            new analyzer::Splat.DependencyInjection.Analyzer.Analyzers.PropertyAnalyzer());
+        return await compilation.WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync().ConfigureAwait(false);
     }
 }

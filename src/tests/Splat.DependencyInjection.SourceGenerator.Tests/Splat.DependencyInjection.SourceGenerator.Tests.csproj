@@ -20,5 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Splat.DependencyInjection.SourceGenerator\Splat.DependencyInjection.SourceGenerator.csproj" />
+    <!-- Referenced (aliased) so the *Fail tests can run the analyzers that report the SPLATDI
+         diagnostics. The alias avoids CS0433 since the analyzer assembly link-compiles
+         DiagnosticWarnings.cs, which also lives in the generator assembly. -->
+    <ProjectReference Include="..\..\Splat.DependencyInjection.Analyzer\Splat.DependencyInjection.Analyzer.csproj" Aliases="analyzer" />
   </ItemGroup>
 </Project>

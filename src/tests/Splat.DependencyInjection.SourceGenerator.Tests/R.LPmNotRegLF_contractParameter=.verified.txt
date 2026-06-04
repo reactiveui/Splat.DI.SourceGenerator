@@ -1,0 +1,23 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+        {
+            SplatRegistrations.Register<ITest, TestConcrete>();
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            SplatRegistrations.Register<IService1, Service1>();
+*/
+ : (10,12)-(10,62),
+      Message: global::Test.TestConcrete constructor has a lazy parameter global::Test.IService2 which is not registered with RegisterLazySingleton,
+      Severity: Error,
+      Descriptor: {
+        Id: SPLATDI007,
+        Title: Constructor has a lazy parameter,
+        MessageFormat: {0} constructor has a lazy parameter {1} which is not registered with RegisterLazySingleton,
+        Category: Compiler,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

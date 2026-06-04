@@ -34,8 +34,6 @@
 
   <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
-    <TUnitImplicitUsings>false</TUnitImplicitUsings>
-    <TUnitAssertionsImplicitUsings>false</TUnitAssertionsImplicitUsings>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 

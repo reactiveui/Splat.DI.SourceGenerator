@@ -1,0 +1,42 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+        {
+            SplatRegistrations.RegisterLazySingleton<ITest1, TestConcrete1>("Test1");
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            SplatRegistrations.RegisterLazySingleton<ITest2, TestConcrete2>();
+*/
+ : (10,12)-(10,84),
+      Message: Constructor parameters must not have a circular dependency to another registered resource,
+      Severity: Error,
+      Descriptor: {
+        Id: SPLATDI005,
+        Title: Constructors must not have a circular dependency,
+        MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
+        Category: Compiler,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    },
+    {
+      Location: /*
+            SplatRegistrations.RegisterLazySingleton<ITest1, TestConcrete1>("Test1");
+            SplatRegistrations.RegisterLazySingleton<ITest2, TestConcrete2>();
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        }
+*/
+ : (11,12)-(11,77),
+      Message: Constructor parameters must not have a circular dependency to another registered resource,
+      Severity: Error,
+      Descriptor: {
+        Id: SPLATDI005,
+        Title: Constructors must not have a circular dependency,
+        MessageFormat: Constructor parameters must not have a circular dependency to another registered resource,
+        Category: Compiler,
+        DefaultSeverity: Error,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

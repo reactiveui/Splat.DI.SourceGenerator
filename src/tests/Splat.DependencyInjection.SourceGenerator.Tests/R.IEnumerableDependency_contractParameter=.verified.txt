@@ -1,0 +1,44 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+            SplatRegistrations.Register<ITest, TestConcrete>();
+            SplatRegistrations.Register<IService, ServiceA>();
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            SplatRegistrations.Register<IService, ServiceB>();
+*/
+ : (11,12)-(11,61),
+      Message: global::Test.IService has been registered in multiple places,
+      Severity: Warning,
+      WarningLevel: 1,
+      Descriptor: {
+        Id: SPLATDI006,
+        Title: Interface has been registered before,
+        MessageFormat: {0} has been registered in multiple places,
+        Category: Compiler,
+        DefaultSeverity: Warning,
+        IsEnabledByDefault: true
+      }
+    },
+    {
+      Location: /*
+            SplatRegistrations.Register<IService, ServiceA>();
+            SplatRegistrations.Register<IService, ServiceB>();
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        }
+*/
+ : (12,12)-(12,61),
+      Message: global::Test.IService has been registered in multiple places,
+      Severity: Warning,
+      WarningLevel: 1,
+      Descriptor: {
+        Id: SPLATDI006,
+        Title: Interface has been registered before,
+        MessageFormat: {0} has been registered in multiple places,
+        Category: Compiler,
+        DefaultSeverity: Warning,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

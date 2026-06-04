@@ -1,0 +1,44 @@
+﻿{
+  Diagnostics: [
+    {
+      Location: /*
+        {
+            SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete1>("Test2");
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete2>("Test2");
+*/
+ : (10,12)-(10,83),
+      Message: global::Test.ITest has been registered in multiple places,
+      Severity: Warning,
+      WarningLevel: 1,
+      Descriptor: {
+        Id: SPLATDI006,
+        Title: Interface has been registered before,
+        MessageFormat: {0} has been registered in multiple places,
+        Category: Compiler,
+        DefaultSeverity: Warning,
+        IsEnabledByDefault: true
+      }
+    },
+    {
+      Location: /*
+            SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete1>("Test2");
+            SplatRegistrations.RegisterLazySingleton<ITest, TestConcrete2>("Test2");
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        }
+*/
+ : (11,12)-(11,83),
+      Message: global::Test.ITest has been registered in multiple places,
+      Severity: Warning,
+      WarningLevel: 1,
+      Descriptor: {
+        Id: SPLATDI006,
+        Title: Interface has been registered before,
+        MessageFormat: {0} has been registered in multiple places,
+        Category: Compiler,
+        DefaultSeverity: Warning,
+        IsEnabledByDefault: true
+      }
+    }
+  ]
+}

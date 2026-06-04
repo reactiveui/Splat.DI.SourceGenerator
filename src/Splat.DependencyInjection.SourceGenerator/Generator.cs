@@ -72,6 +72,10 @@ public class Generator : IIncrementalGenerator
     {
         var (transients, lazySingletons) = data;
 
+        // Report graph-level diagnostics that the per-type analyzers cannot detect
+        // (SPLATDI005 circular dependencies, SPLATDI006 duplicate registrations, SPLATDI007 lazy).
+        RegistrationValidator.ReportDiagnostics(context, transients, lazySingletons);
+
         // Generate code only for valid registrations (invalid ones were filtered out in transform)
         var code = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
         context.AddSource(Constants.RegistrationFileName, SourceText.From(code, Encoding.UTF8));

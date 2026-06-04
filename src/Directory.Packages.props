@@ -6,32 +6,32 @@
 
   <ItemGroup>
     <!-- Testing Framework -->
-    <PackageVersion Include="TUnit" Version="1.12.125" />
-    <PackageVersion Include="Verify.TUnit" Version="31.13.0" />
+    <PackageVersion Include="TUnit" Version="1.49.0" />
+    <PackageVersion Include="Verify.TUnit" Version="31.19.0" />
     <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.4.1" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.7.0" />
 
     <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
 
     <!-- Test Infrastructure -->
-    <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.4" />
-    <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.4" />
-    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.4" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.8" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.8" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.8" />
 
     <!-- Dependencies -->
-    <PackageVersion Include="Splat" Version="19.2.1" />
+    <PackageVersion Include="Splat" Version="19.4.1" />
 
     <!-- Build Tools -->
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="stylecop.analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
 
     <!-- Test App Dependencies-->
-    <PackageVersion Include="ReactiveUI" Version="23.1.0-beta.8" />
-    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.1" />
+    <PackageVersion Include="ReactiveUI" Version="23.2.28" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="3.0.0" />
   </ItemGroup>
 </Project>

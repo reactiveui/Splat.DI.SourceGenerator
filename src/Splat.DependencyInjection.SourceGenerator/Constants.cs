@@ -199,7 +199,7 @@ internal static class Constants
                 /// </summary>
                 /// <typeparam name="T">The type of the instance to register. Must be a reference type.</typeparam>
                 /// <param name="instance">The instance to register as a constant.</param>
-                public static void RegisterConstant<T>(T instance) where T : class => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance);
+                public static void RegisterConstant<T>(T instance) where T : class => Splat.AppLocator.CurrentMutable.RegisterConstant<T>(instance);
 
                 /// <summary>
                 /// Registers a constant (singleton) instance of type <typeparamref name="T"/> with the dependency resolver using a contract.
@@ -208,15 +208,15 @@ internal static class Constants
                 /// <typeparam name="T">The type of the instance to register. Must be a reference type.</typeparam>
                 /// <param name="instance">The instance to register as a constant.</param>
                 /// <param name="contract">A unique string identifier to distinguish between multiple registrations of the same type.</param>
-                public static void RegisterConstant<T>(T instance, string contract) where T : class => Splat.Locator.CurrentMutable.RegisterConstant<T>(instance, contract);
+                public static void RegisterConstant<T>(T instance, string contract) where T : class => Splat.AppLocator.CurrentMutable.RegisterConstant<T>(instance, contract);
 
                 /// <summary>
-                /// Initializes the dependency injection container by registering all dependencies with the default <see cref="Splat.Locator"/>.
+                /// Initializes the dependency injection container by registering all dependencies with the default <see cref="Splat.AppLocator"/>.
                 /// This method should be called once during application startup after all registration calls have been made.
                 /// </summary>
                 public static void SetupIOC()
                 {
-                    SetupIOCInternal(Splat.Locator.GetLocator());
+                    SetupIOCInternal(Splat.AppLocator.GetLocator());
                 }
 
                 /// <summary>
