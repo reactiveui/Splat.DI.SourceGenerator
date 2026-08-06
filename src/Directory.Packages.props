@@ -22,7 +22,7 @@
     <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.8" />
 
     <!-- Dependencies -->
-    <PackageVersion Include="Splat" Version="19.4.1" />
+    <PackageVersion Include="Splat" Version="21.0.0" />
 
     <!-- Build Tools -->
     <PackageVersion Include="MinVer" Version="7.0.0" />
