@@ -9,7 +9,7 @@
     <PackageVersion Include="TUnit" Version="1.49.0" />
     <PackageVersion Include="Verify.TUnit" Version="31.19.0" />
     <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.7.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
 
     <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
