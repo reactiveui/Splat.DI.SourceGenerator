@@ -42,6 +42,49 @@ public class RoslynHelpersTests
     }
 
     /// <summary>
+    /// Verifies that the generator recognizes registrations imported with a static using directive.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Test]
+    public async Task Generator_RecognizesStaticImportedRegistrations()
+    {
+        var source = """
+            using static Splat.SplatRegistrations;
+
+            namespace Test
+            {
+                public static class DIRegister
+                {
+                    static DIRegister()
+                    {
+                        Register<IService, Service>();
+                        RegisterLazySingleton<ILazyService, LazyService>();
+                    }
+                }
+
+                public interface IService { }
+                public class Service : IService { }
+                public interface ILazyService { }
+                public class LazyService : ILazyService { }
+            }
+            """;
+
+        var compilation = TestHelper.CreateCompilation(source);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: new[] { new Generator().AsSourceGenerator() });
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+
+        var generated = driver.GetRunResult().Results
+            .SelectMany(result => result.GeneratedSources)
+            .Single(result => result.HintName == Constants.RegistrationFileName)
+            .SourceText
+            .ToString();
+
+        await Assert.That(generated).Contains("resolver.Register<global::Test.IService>");
+        await Assert.That(generated).Contains("global::System.Lazy<global::Test.ILazyService>");
+    }
+
+    /// <summary>
     /// Verifies IsRegisterInvocation returns false for non-invocation nodes.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
