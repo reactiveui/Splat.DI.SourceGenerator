@@ -106,6 +106,8 @@ Register<ILogger, CloudLogger>("cloud");
 var fileLogger = resolver.GetService<ILogger>("file");
 ```
 
+A contract names that one registration. The constructor parameters and injected properties of a registration made under a contract resolve the registrations made without one.
+
 ### Initialize the Container
 
 Call `SetupIOC()` once during application startup in each assembly that uses `SplatRegistrations`:

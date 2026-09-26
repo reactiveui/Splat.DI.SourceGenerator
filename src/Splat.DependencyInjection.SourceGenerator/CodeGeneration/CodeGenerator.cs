@@ -2,7 +2,6 @@
 // ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 
@@ -18,6 +17,11 @@ namespace Splat.DependencyInjection.SourceGenerator.CodeGeneration;
 /// others share the one closure the compiler creates for <c>resolver</c>.
 /// </para>
 /// <para>
+/// Dependencies are resolved without the registration's contract. A contract names one registration of the type
+/// being registered; a constructor parameter or injected property names no contract, so it gets the default
+/// registration of its type.
+/// </para>
+/// <para>
 /// A dependency the resolver does not have throws through a helper written once per file. The factory then holds a
 /// call rather than the construction and concatenation of an exception, which keeps the code the factory runs on
 /// every resolution small.
@@ -31,7 +35,7 @@ internal static class CodeGenerator
     /// <summary>The characters a registration typically takes.</summary>
     internal const int RegistrationCapacity = 384;
 
-    /// <summary>The name of the helpers that throw for an unregistered dependency.</summary>
+    /// <summary>The name of the helper that throws for an unregistered dependency.</summary>
     internal const string ThrowNotRegistered = "ThrowNotRegistered";
 
     /// <summary>The start of a registration on the resolver, before the registered type.</summary>
@@ -74,7 +78,7 @@ internal static class CodeGenerator
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         """;
 
-    /// <summary>The helper that throws for a dependency registered without a contract.</summary>
+    /// <summary>The helper that throws for an unregistered dependency.</summary>
     private const string ThrowNotRegisteredMethod = $$"""
         /// <summary>Throws for a dependency the resolver has no registration for.</summary>
         /// <typeparam name="T">The type of the dependency.</typeparam>
@@ -85,33 +89,6 @@ internal static class CodeGenerator
             throw new global::System.InvalidOperationException("Dependency '" + typeName + "' not registered with Splat resolver.");
         }
         """;
-
-    /// <summary>The helper that throws for a dependency registered under a contract.</summary>
-    private const string ThrowNotRegisteredWithContractMethod = $$"""
-        /// <summary>Throws for a dependency the resolver has no registration for under a contract.</summary>
-        /// <typeparam name="T">The type of the dependency.</typeparam>
-        /// <param name="typeName">The name of the dependency's type.</param>
-        /// <param name="contract">The contract the dependency was asked for under.</param>
-        /// <returns>Never returns.</returns>
-        private static T {{ThrowNotRegistered}}<T>(string typeName, string contract)
-        {
-            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' with contract " + contract + " not registered with Splat resolver.");
-        }
-        """;
-
-    /// <summary>Which throw helpers the written registrations call.</summary>
-    [Flags]
-    internal enum ThrowHelpers
-    {
-        /// <summary>No helper is called.</summary>
-        None = 0,
-
-        /// <summary>The helper for a dependency without a contract is called.</summary>
-        WithoutContract = 1 << 0,
-
-        /// <summary>The helper for a dependency under a contract is called.</summary>
-        WithContract = 1 << 1,
-    }
 
     /// <summary>Writes the registrations file.</summary>
     /// <param name="registrations">The registrations, in source order.</param>
@@ -131,7 +108,7 @@ internal static class CodeGenerator
             .Lines(MethodDeclaration)
             .OpenBlock();
 
-        var used = ThrowHelpers.None;
+        var usesThrowHelper = false;
         var written = 0;
         var lazySingletons = 0;
         foreach (var registration in registrations)
@@ -143,7 +120,7 @@ internal static class CodeGenerator
 
             SeparateRegistration(writer, written);
             written++;
-            AppendTransient(writer, registration, ref used);
+            AppendTransient(writer, registration, ref usesThrowHelper);
         }
 
         foreach (var registration in registrations)
@@ -155,42 +132,42 @@ internal static class CodeGenerator
 
             SeparateRegistration(writer, written);
             written++;
-            AppendLazySingleton(writer, registration, lazySingletons, ref used);
+            AppendLazySingleton(writer, registration, lazySingletons, ref usesThrowHelper);
             lazySingletons++;
         }
 
         _ = writer.CloseBlock();
-        AppendThrowHelpers(writer, used);
+        AppendThrowHelper(writer, usesThrowHelper);
         return writer.CloseBlock().CloseBlock().ToStringAndReturn();
     }
 
     /// <summary>Writes a transient registration.</summary>
     /// <param name="writer">The writer, at the method body's level.</param>
     /// <param name="registration">The registration.</param>
-    /// <param name="used">The throw helpers called so far, updated with those this registration calls.</param>
+    /// <param name="usesThrowHelper">Set when this registration calls the throw helper.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void AppendTransient(SourceWriter writer, RegistrationInfo registration, ref ThrowHelpers used) =>
+    internal static void AppendTransient(SourceWriter writer, RegistrationInfo registration, ref bool usesThrowHelper) =>
         AppendFactoryCall(
             writer.Append(RegisterOpen).Append(registration.InterfaceTypeFullName).Append(">("),
             registration,
             registration.ContractValue,
-            ref used);
+            ref usesThrowHelper);
 
     /// <summary>Writes a lazy singleton registration: the lazy value, and the lazy and its value registered.</summary>
     /// <param name="writer">The writer, at the method body's level.</param>
     /// <param name="registration">The registration.</param>
     /// <param name="index">The number of lazy singletons written before this one, which names its local.</param>
-    /// <param name="used">The throw helpers called so far, updated with those this registration calls.</param>
+    /// <param name="usesThrowHelper">Set when this registration calls the throw helper.</param>
     /// <remarks>
     /// Each lazy is a local of the method itself, named by its position, rather than of a block of its own. The
     /// compiler keeps every captured local of one scope in one closure object, and <c>resolver</c> already needs one,
     /// so the lambdas that read the lazy add no closure; a block per registration would add one each.
     /// </remarks>
-    internal static void AppendLazySingleton(SourceWriter writer, RegistrationInfo registration, int index, ref ThrowHelpers used)
+    internal static void AppendLazySingleton(SourceWriter writer, RegistrationInfo registration, int index, ref bool usesThrowHelper)
     {
         var serviceType = registration.InterfaceTypeFullName;
         _ = writer.Append("var ").Append(LazyLocal).Append(index).Append(" = new ").Append(LazyTypeOpen).Append(serviceType).Append(">(");
-        AppendFactoryCall(writer, registration, registration.LazyThreadSafetyMode, ref used);
+        AppendFactoryCall(writer, registration, registration.LazyThreadSafetyMode, ref usesThrowHelper);
 
         _ = writer.Append(RegisterOpen).Append(LazyTypeOpen).Append(serviceType).Append(">>(() => ").Append(LazyLocal).Append(index);
         _ = AppendTrailingArgument(writer, registration.ContractValue).Line(");");
@@ -203,12 +180,12 @@ internal static class CodeGenerator
     /// <param name="writer">The writer, after the call's opening parenthesis.</param>
     /// <param name="registration">The registration.</param>
     /// <param name="lastArgument">The argument after the factory, as C# source; <see langword="null"/> for none.</param>
-    /// <param name="used">The throw helpers called so far, updated with those the factory calls.</param>
+    /// <param name="usesThrowHelper">Set when the factory calls the throw helper.</param>
     /// <remarks>
     /// A factory with nothing to resolve stays on the call's line. Otherwise each argument takes its own line, one
     /// level deeper, and the call closes after the last of them.
     /// </remarks>
-    internal static void AppendFactoryCall(SourceWriter writer, RegistrationInfo registration, string? lastArgument, ref ThrowHelpers used)
+    internal static void AppendFactoryCall(SourceWriter writer, RegistrationInfo registration, string? lastArgument, ref bool usesThrowHelper)
     {
         if (registration.ConstructorParameters.Length == 0 && registration.PropertyInjections.Length == 0)
         {
@@ -217,7 +194,7 @@ internal static class CodeGenerator
             return;
         }
 
-        AppendFactory(writer.OpenContinuation(), registration, ref used);
+        AppendFactory(writer.OpenContinuation(), registration, ref usesThrowHelper);
         if (lastArgument is not null)
         {
             _ = writer.ArgumentSeparator().Append(lastArgument);
@@ -229,11 +206,10 @@ internal static class CodeGenerator
     /// <summary>Writes the lambda that constructs a registration's type, with its dependencies one per line.</summary>
     /// <param name="writer">The writer, at the start of a line.</param>
     /// <param name="registration">The registration.</param>
-    /// <param name="used">The throw helpers called so far, updated with those the factory calls.</param>
+    /// <param name="usesThrowHelper">Set when the factory calls the throw helper.</param>
     /// <remarks>Leaves the writer on the lambda's last line, for the caller to finish.</remarks>
-    internal static void AppendFactory(SourceWriter writer, RegistrationInfo registration, ref ThrowHelpers used)
+    internal static void AppendFactory(SourceWriter writer, RegistrationInfo registration, ref bool usesThrowHelper)
     {
-        var contract = registration.ContractValue;
         _ = writer.Append("() => new ").Append(registration.ConcreteTypeFullName).Append('(');
 
         var parameters = registration.ConstructorParameters;
@@ -247,7 +223,7 @@ internal static class CodeGenerator
                     _ = writer.ArgumentSeparator();
                 }
 
-                AppendParameter(writer, parameters[i], contract, ref used);
+                AppendParameter(writer, parameters[i], ref usesThrowHelper);
             }
 
             _ = writer.Outdent();
@@ -266,7 +242,7 @@ internal static class CodeGenerator
         {
             var property = properties[i];
             _ = writer.Append(property.PropertyName).Append(" = ");
-            AppendService(writer, property.TypeFullName, contract, ref used);
+            AppendService(writer, property.TypeFullName, ref usesThrowHelper);
             _ = writer.ArgumentSeparator();
         }
 
@@ -276,54 +252,38 @@ internal static class CodeGenerator
     /// <summary>Writes the expression that resolves a constructor parameter.</summary>
     /// <param name="writer">The writer.</param>
     /// <param name="parameter">The parameter.</param>
-    /// <param name="contract">The registration's contract, as C# source; <see langword="null"/> for none.</param>
-    /// <param name="used">The throw helpers called so far, updated with the one this parameter calls.</param>
+    /// <param name="usesThrowHelper">Set when the parameter calls the throw helper.</param>
     /// <remarks>A collection resolves to every registration, which may be none, so it never throws.</remarks>
-    internal static void AppendParameter(SourceWriter writer, in ConstructorParameter parameter, string? contract, ref ThrowHelpers used)
+    internal static void AppendParameter(SourceWriter writer, in ConstructorParameter parameter, ref bool usesThrowHelper)
     {
         if (parameter.Kind != DependencyKind.Collection)
         {
-            AppendService(writer, parameter.TypeFullName, contract, ref used);
+            AppendService(writer, parameter.TypeFullName, ref usesThrowHelper);
             return;
         }
 
-        _ = writer.Append("resolver.GetServices<").Append(parameter.InnerTypeFullName!).Append(">(");
-        _ = contract is null ? writer.Append(')') : writer.Append(contract).Append(')');
+        _ = writer.Append("resolver.GetServices<").Append(parameter.InnerTypeFullName!).Append(">()");
     }
 
     /// <summary>Writes the expression that resolves one service, throwing when it is not registered.</summary>
     /// <param name="writer">The writer.</param>
     /// <param name="typeFullName">The fully qualified type of the service.</param>
-    /// <param name="contract">The registration's contract, as C# source; <see langword="null"/> for none.</param>
-    /// <param name="used">The throw helpers called so far, updated with the one this service calls.</param>
-    internal static void AppendService(SourceWriter writer, string typeFullName, string? contract, ref ThrowHelpers used)
+    /// <param name="usesThrowHelper">Set, as the expression calls the throw helper.</param>
+    internal static void AppendService(SourceWriter writer, string typeFullName, ref bool usesThrowHelper)
     {
-        _ = writer.Append("resolver.GetService<").Append(typeFullName).Append(">(");
-        if (contract is null)
-        {
-            used |= ThrowHelpers.WithoutContract;
-            _ = writer.Append(") ?? ").Append(ThrowNotRegistered).Append('<').Append(typeFullName).Append(">(\"").Append(typeFullName).Append("\")");
-            return;
-        }
-
-        used |= ThrowHelpers.WithContract;
-        _ = writer.Append(contract).Append(") ?? ").Append(ThrowNotRegistered).Append('<').Append(typeFullName).Append(">(\"")
-            .Append(typeFullName).Append("\", ").Append(contract).Append(')');
+        usesThrowHelper = true;
+        _ = writer.Append("resolver.GetService<").Append(typeFullName).Append(">() ?? ").Append(ThrowNotRegistered)
+            .Append('<').Append(typeFullName).Append(">(\"").Append(typeFullName).Append("\")");
     }
 
-    /// <summary>Writes the throw helpers the registrations call, after the registration method.</summary>
+    /// <summary>Writes the throw helper after the registration method, when a registration calls it.</summary>
     /// <param name="writer">The writer, at the class body's level.</param>
-    /// <param name="used">The helpers the registrations call.</param>
-    internal static void AppendThrowHelpers(SourceWriter writer, ThrowHelpers used)
+    /// <param name="usesThrowHelper">Whether a registration calls the helper.</param>
+    internal static void AppendThrowHelper(SourceWriter writer, bool usesThrowHelper)
     {
-        if ((used & ThrowHelpers.WithoutContract) != 0)
+        if (usesThrowHelper)
         {
             _ = writer.BlankLine().Lines(ThrowNotRegisteredMethod);
-        }
-
-        if ((used & ThrowHelpers.WithContract) != 0)
-        {
-            _ = writer.BlankLine().Lines(ThrowNotRegisteredWithContractMethod);
         }
     }
 
