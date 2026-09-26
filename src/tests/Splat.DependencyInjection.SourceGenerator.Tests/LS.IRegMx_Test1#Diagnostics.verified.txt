@@ -1,0 +1,2 @@
+SPLATDI006 Warning File0.cs(10,12)-(10,83): global::Test.ITest has been registered in multiple places
+SPLATDI006 Warning File0.cs(11,12)-(11,83): global::Test.ITest has been registered in multiple places

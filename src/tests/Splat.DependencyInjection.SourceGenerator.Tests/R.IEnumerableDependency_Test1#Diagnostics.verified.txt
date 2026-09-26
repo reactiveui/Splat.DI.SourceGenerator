@@ -1,0 +1,2 @@
+SPLATDI006 Warning File0.cs(11,12)-(11,68): global::Test.IService has been registered in multiple places
+SPLATDI006 Warning File0.cs(12,12)-(12,68): global::Test.IService has been registered in multiple places

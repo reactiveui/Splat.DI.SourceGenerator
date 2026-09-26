@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System;
@@ -17,14 +17,9 @@ namespace Splat.DependencyInjection.Analyzer.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class PropertyAnalyzer : DiagnosticAnalyzer
 {
-    /// <summary>
-    /// The fully qualified symbol display format used for diagnostic messages.
-    /// </summary>
-    private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
-
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable);
+        [SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -44,7 +39,7 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
             var propertyAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName(SourceGenerator.Constants.PropertyAttributeMetadataName);
 
             // Only register the symbol action if the attribute exists in this compilation
-            if (propertyAttributeSymbol != null)
+            if (propertyAttributeSymbol is not null)
             {
                 compilationContext.RegisterSymbolAction(
                     symbolContext => AnalyzeProperty(symbolContext, propertyAttributeSymbol),
@@ -59,7 +54,7 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
     /// </summary>
     /// <param name="context">The symbol analysis context.</param>
     /// <param name="propertyAttributeSymbol">The resolved DependencyInjectionPropertyAttribute symbol.</param>
-    private static void AnalyzeProperty(SymbolAnalysisContext context, INamedTypeSymbol propertyAttributeSymbol)
+    private static void AnalyzeProperty(in SymbolAnalysisContext context, INamedTypeSymbol propertyAttributeSymbol)
     {
         var property = (IPropertySymbol)context.Symbol;
 
@@ -70,11 +65,13 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         // Fast path: symbol comparison (no string allocations)
         for (var i = 0; i < attrs.Length; i++)
         {
-            if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, propertyAttributeSymbol))
+            if (!SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, propertyAttributeSymbol))
             {
-                hasAttribute = true;
-                break;
+                continue;
             }
+
+            hasAttribute = true;
+            break;
         }
 
         if (!hasAttribute)
@@ -83,11 +80,11 @@ public class PropertyAnalyzer : DiagnosticAnalyzer
         }
 
         // Check if setter exists and is accessible (public or internal)
-        if (property.SetMethod == null || property.SetMethod.DeclaredAccessibility < Accessibility.Internal)
+        if (property.SetMethod is null || property.SetMethod.DeclaredAccessibility < Accessibility.Internal)
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable,
-                property.Locations.Length > 0 ? property.Locations[0] : Location.None,
+                AnalyzerHelpers.GetFirstLocation(property.Locations),
                 property.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
         }
     }

@@ -1,0 +1,1 @@
+SPLATDI007 Error File0.cs(10,12)-(10,69): global::Test.TestConcrete constructor has a lazy parameter global::Test.Service1 which is not registered with RegisterLazySingleton

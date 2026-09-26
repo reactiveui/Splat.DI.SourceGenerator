@@ -21,6 +21,11 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
   </ItemGroup>
 
+  <!-- Compiler polyfills that let netstandard2.0 code use records. -->
+  <ItemGroup>
+    <Compile Include="..\Polyfills\*.cs" Link="Polyfills\%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Reference the analyzer project to force it to build -->
     <ProjectReference Include="..\Splat.DependencyInjection.Analyzer\Splat.DependencyInjection.Analyzer.csproj" PrivateAssets="all" ReferenceOutputAssembly="false" />

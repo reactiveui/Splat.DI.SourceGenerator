@@ -29,11 +29,25 @@ namespace Splat
 
             resolver.Register<global::Test.IServiceProperty2>(() => new global::Test.ServiceProperty2(), "TestContract");
 
-            {
-                global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>("TestContract") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "TestContract" + " not registered with Splat resolver.")) { ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>("TestContract") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty1' with contract " + "TestContract" + " not registered with Splat resolver."), ServiceProperty2 = resolver.GetService<global::Test.IServiceProperty2>("TestContract") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty2' with contract " + "TestContract" + " not registered with Splat resolver.") });
-                resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "TestContract");
-                resolver.Register<global::Test.ITest>(() => lazy.Value, "TestContract");
-            }
+            var lazy0 = new global::System.Lazy<global::Test.ITest>(
+                () => new global::Test.TestConcrete(
+                    resolver.GetService<global::Test.IService1>("TestContract") ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1", "TestContract"))
+                {
+                    ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>("TestContract") ?? ThrowNotRegistered<global::Test.IServiceProperty1>("global::Test.IServiceProperty1", "TestContract"),
+                    ServiceProperty2 = resolver.GetService<global::Test.IServiceProperty2>("TestContract") ?? ThrowNotRegistered<global::Test.IServiceProperty2>("global::Test.IServiceProperty2", "TestContract"),
+                });
+            resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy0, "TestContract");
+            resolver.Register<global::Test.ITest>(() => lazy0.Value, "TestContract");
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for under a contract.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <param name="contract">The contract the dependency was asked for under.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName, string contract)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' with contract " + contract + " not registered with Splat resolver.");
         }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
@@ -11,14 +11,22 @@ using Splat.DependencyInjection.Analyzer.Analyzers;
 
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
-/// <summary>
-/// Tests for the AnalyzerHelpers class.
-/// </summary>
+/// <summary>Tests for the AnalyzerHelpers class.</summary>
 public class AnalyzerHelpersTests
 {
-    /// <summary>
-    /// Tests IsSplatRegistrationsMethod with various scenarios.
-    /// </summary>
+    /// <summary>The name of the assembly compiled for each test.</summary>
+    private const string AssemblyName = "TestAssembly";
+
+    /// <summary>The name of the Splat registration method under test.</summary>
+    private const string RegisterMethodName = "Register";
+
+    /// <summary>The metadata name of the test class declared in the sources.</summary>
+    private const string TestClassName = "TestClass";
+
+    /// <summary>The metadata name of the Splat registrations class.</summary>
+    private const string SplatRegistrationsMetadataName = "Splat.SplatRegistrations";
+
+    /// <summary>Tests IsSplatRegistrationsMethod with various scenarios.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsSplatRegistrationsMethod_ValidatesCorrectly()
@@ -40,30 +48,28 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
-        var splatReg = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree]);
+        var splatReg = compilation.GetTypeByMetadataName(SplatRegistrationsMetadataName);
         await Assert.That(splatReg).IsNotNull();
 
-        var registerMethod = splatReg!.GetMembers("Register").OfType<IMethodSymbol>().First();
-        var otherMethod = splatReg.GetMembers("Other").OfType<IMethodSymbol>().First();
+        var registerMethod = TestUtilities.FirstMethod(splatReg!, RegisterMethodName);
+        var otherMethod = TestUtilities.FirstMethod(splatReg!, "Other");
 
-        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, "Register")).IsTrue();
-        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(otherMethod, "Register")).IsFalse();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, RegisterMethodName)).IsTrue();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(otherMethod, RegisterMethodName)).IsFalse();
 
         var otherType = compilation.GetTypeByMetadataName("Other.SplatRegistrations");
         await Assert.That(otherType).IsNotNull();
-        var wrongNamespaceMethod = otherType!.GetMembers("Register").OfType<IMethodSymbol>().First();
-        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(wrongNamespaceMethod, "Register")).IsFalse();
+        var wrongNamespaceMethod = TestUtilities.FirstMethod(otherType!, RegisterMethodName);
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(wrongNamespaceMethod, RegisterMethodName)).IsFalse();
 
         var extType = compilation.GetTypeByMetadataName("Extensions");
         await Assert.That(extType).IsNotNull();
-        var extMethod = extType!.GetMembers("Register").OfType<IMethodSymbol>().First();
-        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(extMethod, "Register")).IsFalse();
+        var extMethod = TestUtilities.FirstMethod(extType!, RegisterMethodName);
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(extMethod, RegisterMethodName)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests GetConstructorAnalysis with various constructor types.
-    /// </summary>
+    /// <summary>Tests GetConstructorAnalysis with various constructor types.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task GetConstructorAnalysis_CountsCorrectly()
@@ -90,10 +96,10 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
-        var testClass = compilation.GetTypeByMetadataName("TestClass");
+        var testClass = compilation.GetTypeByMetadataName(TestClassName);
         await Assert.That(testClass).IsNotNull();
 
         var attrSymbol = compilation.GetTypeByMetadataName("Splat.DependencyInjectionConstructorAttribute");
@@ -101,15 +107,15 @@ public class AnalyzerHelpersTests
 
         var analysis = AnalyzerHelpers.GetConstructorAnalysis(testClass!, attrSymbol);
 
-        await Assert.That(analysis.AccessibleCount).IsEqualTo(4);
-        await Assert.That(analysis.MarkedCount).IsEqualTo(2);
+        const int expectedAccessibleCount = 4;
+        const int expectedMarkedCount = 2;
+        await Assert.That(analysis.AccessibleCount).IsEqualTo(expectedAccessibleCount);
+        await Assert.That(analysis.MarkedCount).IsEqualTo(expectedMarkedCount);
         await Assert.That(analysis.FirstMarked).IsNotNull();
         await Assert.That(analysis.SecondMarked).IsNotNull();
     }
 
-    /// <summary>
-    /// Tests IsConstructorMarked fallback path.
-    /// </summary>
+    /// <summary>Tests IsConstructorMarked fallback path.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsConstructorMarked_FallbackPath_IdentifiesAttribute()
@@ -128,24 +134,22 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+            .AddReferences(MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location));
 
-        var testClass = compilation.GetTypeByMetadataName("TestClass");
+        var testClass = compilation.GetTypeByMetadataName(TestClassName);
         await Assert.That(testClass).IsNotNull();
 
-        var markedCtor = testClass!.Constructors.First(c => c.Parameters.Length == 0);
-        var unmarkedCtor = testClass.Constructors.First(c => c.Parameters.Length == 1);
+        var markedCtor = TestUtilities.ConstructorWithParameterCount(testClass!, 0);
+        var unmarkedCtor = TestUtilities.ConstructorWithParameterCount(testClass!, 1);
 
         // Pass null for attribute symbol to force fallback
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(markedCtor, null)).IsTrue();
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(unmarkedCtor, null)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests IsConstructorMarked fallback path returns false when attribute does not match.
-    /// </summary>
+    /// <summary>Tests IsConstructorMarked fallback path returns false when attribute does not match.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsConstructorMarked_FallbackPath_NonMatchingAttribute_ReturnsFalse()
@@ -157,21 +161,19 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
-        var testClass = compilation.GetTypeByMetadataName("TestClass");
+        var testClass = compilation.GetTypeByMetadataName(TestClassName);
         await Assert.That(testClass).IsNotNull();
 
-        var ctor = testClass!.Constructors.First(c => !c.IsImplicitlyDeclared);
+        var ctor = TestUtilities.FirstExplicitConstructor(testClass!);
 
         // ctor has [Obsolete], null symbol forces string fallback - should not match
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(ctor, null)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests IsConstructorMarked fast path.
-    /// </summary>
+    /// <summary>Tests IsConstructorMarked fast path.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsConstructorMarked_FastPath_IdentifiesAttribute()
@@ -189,32 +191,30 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+            .AddReferences(MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location));
 
-        var testClass = compilation.GetTypeByMetadataName("TestClass");
+        var testClass = compilation.GetTypeByMetadataName(TestClassName);
         await Assert.That(testClass).IsNotNull();
 
         var attrSymbol = compilation.GetTypeByMetadataName("Splat.DependencyInjectionConstructorAttribute");
         await Assert.That(attrSymbol).IsNotNull();
 
-        var markedCtor = testClass!.Constructors.First(c => c.Parameters.Length == 0);
-        var unmarkedCtor = testClass.Constructors.First(c => c.Parameters.Length == 1);
+        var markedCtor = TestUtilities.ConstructorWithParameterCount(testClass!, 0);
+        var unmarkedCtor = TestUtilities.ConstructorWithParameterCount(testClass!, 1);
 
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(markedCtor, attrSymbol)).IsTrue();
         await Assert.That(AnalyzerHelpers.IsConstructorMarked(unmarkedCtor, attrSymbol)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests AnalyzeConstructorsForType with interface (should skip).
-    /// </summary>
+    /// <summary>Tests AnalyzeConstructorsForType with interface (should skip).</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task AnalyzeConstructorsForType_Interface_Skips()
     {
         var syntaxTree = CSharpSyntaxTree.ParseText("public interface ITest {}");
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
         var type = compilation.GetTypeByMetadataName("ITest");
@@ -227,15 +227,13 @@ public class AnalyzerHelpersTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
-    /// <summary>
-    /// Tests AnalyzeConstructorsForType with enum (should skip).
-    /// </summary>
+    /// <summary>Tests AnalyzeConstructorsForType with enum (should skip).</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task AnalyzeConstructorsForType_Enum_Skips()
     {
         var syntaxTree = CSharpSyntaxTree.ParseText("public enum TestEnum { A, B }");
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
         var type = compilation.GetTypeByMetadataName("TestEnum");
@@ -248,9 +246,7 @@ public class AnalyzerHelpersTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
-    /// <summary>
-    /// Tests IsSplatRegistrationsMethod with extension method.
-    /// </summary>
+    /// <summary>Tests IsSplatRegistrationsMethod with extension method.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsSplatRegistrationsMethod_ExtensionMethod_ReturnsFalse()
@@ -265,19 +261,16 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree]);
         var extensionsType = compilation.GetTypeByMetadataName("Splat.Extensions");
         await Assert.That(extensionsType).IsNotNull();
 
-        var registerMethod = extensionsType!.GetMembers("Register").OfType<IMethodSymbol>().First();
+        var registerMethod = TestUtilities.FirstMethod(extensionsType!, RegisterMethodName);
         await Assert.That(registerMethod.IsExtensionMethod).IsTrue();
-        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, "Register")).IsFalse();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(registerMethod, RegisterMethodName)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests AnalyzeConstructorsForType where one constructor is marked but is not accessible.
-    /// Should report SPLATDI004.
-    /// </summary>
+    /// <summary>Tests AnalyzeConstructorsForType where one constructor is marked but is not accessible. Should report SPLATDI004.</summary>
     /// <returns>A task that represents the asynchronous operation.</returns>
     [Test]
     public async Task AnalyzeConstructorsForType_MarkedPrivateConstructor_ReportsError()
@@ -293,11 +286,11 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+            .AddReferences(MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location));
 
-        var type = compilation.GetTypeByMetadataName("TestClass");
+        var type = compilation.GetTypeByMetadataName(TestClassName);
         var diagnostics = new List<Diagnostic>();
 
         AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
@@ -328,33 +321,92 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-            .AddReferences(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
+            .AddReferences(MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location));
 
-        var type = compilation.GetTypeByMetadataName("TestClass");
+        var type = compilation.GetTypeByMetadataName(TestClassName);
         var diagnostics = new List<Diagnostic>();
 
         AnalyzerHelpers.AnalyzeConstructorsForType(compilation, type!, diagnostics.Add);
 
-        await Assert.That(diagnostics).Count().IsEqualTo(2);
+        const int expectedDiagnosticCount = 2;
+        await Assert.That(diagnostics).Count().IsEqualTo(expectedDiagnosticCount);
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI003");
         await Assert.That(diagnostics[1].Id).IsEqualTo("SPLATDI003");
     }
 
-    /// <summary>
-    /// Tests IsContainedInSplatRegistrations returns false for null.
-    /// </summary>
+    /// <summary>Tests IsContainedInSplatRegistrations returns false for null.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
-    public async Task IsContainedInSplatRegistrations_Null_ReturnsFalse()
-    {
+    public async Task IsContainedInSplatRegistrations_Null_ReturnsFalse() =>
         await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(null)).IsFalse();
+
+    /// <summary>Tests IsContainedInSplatRegistrations returns false for a type with no containing namespace.</summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsContainedInSplatRegistrations_NoContainingNamespace_ReturnsFalse()
+    {
+        var compilation = CSharpCompilation.Create(AssemblyName);
+        var errorType = compilation.CreateErrorTypeSymbol(null, "SplatRegistrations", 0);
+
+        await Assert.That(errorType.ContainingNamespace).IsNull();
+        await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(errorType)).IsFalse();
+    }
+
+    /// <summary>Tests IsSplatRegistrationsMethod returns false for a method with no containing type.</summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsSplatRegistrationsMethod_NoContainingType_ReturnsFalse()
+    {
+        var compilation = CSharpCompilation.Create(AssemblyName)
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+        var functionPointer = compilation.CreateFunctionPointerTypeSymbol(
+            compilation.GetSpecialType(SpecialType.System_Void),
+            RefKind.None,
+            [],
+            []);
+
+        await Assert.That(functionPointer.Signature.ContainingType).IsNull();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(functionPointer.Signature, RegisterMethodName)).IsFalse();
+    }
+
+    /// <summary>Tests IsSplatRegistrationsMethod returns false for an extension method declared on SplatRegistrations.</summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsSplatRegistrationsMethod_ExtensionMethodOnSplatRegistrations_ReturnsFalse()
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText("""
+            namespace Splat {
+                public static class SplatRegistrations {
+                    public static void Register(this string s) {}
+                }
+            }
+            """);
+
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
+            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+        var splatReg = compilation.GetTypeByMetadataName(SplatRegistrationsMetadataName)!;
+        var extensionMethod = TestUtilities.FirstMethod(splatReg, RegisterMethodName);
+
+        await Assert.That(extensionMethod.IsExtensionMethod).IsTrue();
+        await Assert.That(AnalyzerHelpers.IsSplatRegistrationsMethod(extensionMethod, RegisterMethodName)).IsFalse();
     }
 
     /// <summary>
-    /// Tests IsContainedInSplatRegistrations returns true for Splat.SplatRegistrations.
+    /// Tests IsConstructorMarked fallback path skips an attribute whose class could not be decoded,
+    /// which Roslyn reports as a null attribute class for malformed metadata attributes.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Test]
+    public async Task IsConstructorMarked_FallbackPath_NullAttributeClass_ReturnsFalse()
+    {
+        var ctor = AttributeOverridingMethodProxy.Create([new NullClassAttributeData()]);
+
+        await Assert.That(AnalyzerHelpers.IsConstructorMarked(ctor, null)).IsFalse();
+    }
+
+    /// <summary>Tests IsContainedInSplatRegistrations returns true for Splat.SplatRegistrations.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsContainedInSplatRegistrations_SplatRegistrations_ReturnsTrue()
@@ -365,15 +417,13 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
-        var type = compilation.GetTypeByMetadataName("Splat.SplatRegistrations");
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree]);
+        var type = compilation.GetTypeByMetadataName(SplatRegistrationsMetadataName);
 
         await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(type)).IsTrue();
     }
 
-    /// <summary>
-    /// Tests IsContainedInSplatRegistrations returns false for a type in the wrong namespace.
-    /// </summary>
+    /// <summary>Tests IsContainedInSplatRegistrations returns false for a type in the wrong namespace.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task IsContainedInSplatRegistrations_WrongNamespace_ReturnsFalse()
@@ -384,15 +434,13 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree]);
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree]);
         var type = compilation.GetTypeByMetadataName("Other.SplatRegistrations");
 
         await Assert.That(AnalyzerHelpers.IsContainedInSplatRegistrations(type)).IsFalse();
     }
 
-    /// <summary>
-    /// Tests GetFirstLocation returns Location.None for an empty locations array.
-    /// </summary>
+    /// <summary>Tests GetFirstLocation returns Location.None for an empty locations array.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task GetFirstLocation_EmptyArray_ReturnsLocationNone()
@@ -402,15 +450,13 @@ public class AnalyzerHelpersTests
         await Assert.That(result).IsEqualTo(Location.None);
     }
 
-    /// <summary>
-    /// Tests GetFirstLocation returns the first location when locations are present.
-    /// </summary>
+    /// <summary>Tests GetFirstLocation returns the first location when locations are present.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task GetFirstLocation_WithLocations_ReturnsFirst()
     {
         var tree = CSharpSyntaxTree.ParseText("class C {}");
-        var location = tree.GetRoot().GetLocation();
+        var location = (await tree.GetRootAsync()).GetLocation();
         var locations = ImmutableArray.Create(location);
 
         var result = AnalyzerHelpers.GetFirstLocation(locations);
@@ -418,9 +464,7 @@ public class AnalyzerHelpersTests
         await Assert.That(result).IsEqualTo(location);
     }
 
-    /// <summary>
-    /// Tests ReportDiagnostics reports SPLATDI001 when multiple accessible constructors exist without marked constructor.
-    /// </summary>
+    /// <summary>Tests ReportDiagnostics reports SPLATDI001 when multiple accessible constructors exist without marked constructor.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task ReportDiagnostics_MultipleAccessibleNoMarked_ReportsSPLATDI001()
@@ -432,11 +476,12 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
-        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
-        var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(2, 0, null, null);
+        var namedType = compilation.GetTypeByMetadataName(TestClassName)!;
+        const int accessibleCount = 2;
+        var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(accessibleCount, 0, null, null);
         var diagnostics = new List<Diagnostic>();
 
         AnalyzerHelpers.ReportDiagnostics(analysis, namedType, null, diagnostics.Add);
@@ -445,19 +490,17 @@ public class AnalyzerHelpersTests
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
     }
 
-    /// <summary>
-    /// Tests ReportDiagnostics reports nothing when only one accessible constructor exists.
-    /// </summary>
+    /// <summary>Tests ReportDiagnostics reports nothing when only one accessible constructor exists.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task ReportDiagnostics_SingleAccessible_NoDiagnostic()
     {
         var syntaxTree = CSharpSyntaxTree.ParseText("public class TestClass { public TestClass() {} }");
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
-        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
+        var namedType = compilation.GetTypeByMetadataName(TestClassName)!;
         var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(1, 0, null, null);
         var diagnostics = new List<Diagnostic>();
 
@@ -466,9 +509,7 @@ public class AnalyzerHelpersTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
-    /// <summary>
-    /// Tests ReportDiagnostics reports SPLATDI004 when a single marked constructor is not accessible.
-    /// </summary>
+    /// <summary>Tests ReportDiagnostics reports SPLATDI004 when a single marked constructor is not accessible.</summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Test]
     public async Task ReportDiagnostics_MarkedPrivateConstructor_ReportsSPLATDI004()
@@ -483,11 +524,11 @@ public class AnalyzerHelpersTests
             }
             """);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", [syntaxTree])
+        var compilation = CSharpCompilation.Create(AssemblyName, [syntaxTree])
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
-        var namedType = compilation.GetTypeByMetadataName("TestClass")!;
-        var privateCtor = namedType.Constructors.First(c => !c.IsImplicitlyDeclared);
+        var namedType = compilation.GetTypeByMetadataName(TestClassName)!;
+        var privateCtor = TestUtilities.FirstExplicitConstructor(namedType);
         var analysis = new AnalyzerHelpers.ConstructorAnalysisResult(0, 1, privateCtor, null);
         var diagnostics = new List<Diagnostic>();
 

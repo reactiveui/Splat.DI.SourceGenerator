@@ -23,11 +23,21 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            {
-                global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>("Test1") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "Test1" + " not registered with Splat resolver.")));
-                resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "Test1");
-                resolver.Register<global::Test.ITest>(() => lazy.Value, "Test1");
-            }
+            var lazy0 = new global::System.Lazy<global::Test.ITest>(
+                () => new global::Test.TestConcrete(
+                    resolver.GetService<global::Test.IService1>("Test1") ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1", "Test1")));
+            resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy0, "Test1");
+            resolver.Register<global::Test.ITest>(() => lazy0.Value, "Test1");
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for under a contract.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <param name="contract">The contract the dependency was asked for under.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName, string contract)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' with contract " + contract + " not registered with Splat resolver.");
         }
     }
 }

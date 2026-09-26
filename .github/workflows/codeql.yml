@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   codeql:
-    uses: reactiveui/actions-common/.github/workflows/workflow-common-codeql.yml@main
+    uses: reactiveui/actions-common/.github/workflows/workflow-common-codeql.yml@b285525c4af878b0fe3fbb00d9f2ae862e402395 # main
     with:
       srcFolder: src
       solutionFile: Splat.DI.SourceGenerator.slnx

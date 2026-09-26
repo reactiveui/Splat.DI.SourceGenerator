@@ -4,34 +4,44 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <RoslynCommonAnalyzersVersion>5.1.2</RoslynCommonAnalyzersVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Testing Framework -->
-    <PackageVersion Include="TUnit" Version="1.49.0" />
-    <PackageVersion Include="Verify.TUnit" Version="31.19.0" />
-    <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.7.0" />
+    <PackageVersion Include="TUnit" Version="1.69.16" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
 
-    <!-- Roslyn / Code Analysis - All projects use 4.14.0 for compatibility -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <!-- Roslyn / Code Analysis. Microsoft.CodeAnalysis.CSharp is pinned to 4.14.0 on purpose: a compiler will not
+         load a generator built against a newer Roslyn than itself, so this is the oldest SDK the package supports. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" Condition="!$(MSBuildProjectFullPath.Contains('benchmarks'))" />
+    <!-- BenchmarkDotNet needs Roslyn 5.6 or newer; a generator built against 4.14 runs on any newer compiler.
+         Matched on the path because BenchmarkDotNet's per-job projects, named gen.csproj, sit below the benchmark. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" Condition="$(MSBuildProjectFullPath.Contains('benchmarks'))" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
 
     <!-- Test Infrastructure -->
-    <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.8" />
-    <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.8" />
-    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.8" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net100" Version="1.8.12" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net90" Version="1.8.12" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.8.12" />
 
     <!-- Dependencies -->
-    <PackageVersion Include="Splat" Version="19.4.1" />
+    <PackageVersion Include="Splat" Version="21.0.0" />
 
     <!-- Build Tools -->
-    <PackageVersion Include="MinVer" Version="7.0.0" />
-    <PackageVersion Include="stylecop.analyzers" Version="1.2.0-beta.556" />
-    <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
+    <PackageVersion Include="MinVer" Version="8.0.0" />
+    <PackageVersion Include="StyleSharp.Analyzers" Version="$(RoslynCommonAnalyzersVersion)" />
+    <PackageVersion Include="PerformanceSharp.Analyzers" Version="$(RoslynCommonAnalyzersVersion)" />
+    <PackageVersion Include="SecuritySharp.Analyzers" Version="$(RoslynCommonAnalyzersVersion)" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
+
+    <!-- Benchmarking -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
 
     <!-- Test App Dependencies-->
-    <PackageVersion Include="ReactiveUI" Version="23.2.28" />
-    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="3.0.0" />
+    <PackageVersion Include="ReactiveUI" Version="24.3.0" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="3.2.0" />
   </ItemGroup>
 </Project>

@@ -23,11 +23,27 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>("TestContract") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' with contract " + "TestContract" + " not registered with Splat resolver.")) { ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>("TestContract") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty1' with contract " + "TestContract" + " not registered with Splat resolver.") }, "TestContract");
+            resolver.Register<global::Test.ITest>(
+                () => new global::Test.TestConcrete(
+                    resolver.GetService<global::Test.IService1>("TestContract") ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1", "TestContract"))
+                {
+                    ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>("TestContract") ?? ThrowNotRegistered<global::Test.IServiceProperty1>("global::Test.IServiceProperty1", "TestContract"),
+                },
+                "TestContract");
 
             resolver.Register<global::Test.IService1>(() => new global::Test.Service1(), "TestContract");
 
             resolver.Register<global::Test.IServiceProperty1>(() => new global::Test.ServiceProperty1(), "TestContract");
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for under a contract.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <param name="contract">The contract the dependency was asked for under.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName, string contract)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' with contract " + contract + " not registered with Splat resolver.");
         }
     }
 }

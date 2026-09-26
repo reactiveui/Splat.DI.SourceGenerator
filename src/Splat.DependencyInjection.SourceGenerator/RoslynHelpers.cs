@@ -1,310 +1,114 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-using System;
-using System.Threading;
+using System.Runtime.CompilerServices;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
-/// <summary>
-/// Helper methods for working with Roslyn symbols and syntax nodes.
-/// </summary>
+/// <summary>Syntax and symbol tests the pipeline runs before and while it binds a call.</summary>
 internal static class RoslynHelpers
 {
-    /// <summary>
-    /// The fully qualified symbol display format used for type name resolution.
-    /// </summary>
-    private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
+    /// <summary>The largest number of arguments, and of type arguments, a marker method takes.</summary>
+    private const int MaxMarkerArguments = 2;
 
-    /// <summary>
-    /// Checks if a syntax node is a Register method invocation.
-    /// </summary>
-    /// <param name="node">The syntax node to check.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>True if the node is a Register invocation, false otherwise.</returns>
-    internal static bool IsRegisterInvocation(SyntaxNode node, CancellationToken ct)
+    /// <summary>Tests whether a syntax node could be a call to a marker method, from its syntax alone.</summary>
+    /// <param name="node">The syntax node.</param>
+    /// <returns><see langword="true"/> for a call worth binding.</returns>
+    /// <remarks>
+    /// <para>
+    /// This runs on every node of every file on every edit, so it reads only syntax and allocates nothing. Every
+    /// marker is generic and none can infer its type arguments, so a call names them; a call with no type argument
+    /// list is not one. No marker takes a lambda, so a call passing one - Splat's own
+    /// <c>resolver.Register&lt;T&gt;(() =&gt; ...)</c> - is not one either.
+    /// </para>
+    /// <para>
+    /// A call through <c>?.</c> is not considered: the markers are static, and a type cannot be conditionally accessed.
+    /// </para>
+    /// </remarks>
+    internal static bool IsRegistrationInvocation(SyntaxNode node)
     {
         if (node is not InvocationExpressionSyntax invocation)
         {
             return false;
         }
 
-        return invocation.Expression switch
+        var name = invocation.Expression switch
         {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
-            SimpleNameSyntax { Identifier.Text: Constants.MethodNameRegister } => true,
-            _ => false
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name,
+            SimpleNameSyntax simpleName => simpleName,
+            _ => null,
         };
-    }
 
-    /// <summary>
-    /// Checks if a syntax node is a RegisterLazySingleton method invocation.
-    /// </summary>
-    /// <param name="node">The syntax node to check.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>True if the node is a RegisterLazySingleton invocation, false otherwise.</returns>
-    internal static bool IsRegisterLazySingletonInvocation(SyntaxNode node, CancellationToken ct)
-    {
-        if (node is not InvocationExpressionSyntax invocation)
+        if (name is not GenericNameSyntax { TypeArgumentList.Arguments.Count: > 0 and <= MaxMarkerArguments } genericName
+            || genericName.Identifier.ValueText is not (Constants.MethodNameRegister or Constants.MethodNameRegisterLazySingleton))
         {
             return false;
         }
 
-        return invocation.Expression switch
-        {
-            MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
-            MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
-            SimpleNameSyntax { Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Checks if a method symbol is a specific method from SplatRegistrations class.
-    /// </summary>
-    /// <param name="methodSymbol">The method symbol to check.</param>
-    /// <param name="methodName">The expected method name.</param>
-    /// <returns>True if the method is from SplatRegistrations with the specified name.</returns>
-    internal static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
-    {
-        var containingType = methodSymbol.ContainingType?.OriginalDefinition;
-        if (containingType == null)
+        var arguments = invocation.ArgumentList.Arguments;
+        if (arguments.Count > MaxMarkerArguments)
         {
             return false;
         }
 
-        return containingType.ContainingNamespace?.Name == Constants.NamespaceName &&
-               containingType.Name == Constants.ClassName &&
-               methodSymbol.Name == methodName &&
-               !methodSymbol.IsExtensionMethod;
+        foreach (var argument in arguments)
+        {
+            if (argument.Expression is AnonymousFunctionExpressionSyntax)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    /// <summary>
-    /// Gets all base types and the type itself in inheritance order.
-    /// </summary>
-    /// <param name="type">The type to get base types for.</param>
-    /// <returns>An array of the type and all its base types.</returns>
-    internal static ITypeSymbol[] GetBaseTypesAndThis(ITypeSymbol type)
+    /// <summary>Tests whether a bound method is one of the marker methods on <c>Splat.SplatRegistrations</c>.</summary>
+    /// <param name="methodSymbol">The method symbol.</param>
+    /// <returns><see langword="true"/> for a marker method.</returns>
+    /// <remarks>
+    /// The syntax predicate has already matched the method's name. A method bound from a call always has a containing
+    /// type - a local function's is the type it is declared in - and a type always has a containing namespace.
+    /// </remarks>
+    internal static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol)
     {
-        // Count inheritance depth first (typical: 1-5 levels)
-        var depth = 0;
-        var current = type;
-        while (current != null)
-        {
-            depth++;
-            current = current.BaseType;
-        }
-
-        // Early exit for empty case (shouldn't happen, but defensive)
-        if (depth == 0)
-        {
-            return [];
-        }
-
-        // Allocate exact-size array and populate
-        var result = new ITypeSymbol[depth];
-        current = type;
-        for (var i = 0; i < depth; i++)
-        {
-            if (current == null)
-            {
-                // Defensive: shouldn't happen if depth calculation was correct
-                // Return partial results collected so far
-                var partial = new ITypeSymbol[i];
-                Array.Copy(result, partial, i);
-                return partial;
-            }
-
-            result[i] = current;
-            current = current.BaseType;
-        }
-
-        return result;
+        var containingType = methodSymbol.ContainingType!;
+        return !methodSymbol.IsExtensionMethod
+            && containingType.Name == Constants.ClassName
+            && containingType.ContainingNamespace!.Name == Constants.NamespaceName;
     }
 
-    /// <summary>
-    /// Extracts the contract parameter value from a method invocation.
-    /// </summary>
-    /// <param name="methodSymbol">The method symbol being invoked.</param>
-    /// <param name="invocation">The invocation expression.</param>
-    /// <param name="semanticModel">The semantic model.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The contract value as a string, or null if not found.</returns>
-    internal static string? ExtractContractParameter(
-        IMethodSymbol methodSymbol,
-        InvocationExpressionSyntax invocation,
-        SemanticModel semanticModel,
-        CancellationToken ct)
-    {
-        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
-        {
-            var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
+    /// <summary>Builds a reference to a field or property that compiles from any namespace.</summary>
+    /// <param name="symbol">The field or property.</param>
+    /// <returns>The fully qualified containing type, a dot, and the member's name.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static string GetFullyQualifiedMemberReference(ISymbol symbol) =>
+        $"{symbol.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}.{symbol.Name}";
 
-            if (parameter == null || parameter.Name != Constants.ParameterNameContract)
-            {
-                continue;
-            }
-
-            var expression = argument.Expression;
-
-            // Handle string literals
-            if (expression is LiteralExpressionSyntax literal)
-            {
-                // Returns raw literal token (includes quotes), safe for embedding in generated code
-                return literal.ToString();
-            }
-
-            // Handle non-literal expressions (constant fields, properties, etc.)
-            // We need to fully qualify the reference to avoid CS0103 errors in generated code
-            // when the symbol is from a different namespace (GitHub issue: Keys from different namespace)
-            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
-            if (symbolInfo.Symbol is IFieldSymbol or IPropertySymbol)
-            {
-                return GetFullyQualifiedMemberReference(symbolInfo.Symbol);
-            }
-
-            // Handle method invocation expressions by fully qualifying the containing type
-            // while preserving the original argument list from the syntax tree.
-            if (symbolInfo.Symbol is IMethodSymbol invokedMethod
-                && expression is InvocationExpressionSyntax contractInvocation
-                && invokedMethod.ContainingType != null)
-            {
-                return GetFullyQualifiedMethodInvocation(invokedMethod, contractInvocation);
-            }
-
-            // For other resolved symbols (locals, etc.)
-            // preserve the expression as written since ToDisplayString may produce
-            // a signature-like string that is not a valid expression in generated code
-            if (symbolInfo.Symbol != null)
-            {
-                return expression.ToString();
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Gets a fully qualified reference string for a symbol (field, property, or other member).
-    /// For fields/properties, returns the fully qualified containing type plus the member name.
-    /// For other symbols, returns the fully qualified name directly.
-    /// </summary>
-    /// <param name="symbol">The symbol to get the fully qualified reference for.</param>
-    /// <returns>A fully qualified reference string safe for use in generated code.</returns>
-    internal static string GetFullyQualifiedMemberReference(ISymbol symbol)
-    {
-        // For fields and properties, we need to build: global::Namespace.Type.MemberName
-        if (symbol is IFieldSymbol or IPropertySymbol)
-        {
-            var containingType = symbol.ContainingType;
-            if (containingType != null)
-            {
-                var fullyQualifiedTypeName = containingType.ToDisplayString(_fullyQualifiedFormat);
-                return $"{fullyQualifiedTypeName}.{symbol.Name}";
-            }
-        }
-
-        // For other symbols (e.g., local variables, parameters), return the display string
-        return symbol.ToDisplayString(_fullyQualifiedFormat);
-    }
-
-    /// <summary>
-    /// Gets a fully qualified method invocation string for use in generated code.
-    /// Fully qualifies the containing type while preserving the method name (including type arguments)
-    /// and the original argument list from the syntax tree.
-    /// </summary>
-    /// <param name="invokedMethod">The method symbol being invoked.</param>
-    /// <param name="invocation">The invocation expression syntax.</param>
-    /// <returns>A fully qualified method invocation string safe for use in generated code.</returns>
+    /// <summary>Builds a call to a method that compiles from any namespace.</summary>
+    /// <param name="invokedMethod">The called method.</param>
+    /// <param name="invocation">The call as written.</param>
+    /// <returns>
+    /// The fully qualified containing type, then the method's name and type arguments and the argument list as written.
+    /// </returns>
     internal static string GetFullyQualifiedMethodInvocation(IMethodSymbol invokedMethod, InvocationExpressionSyntax invocation)
     {
-        var fullyQualifiedTypeName = invokedMethod.ContainingType!.ToDisplayString(_fullyQualifiedFormat);
-
-        // Extract method name from syntax to preserve type arguments (e.g., GetKey<string>)
-        var methodName = invocation.Expression switch
-        {
-            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.ToString(),
-            SimpleNameSyntax simpleName => simpleName.ToString(),
-            _ => invokedMethod.Name
-        };
-
-        return $"{fullyQualifiedTypeName}.{methodName}{invocation.ArgumentList}";
+        var name = invocation.Expression is MemberAccessExpressionSyntax memberAccess ? memberAccess.Name : invocation.Expression;
+        return $"{invokedMethod.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}.{name}{invocation.ArgumentList}";
     }
 
-    /// <summary>
-    /// Extracts the LazyThreadSafetyMode parameter value from a RegisterLazySingleton invocation.
-    /// </summary>
-    /// <param name="methodSymbol">The method symbol being invoked.</param>
-    /// <param name="invocation">The invocation expression.</param>
-    /// <param name="semanticModel">The semantic model.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The thread safety mode as a string, or null if not found.</returns>
-    internal static string? ExtractLazyThreadSafetyMode(
-        IMethodSymbol methodSymbol,
-        InvocationExpressionSyntax invocation,
-        SemanticModel semanticModel,
-        CancellationToken ct)
-    {
-        for (int i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
-        {
-            var argument = invocation.ArgumentList.Arguments[i];
-            var parameter = ResolveParameterForArgument(argument, methodSymbol, i);
-
-            if (parameter == null || parameter.Name != Constants.ParameterNameMode)
-            {
-                continue;
-            }
-
-            var expression = argument.Expression;
-            var symbolInfo = semanticModel.GetSymbolInfo(expression, ct);
-
-            if (symbolInfo.Symbol != null)
-            {
-                return symbolInfo.Symbol.ToDisplayString(_fullyQualifiedFormat);
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Resolves the method parameter that corresponds to a given invocation argument,
-    /// handling both positional and named arguments correctly.
-    /// </summary>
-    /// <param name="argument">The argument syntax from the invocation.</param>
-    /// <param name="methodSymbol">The method symbol being invoked.</param>
-    /// <param name="positionalIndex">The zero-based positional index of the argument in the argument list.</param>
-    /// <returns>The corresponding parameter symbol, or <see langword="null"/> if the parameter cannot be resolved.</returns>
-    internal static IParameterSymbol? ResolveParameterForArgument(
-        ArgumentSyntax argument,
-        IMethodSymbol methodSymbol,
-        int positionalIndex)
-    {
-        if (argument.NameColon != null)
-        {
-            var argumentName = argument.NameColon.Name.Identifier.Text;
-            for (int j = 0; j < methodSymbol.Parameters.Length; j++)
-            {
-                if (methodSymbol.Parameters[j].Name == argumentName)
-                {
-                    return methodSymbol.Parameters[j];
-                }
-            }
-
-            return null;
-        }
-
-        if (positionalIndex < 0 || positionalIndex >= methodSymbol.Parameters.Length)
-        {
-            return null;
-        }
-
-        return methodSymbol.Parameters[positionalIndex];
-    }
+    /// <summary>Finds the name of the parameter an argument is passed to.</summary>
+    /// <param name="argument">The argument.</param>
+    /// <param name="methodSymbol">The bound method.</param>
+    /// <param name="position">The argument's position in the list.</param>
+    /// <returns>The parameter's name.</returns>
+    /// <remarks>
+    /// The call bound, so a named argument names a parameter that exists and a positional one sits at a position that
+    /// exists.
+    /// </remarks>
+    internal static string GetParameterName(ArgumentSyntax argument, IMethodSymbol methodSymbol, int position) =>
+        argument.NameColon?.Name.Identifier.ValueText ?? methodSymbol.Parameters[position].Name;
 }

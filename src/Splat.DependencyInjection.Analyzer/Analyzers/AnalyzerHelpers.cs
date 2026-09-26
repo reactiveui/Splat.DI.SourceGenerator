@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System;
@@ -9,36 +9,26 @@ using Microsoft.CodeAnalysis;
 
 namespace Splat.DependencyInjection.Analyzer.Analyzers;
 
-/// <summary>
-/// Helper methods for Splat analyzers.
-/// </summary>
+/// <summary>Helper methods for Splat analyzers.</summary>
 internal static class AnalyzerHelpers
 {
-    /// <summary>
-    /// The fully qualified symbol display format used for attribute string comparison fallback.
-    /// </summary>
+    /// <summary>The fully qualified symbol display format used for attribute string comparison fallback.</summary>
     private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
 
-    /// <summary>
-    /// Checks if a method symbol is a specific method from SplatRegistrations class.
-    /// </summary>
+    /// <summary>Checks if a method symbol is a specific method from SplatRegistrations class.</summary>
     /// <param name="methodSymbol">The method symbol to check.</param>
     /// <param name="methodName">The expected method name.</param>
     /// <returns>True if the method is from SplatRegistrations with the specified name.</returns>
-    public static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName)
-    {
-        return IsContainedInSplatRegistrations(methodSymbol.ContainingType?.OriginalDefinition) &&
-               methodSymbol.Name == methodName &&
-               !methodSymbol.IsExtensionMethod;
-    }
+    internal static bool IsSplatRegistrationsMethod(IMethodSymbol methodSymbol, string methodName) =>
+        IsContainedInSplatRegistrations(methodSymbol.ContainingType?.OriginalDefinition)
+        && methodSymbol.Name == methodName
+        && !methodSymbol.IsExtensionMethod;
 
-    /// <summary>
-    /// Analyzes constructors for a specific type and reports diagnostics.
-    /// </summary>
+    /// <summary>Analyzes constructors for a specific type and reports diagnostics.</summary>
     /// <param name="compilation">The compilation.</param>
     /// <param name="typeSymbol">The type to analyze.</param>
     /// <param name="reportDiagnostic">Action to report diagnostics.</param>
-    public static void AnalyzeConstructorsForType(
+    internal static void AnalyzeConstructorsForType(
         Compilation compilation,
         ITypeSymbol typeSymbol,
         Action<Diagnostic> reportDiagnostic)
@@ -60,25 +50,21 @@ internal static class AnalyzerHelpers
         ReportDiagnostics(analysis, namedType, constructorAttributeSymbol, reportDiagnostic);
     }
 
-    /// <summary>
-    /// Checks if a type symbol represents the SplatRegistrations class in the Splat namespace.
-    /// </summary>
+    /// <summary>Checks if a type symbol represents the SplatRegistrations class in the Splat namespace.</summary>
     /// <param name="containingType">The containing type (may be null if the method has no containing type).</param>
     /// <returns>True if the type is Splat.SplatRegistrations.</returns>
     internal static bool IsContainedInSplatRegistrations(INamedTypeSymbol? containingType)
     {
-        if (containingType == null)
+        if (containingType is null)
         {
             return false;
         }
 
-        return containingType.ContainingNamespace?.Name == SourceGenerator.Constants.NamespaceName &&
-               containingType.Name == SourceGenerator.Constants.ClassName;
+        return containingType.ContainingNamespace?.Name == SourceGenerator.Constants.NamespaceName
+            && containingType.Name == SourceGenerator.Constants.ClassName;
     }
 
-    /// <summary>
-    /// Analyzes the constructors of a type to count accessible and marked constructors.
-    /// </summary>
+    /// <summary>Analyzes the constructors of a type to count accessible and marked constructors.</summary>
     /// <param name="namedType">The type to analyze.</param>
     /// <param name="constructorAttributeSymbol">The attribute symbol to check for.</param>
     /// <returns>Analysis result.</returns>
@@ -105,33 +91,33 @@ internal static class AnalyzerHelpers
                 accessibleCount++;
             }
 
-            if (IsConstructorMarked(ctor, constructorAttributeSymbol))
+            if (!IsConstructorMarked(ctor, constructorAttributeSymbol))
             {
-                markedCount++;
-                if (firstMarked == null)
-                {
-                    firstMarked = ctor;
-                }
-                else if (secondMarked == null)
-                {
-                    secondMarked = ctor;
-                }
+                continue;
+            }
+
+            markedCount++;
+            if (firstMarked is null)
+            {
+                firstMarked = ctor;
+            }
+            else
+            {
+                secondMarked ??= ctor;
             }
         }
 
-        return new ConstructorAnalysisResult(accessibleCount, markedCount, firstMarked, secondMarked);
+        return new(accessibleCount, markedCount, firstMarked, secondMarked);
     }
 
-    /// <summary>
-    /// Checks if a constructor is marked with the DependencyInjectionConstructor attribute.
-    /// </summary>
+    /// <summary>Checks if a constructor is marked with the DependencyInjectionConstructor attribute.</summary>
     /// <param name="ctor">The constructor to check.</param>
     /// <param name="constructorAttributeSymbol">The attribute symbol to check against (if available).</param>
     /// <returns>True if marked.</returns>
     internal static bool IsConstructorMarked(IMethodSymbol ctor, INamedTypeSymbol? constructorAttributeSymbol)
     {
         var attrs = ctor.GetAttributes();
-        if (constructorAttributeSymbol != null)
+        if (constructorAttributeSymbol is not null)
         {
             // Fast path: symbol comparison
             for (var j = 0; j < attrs.Length; j++)
@@ -192,17 +178,13 @@ internal static class AnalyzerHelpers
                     }
                 }
             }
-            else if (analysis.FirstMarked != null)
+            else if (analysis.FirstMarked is not null && analysis.FirstMarked.DeclaredAccessibility < Accessibility.Internal)
             {
-                // Exactly one constructor is marked - check accessibility
-                if (analysis.FirstMarked.DeclaredAccessibility < Accessibility.Internal)
-                {
-                    // SPLATDI004: Constructor must be public or internal
-                    reportDiagnostic(Diagnostic.Create(
-                        SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
-                        GetFirstLocation(analysis.FirstMarked.Locations),
-                        namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
-                }
+                // SPLATDI004: exactly one constructor is marked, and it must be public or internal
+                reportDiagnostic(Diagnostic.Create(
+                    SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
+                    GetFirstLocation(analysis.FirstMarked.Locations),
+                    namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
             }
 
             return; // Don't check for multiple constructors without attribute if one is marked
@@ -219,17 +201,13 @@ internal static class AnalyzerHelpers
         }
     }
 
-    /// <summary>
-    /// Gets the first location from a locations array, or <see cref="Location.None"/> if empty.
-    /// </summary>
+    /// <summary>Gets the first location from a locations array, or <see cref="Location.None"/> if empty.</summary>
     /// <param name="locations">The locations array.</param>
     /// <returns>The first location or <see cref="Location.None"/>.</returns>
-    internal static Location GetFirstLocation(ImmutableArray<Location> locations)
-        => locations.Length > 0 ? locations[0] : Location.None;
+    internal static Location GetFirstLocation(ImmutableArray<Location> locations) =>
+        !locations.IsEmpty ? locations[0] : Location.None;
 
-    /// <summary>
-    /// Result of constructor analysis.
-    /// </summary>
+    /// <summary>Result of constructor analysis.</summary>
     /// <param name="AccessibleCount"> Gets the number of accessible constructors. </param>
     /// <param name="MarkedCount"> Gets the number of constructors marked with the attribute. </param>
     /// <param name="FirstMarked"> Gets the first constructor found that was marked with the attribute. </param>

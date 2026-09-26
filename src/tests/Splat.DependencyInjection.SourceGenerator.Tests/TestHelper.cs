@@ -1,303 +1,283 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 extern alias analyzer;
 
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
-/// <summary>
-/// Modern test helper using Basic.Reference.Assemblies for testing incremental generators.
-/// Follows the pattern from the Roslyn Source Generators Cookbook.
-/// </summary>
+/// <summary>Runs the generator over test source and verifies what it produces.</summary>
+/// <remarks>
+/// Snapshots are stored beside this file. Every snapshot test lives in the same folder, and names its snapshots by
+/// its own type and method, so the folder is the same whichever test calls.
+/// </remarks>
 public static class TestHelper
 {
-    /// <summary>
-    /// Initializes resources before tests run.
-    /// </summary>
-    /// <returns>A task representing the asynchronous initialization operation.</returns>
-    public static Task InitializeAsync()
-    {
-        // No initialization needed with Basic.Reference.Assemblies
-        return Task.CompletedTask;
-    }
+    /// <summary>The parse options every test tree is parsed with.</summary>
+    public static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest);
 
-    /// <summary>
-    /// Creates a compilation from source code with appropriate references.
-    /// Uses Basic.Reference.Assemblies for the target framework and includes Splat assembly.
-    /// </summary>
+    /// <summary>The framework and Splat references every test compilation gets.</summary>
+    private static readonly MetadataReference[] DefaultReferences = CreateDefaultReferences();
+
+    /// <summary>Creates a compilation from source with the framework and Splat referenced.</summary>
     /// <param name="source">The source code to compile.</param>
     /// <returns>A compilation ready for testing.</returns>
-    public static Compilation CreateCompilation(string source)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static CSharpCompilation CreateCompilation(string source) => CreateCompilation([source]);
+
+    /// <summary>Creates a compilation from several files with the framework and Splat referenced.</summary>
+    /// <param name="sources">The files, which become <c>File0.cs</c>, <c>File1.cs</c> and so on.</param>
+    /// <returns>A compilation ready for testing.</returns>
+    public static CSharpCompilation CreateCompilation(IReadOnlyList<string> sources)
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+        ArgumentNullException.ThrowIfNull(sources);
 
-        // Use the appropriate reference assemblies based on target framework
-        IEnumerable<MetadataReference> references;
+        var trees = new SyntaxTree[sources.Count];
+        for (var i = 0; i < trees.Length; i++)
+        {
+            trees[i] = CSharpSyntaxTree.ParseText(sources[i], ParseOptions, $"File{i}.cs");
+        }
 
-#if NET10_0_OR_GREATER
-        references = Basic.Reference.Assemblies.Net100.References.All;
-#elif NET9_0_OR_GREATER
-        references = Basic.Reference.Assemblies.Net90.References.All;
-#else
-        references = Basic.Reference.Assemblies.Net80.References.All;
-#endif
+        return CSharpCompilation.Create("TestAssembly", trees, DefaultReferences, new(OutputKind.DynamicallyLinkedLibrary));
+    }
 
-        // Add Splat assembly reference
-        var splatAssembly = typeof(Splat.IReadonlyDependencyResolver).Assembly;
-        var allReferences = references.Concat(new[] { MetadataReference.CreateFromFile(splatAssembly.Location) });
+    /// <summary>Creates a driver for the generator that tracks its pipeline steps.</summary>
+    /// <returns>The driver.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static GeneratorDriver CreateDriver() =>
+        CSharpGeneratorDriver.Create(
+            [new Generator().AsSourceGenerator()],
+            parseOptions: ParseOptions,
+            driverOptions: new(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
-        return CSharpCompilation.Create(
-            "TestAssembly",
-            new[] { syntaxTree },
-            allReferences,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    /// <summary>Runs the generator over a compilation.</summary>
+    /// <param name="compilation">The compilation.</param>
+    /// <returns>The run: its driver, result and output compilation.</returns>
+    public static GeneratorRun Run(Compilation compilation)
+    {
+        var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
+        return new(driver, driver.GetRunResult().Results[0], output);
+    }
+
+    /// <summary>Runs the generator over source.</summary>
+    /// <param name="sources">The files.</param>
+    /// <returns>The run: its driver, result and output compilation.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static GeneratorRun Run(params string[] sources) => Run(CreateCompilation(sources));
+
+    /// <summary>Finds the first invocation in a tree whose text starts with a prefix.</summary>
+    /// <param name="tree">The tree.</param>
+    /// <param name="prefix">The start of the invocation's text.</param>
+    /// <returns>The invocation.</returns>
+    /// <exception cref="InvalidOperationException">No invocation starts with the prefix.</exception>
+    public static async Task<InvocationExpressionSyntax> FindInvocationAsync(SyntaxTree tree, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(tree);
+
+        var root = await tree.GetRootAsync().ConfigureAwait(false);
+        foreach (var node in root.DescendantNodes())
+        {
+            if (node is InvocationExpressionSyntax invocation && invocation.ToString().StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return invocation;
+            }
+        }
+
+        throw new InvalidOperationException($"No invocation starts with {prefix}.");
     }
 
     /// <summary>
-    /// Tests a source generator scenario that is expected to fail with compilation or generator errors.
-    /// Verifies the errors against a snapshot.
-    /// </summary>
-    /// <param name="source">The source code to compile and generate.</param>
-    /// <param name="contractParameter">The contract parameter value for registration.</param>
-    /// <param name="callerType">The type of the calling test class for snapshot organization.</param>
-    /// <param name="file">The source file path of the caller (automatically populated).</param>
-    /// <param name="memberName">The member name of the caller (automatically populated).</param>
-    /// <returns>A task representing the asynchronous verification operation.</returns>
-    public static async Task TestFail(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
-    {
-        ArgumentNullException.ThrowIfNull(callerType);
-
-        var driver = RunGenerator(source, out var compilation, out var generatorDiagnostics);
-
-        // The SPLATDI diagnostics for invalid registrations are reported by the analyzers, not the
-        // source generator, so run them too against the post-generation compilation (so the
-        // generated SplatRegistrations members bind). A fail test passes when the compiler, the
-        // generator, or an analyzer surfaces at least one diagnostic for the invalid input.
-        var analyzerDiagnostics = await GetAnalyzerDiagnosticsAsync(compilation).ConfigureAwait(false);
-
-        var allDiagnostics = compilation.GetDiagnostics()
-            .Concat(generatorDiagnostics)
-            .Concat(analyzerDiagnostics)
-            .Where(d => d.Severity >= DiagnosticSeverity.Warning)
-            .ToImmutableArray();
-
-        if (allDiagnostics.Length == 0)
-        {
-            Assert.Fail("Expected the compiler, generator, or analyzer to produce diagnostics");
-        }
-
-        // Log diagnostics for debugging
-        foreach (var diagnostic in allDiagnostics)
-        {
-            Console.WriteLine($"{diagnostic.Severity}: {diagnostic.GetMessage()}");
-        }
-
-        await RunVerify(file, memberName, callerType, driver, contractParameter).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Tests a source generator scenario that is expected to succeed without errors.
+    /// Tests a scenario that is expected to fail: the compiler, the generator or an analyzer reports a problem.
     /// Verifies the generated output against a snapshot.
     /// </summary>
     /// <param name="source">The source code to compile and generate.</param>
     /// <param name="contractParameter">The contract parameter value for registration.</param>
     /// <param name="callerType">The type of the calling test class for snapshot organization.</param>
-    /// <param name="file">The source file path of the caller (automatically populated).</param>
     /// <param name="memberName">The member name of the caller (automatically populated).</param>
     /// <returns>A task representing the asynchronous verification operation.</returns>
-    public static Task TestPass(string source, string contractParameter, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    public static async Task TestFail(string source, string contractParameter, Type callerType, [CallerMemberName] string memberName = "")
     {
         ArgumentNullException.ThrowIfNull(callerType);
 
-        var driver = RunGenerator(source, out var compilation, out var generatorDiagnostics);
+        var run = Run(source);
 
-        // Log any diagnostics for debugging
-        var allDiagnostics = compilation.GetDiagnostics()
-            .Concat(generatorDiagnostics)
-            .Where(d => d.Severity >= DiagnosticSeverity.Warning)
-            .ToImmutableArray();
+        // The SPLATDI diagnostics for invalid types are reported by the analyzers rather than the generator, so run
+        // them too, against the compilation with the generated members in it.
+        var analyzerDiagnostics = await GetAnalyzerDiagnosticsAsync(run.Output).ConfigureAwait(false);
 
-        foreach (var diagnostic in allDiagnostics)
+        if (!HasWarningOrError(run.Output.GetDiagnostics()) && !HasWarningOrError(run.Result.Diagnostics) && !HasWarningOrError(analyzerDiagnostics))
         {
-            Console.WriteLine($"{diagnostic.Severity}: {diagnostic.GetMessage()}");
+            Assert.Fail("Expected the compiler, generator, or analyzer to produce diagnostics");
         }
 
-        return RunVerify(file, memberName, callerType, driver, contractParameter);
+        await RunVerify(memberName, callerType, run.Driver, contractParameter).ConfigureAwait(false);
+    }
+
+    /// <summary>Tests a scenario that is expected to succeed: the generated code compiles. Verifies it against a snapshot.</summary>
+    /// <param name="source">The source code to compile and generate.</param>
+    /// <param name="contractParameter">The contract parameter value for registration.</param>
+    /// <param name="callerType">The type of the calling test class for snapshot organization.</param>
+    /// <param name="memberName">The member name of the caller (automatically populated).</param>
+    /// <returns>A task representing the asynchronous verification operation.</returns>
+    public static Task TestPass(string source, string contractParameter, Type callerType, [CallerMemberName] string memberName = "")
+    {
+        ArgumentNullException.ThrowIfNull(callerType);
+        return RunVerify(memberName, callerType, RunCompiling(source).Driver, contractParameter);
     }
 
     /// <summary>
-    /// Tests a source generator scenario for lazy singleton registration that is expected to succeed without errors.
-    /// Verifies the generated output against a snapshot including lazy thread safety mode.
+    /// Tests a lazy singleton scenario that is expected to succeed: the generated code compiles. Verifies it against a
+    /// snapshot.
     /// </summary>
     /// <param name="source">The source code to compile and generate.</param>
     /// <param name="contractParameter">The contract parameter value for registration.</param>
     /// <param name="mode">The lazy thread safety mode for the singleton.</param>
     /// <param name="callerType">The type of the calling test class for snapshot organization.</param>
-    /// <param name="file">The source file path of the caller (automatically populated).</param>
     /// <param name="memberName">The member name of the caller (automatically populated).</param>
     /// <returns>A task representing the asynchronous verification operation.</returns>
-    public static Task TestPass(string source, string contractParameter, System.Threading.LazyThreadSafetyMode mode, Type callerType, [CallerFilePath] string file = "", [CallerMemberName] string memberName = "")
+    public static Task TestPass(string source, string contractParameter, LazyThreadSafetyMode mode, Type callerType, [CallerMemberName] string memberName = "")
     {
         ArgumentNullException.ThrowIfNull(callerType);
-
-        var driver = RunGenerator(source, out var compilation, out var generatorDiagnostics);
-
-        // Log any diagnostics for debugging
-        var allDiagnostics = compilation.GetDiagnostics()
-            .Concat(generatorDiagnostics)
-            .Where(d => d.Severity >= DiagnosticSeverity.Warning)
-            .ToImmutableArray();
-
-        foreach (var diagnostic in allDiagnostics)
-        {
-            Console.WriteLine($"{diagnostic.Severity}: {diagnostic.GetMessage()}");
-        }
-
-        return RunVerify(file, memberName, callerType, driver, contractParameter, mode);
+        return RunVerify(memberName, callerType, RunCompiling(source).Driver, contractParameter, mode);
     }
 
-    /// <summary>
-    /// Runs snapshot verification on the generator driver output.
-    /// Configures verify settings based on caller information and parameters.
-    /// </summary>
-    /// <param name="file">The source file path of the caller.</param>
+    /// <summary>Tests whether any diagnostic is a warning or an error.</summary>
+    /// <param name="diagnostics">The diagnostics.</param>
+    /// <returns><see langword="true"/> when one is.</returns>
+    private static bool HasWarningOrError(ImmutableArray<Diagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            if (diagnostic.Severity >= DiagnosticSeverity.Warning)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Runs the generator and fails the test when the output does not compile.</summary>
+    /// <param name="source">The source code to compile and generate.</param>
+    /// <returns>The run.</returns>
+    private static GeneratorRun RunCompiling(string source)
+    {
+        var run = Run(source);
+        var errors = run.Errors();
+        if (!errors.IsEmpty)
+        {
+            Assert.Fail($"The generated code does not compile: {string.Join(Environment.NewLine, errors)}");
+        }
+
+        return run;
+    }
+
+    /// <summary>Runs snapshot verification on the generator driver output.</summary>
     /// <param name="callerMember">The member name of the caller.</param>
     /// <param name="type">The type of the calling test class for snapshot organization.</param>
     /// <param name="driver">The generator driver containing the output to verify.</param>
     /// <param name="parameters">Additional parameters to include in the snapshot file name.</param>
     /// <returns>A task representing the asynchronous verification operation.</returns>
-    private static Task RunVerify(string file, string callerMember, Type type, GeneratorDriver driver, params object[] parameters)
+    private static Task RunVerify(string callerMember, Type type, GeneratorDriver driver, params object[] parameters)
     {
-        var parametersString = string.Join("_", parameters.Select(AbbreviateParameter));
-        VerifySettings settings = new();
-        settings.DisableRequireUniquePrefix();
-
-        // Shorten type name
-        var shortTypeName = AbbreviateTypeName(type.Name);
-
-        // Shorten method name
-        var shortMethodName = AbbreviateMethodName(callerMember);
-
-        if (!string.IsNullOrWhiteSpace(parametersString))
+        var parametersText = new StringBuilder();
+        foreach (var parameter in parameters)
         {
-            settings.UseTextForParameters(parametersString);
+            _ = (parametersText.Length == 0 ? parametersText : parametersText.Append('_')).Append(AbbreviateParameter(parameter));
         }
 
-        settings.UseTypeName(shortTypeName);
-        settings.UseMethodName(shortMethodName);
-        return Verifier.Verify(driver, settings, file);
+        return GeneratorSnapshot.VerifyAsync(
+            driver,
+            $"{AbbreviateTypeName(type.Name)}.{AbbreviateMethodName(callerMember)}_{parametersText}",
+            includeFixedSources: false);
     }
 
-    /// <summary>
-    /// Abbreviates test class names to keep file names short.
-    /// </summary>
-    private static string AbbreviateTypeName(string typeName)
-    {
-        return typeName switch
+    /// <summary>Abbreviates test class names to keep file names short.</summary>
+    /// <param name="typeName">The test class name.</param>
+    /// <returns>The abbreviation.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string AbbreviateTypeName(string typeName) =>
+        typeName switch
         {
             "RegisterLazySingletonTests" => "LS",
             "RegisterTests" => "R",
-            _ => typeName
+            _ => typeName,
         };
-    }
 
-    /// <summary>
-    /// Abbreviates method names to keep file names short.
-    /// </summary>
-    private static string AbbreviateMethodName(string methodName)
-    {
-        return methodName
-            .Replace("ConstructionAnd", "C")
-            .Replace("Construction", "C")
-            .Replace("Multiple", "M")
-            .Replace("Property", "P")
-            .Replace("Injection", "I")
-            .Replace("Internal", "Int")
-            .Replace("Setter", "Set")
-            .Replace("WithLazyMode", "LM")
-            .Replace("Parameter", "Pm")
-            .Replace("Registered", "Reg")
-            .Replace("Attribute", "Attr")
-            .Replace("Without", "No")
-            .Replace("NonPublic", "NP")
-            .Replace("Fail", "F")
-            .Replace("Pass", "P")
-            .Replace("Lazy", "L")
-            .Replace("Empty", "E")
-            .Replace("Interface", "I")
-            .Replace("Times", "x");
-    }
+    /// <summary>Abbreviates method names to keep file names short.</summary>
+    /// <param name="methodName">The test method name.</param>
+    /// <returns>The abbreviation.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string AbbreviateMethodName(string methodName) =>
+        methodName
+            .Replace("ConstructionAnd", "C", StringComparison.Ordinal)
+            .Replace("Construction", "C", StringComparison.Ordinal)
+            .Replace("Multiple", "M", StringComparison.Ordinal)
+            .Replace("Property", "P", StringComparison.Ordinal)
+            .Replace("Injection", "I", StringComparison.Ordinal)
+            .Replace("Internal", "Int", StringComparison.Ordinal)
+            .Replace("Setter", "Set", StringComparison.Ordinal)
+            .Replace("WithLazyMode", "LM", StringComparison.Ordinal)
+            .Replace("Parameter", "Pm", StringComparison.Ordinal)
+            .Replace("Registered", "Reg", StringComparison.Ordinal)
+            .Replace("Attribute", "Attr", StringComparison.Ordinal)
+            .Replace("Without", "No", StringComparison.Ordinal)
+            .Replace("NonPublic", "NP", StringComparison.Ordinal)
+            .Replace("Fail", "F", StringComparison.Ordinal)
+            .Replace("Pass", "P", StringComparison.Ordinal)
+            .Replace("Lazy", "L", StringComparison.Ordinal)
+            .Replace("Empty", "E", StringComparison.Ordinal)
+            .Replace("Interface", "I", StringComparison.Ordinal)
+            .Replace("Times", "x", StringComparison.Ordinal);
 
-    /// <summary>
-    /// Abbreviates parameter values to keep file names short.
-    /// </summary>
-    private static string AbbreviateParameter(object parameter)
-    {
-        if (parameter is System.Threading.LazyThreadSafetyMode mode)
+    /// <summary>Abbreviates parameter values to keep file names short.</summary>
+    /// <param name="parameter">The parameter value.</param>
+    /// <returns>The abbreviation.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string AbbreviateParameter(object parameter) =>
+        parameter switch
         {
-            return mode switch
-            {
-                System.Threading.LazyThreadSafetyMode.None => "N",
-                System.Threading.LazyThreadSafetyMode.PublicationOnly => "P",
-                System.Threading.LazyThreadSafetyMode.ExecutionAndPublication => "EP",
-                _ => mode.ToString()
-            };
-        }
+            LazyThreadSafetyMode.None => "N",
+            LazyThreadSafetyMode.PublicationOnly => "P",
+            LazyThreadSafetyMode.ExecutionAndPublication => "EP",
+            string text when string.IsNullOrWhiteSpace(text) => "contractParameter=",
+            _ => parameter.ToString() ?? string.Empty,
+        };
 
-        if (parameter is string str)
-        {
-            return string.IsNullOrWhiteSpace(str) ? "contractParameter=" : str;
-        }
-
-        return parameter?.ToString() ?? string.Empty;
-    }
-
-    /// <summary>
-    /// Runs the source generator on the provided source code.
-    /// Creates a compilation with appropriate references and executes the incremental generator.
-    /// </summary>
-    /// <param name="source">The source code to compile and generate.</param>
-    /// <param name="outputCompilation">The compilation after generator execution.</param>
-    /// <param name="diagnostics">Diagnostics produced during generation.</param>
-    /// <returns>The generator driver containing the generated output.</returns>
-    private static GeneratorDriver RunGenerator(string source, out Compilation outputCompilation, out ImmutableArray<Diagnostic> diagnostics)
-    {
-        var compilation = CreateCompilation(source);
-
-        // Create generator driver with incremental step tracking (Cookbook pattern)
-        var generator = new Generator();
-        var sourceGenerator = generator.AsSourceGenerator();
-
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            generators: new[] { sourceGenerator },
-            driverOptions: new GeneratorDriverOptions(
-                disabledOutputs: default,
-                trackIncrementalGeneratorSteps: true)); // Enable tracking for testing
-
-        // Run generators
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out outputCompilation, out diagnostics);
-
-        return driver;
-    }
-
-    /// <summary>
-    /// Runs the Splat dependency injection analyzers against a compilation and returns their diagnostics.
-    /// </summary>
+    /// <summary>Runs the Splat dependency injection analyzers against a compilation and returns their diagnostics.</summary>
     /// <param name="compilation">The compilation to analyze.</param>
     /// <returns>A task producing the analyzer diagnostics.</returns>
-    private static async Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsAsync(Compilation compilation)
+    private static Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsAsync(Compilation compilation)
     {
-        var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
+        ImmutableArray<DiagnosticAnalyzer> analyzers =
+        [
             new analyzer::Splat.DependencyInjection.Analyzer.Analyzers.ConstructorAnalyzer(),
-            new analyzer::Splat.DependencyInjection.Analyzer.Analyzers.PropertyAnalyzer());
-        return await compilation.WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync().ConfigureAwait(false);
+            new analyzer::Splat.DependencyInjection.Analyzer.Analyzers.PropertyAnalyzer(),
+        ];
+        return compilation.WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync();
+    }
+
+    /// <summary>Builds the framework and Splat references for the test's target framework.</summary>
+    /// <returns>The references.</returns>
+    private static MetadataReference[] CreateDefaultReferences()
+    {
+#if NET10_0_OR_GREATER
+        var framework = Basic.Reference.Assemblies.Net100.References.All;
+#elif NET9_0_OR_GREATER
+        var framework = Basic.Reference.Assemblies.Net90.References.All;
+#else
+        var framework = Basic.Reference.Assemblies.Net80.References.All;
+#endif
+        List<MetadataReference> references = [.. framework, MetadataReference.CreateFromFile(typeof(IReadonlyDependencyResolver).Assembly.Location)];
+        return [.. references];
     }
 }

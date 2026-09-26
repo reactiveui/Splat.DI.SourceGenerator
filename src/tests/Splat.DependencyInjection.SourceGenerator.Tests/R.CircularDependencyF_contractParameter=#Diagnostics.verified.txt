@@ -1,0 +1,2 @@
+SPLATDI005 Error File0.cs(10,12)-(10,64): Constructor parameters must not have a circular dependency to another registered resource
+SPLATDI005 Error File0.cs(11,12)-(11,64): Constructor parameters must not have a circular dependency to another registered resource
