@@ -37,6 +37,7 @@ internal static class RoslynHelpers
         {
             MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
             MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegister } => true,
+            SimpleNameSyntax { Identifier.Text: Constants.MethodNameRegister } => true,
             _ => false
         };
     }
@@ -58,6 +59,7 @@ internal static class RoslynHelpers
         {
             MemberAccessExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
             MemberBindingExpressionSyntax { Name.Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
+            SimpleNameSyntax { Identifier.Text: Constants.MethodNameRegisterLazySingleton } => true,
             _ => false
         };
     }
