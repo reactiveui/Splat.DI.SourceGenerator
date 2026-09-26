@@ -66,13 +66,15 @@ public sealed class CodeGeneratorTests
             + Body + "        P = resolver.GetService<global::T.IP>() ?? ThrowNotRegistered<global::T.IP>(\"global::T.IP\"),\n"
             + Body + "    });\n");
         await Assert.That(source).Contains("private static T ThrowNotRegistered<T>(string typeName)\n");
-        await Assert.That(source).DoesNotContain("string typeName, string contract");
     }
 
-    /// <summary>Every dependency is resolved under the registration's contract.</summary>
+    /// <summary>
+    /// A registration's contract names that registration only; its dependencies are resolved without it, and the file
+    /// ends with the throw helper.
+    /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Test]
-    public async Task ResolvesDependenciesUnderContract()
+    public async Task ResolvesDependenciesWithoutContract()
     {
         var registration = Transient(
             TypeA,
@@ -88,11 +90,21 @@ public sealed class CodeGeneratorTests
         await Assert.That(source).Contains(
             Body + "resolver.Register<global::T.IA>(\n"
             + Body + FactoryOfA
-            + Body + "        resolver.GetService<global::T.IX>(global::T.Keys.Key) ?? ThrowNotRegistered<global::T.IX>(\"global::T.IX\", global::T.Keys.Key),\n"
-            + Body + "        resolver.GetServices<global::T.IZ>(global::T.Keys.Key)),\n"
+            + Body + "        resolver.GetService<global::T.IX>() ?? ThrowNotRegistered<global::T.IX>(\"global::T.IX\"),\n"
+            + Body + "        resolver.GetServices<global::T.IZ>()),\n"
             + Body + "    global::T.Keys.Key);\n");
-        await Assert.That(source).Contains("private static T ThrowNotRegistered<T>(string typeName, string contract)\n");
-        await Assert.That(source).DoesNotContain("ThrowNotRegistered<T>(string typeName)\n");
+        await Assert.That(source).EndsWith(
+            "        }\n\n"
+            + "        /// <summary>Throws for a dependency the resolver has no registration for.</summary>\n"
+            + "        /// <typeparam name=\"T\">The type of the dependency.</typeparam>\n"
+            + "        /// <param name=\"typeName\">The name of the dependency's type.</param>\n"
+            + "        /// <returns>Never returns.</returns>\n"
+            + "        private static T ThrowNotRegistered<T>(string typeName)\n"
+            + "        {\n"
+            + "            throw new global::System.InvalidOperationException(\"Dependency '\" + typeName + \"' not registered with Splat resolver.\");\n"
+            + "        }\n"
+            + "    }\n"
+            + "}\n");
     }
 
     /// <summary>A type with injected properties and no constructor parameters keeps its empty argument list.</summary>
@@ -150,25 +162,6 @@ public sealed class CodeGeneratorTests
 
         await Assert.That(source.IndexOf("new global::T.A()", StringComparison.Ordinal))
             .IsLessThan(source.IndexOf("new global::T.L()", StringComparison.Ordinal));
-    }
-
-    /// <summary>Both throw helpers are written when registrations with and without a contract both need one.</summary>
-    /// <returns>A task representing the asynchronous test.</returns>
-    [Test]
-    public async Task WritesBothThrowHelpers()
-    {
-        ConstructorParameter[] parameters = [new(DependencyX, DependencyKind.Service, null)];
-        var source = Generate(Transient(TypeA, parameters: parameters), Transient(TypeB, contract: "\"c\"", parameters: parameters));
-
-        await Assert.That(source).Contains(
-            "        }\n\n"
-            + "        /// <summary>Throws for a dependency the resolver has no registration for.</summary>\n");
-        await Assert.That(source).Contains("private static T ThrowNotRegistered<T>(string typeName)\n");
-        await Assert.That(source).EndsWith(
-            "            throw new global::System.InvalidOperationException(\"Dependency '\" + typeName + \"' with contract \" + contract + \" not registered with Splat resolver.\");\n"
-            + "        }\n"
-            + "    }\n"
-            + "}\n");
     }
 
     /// <summary>Writes a file for the registrations.</summary>
