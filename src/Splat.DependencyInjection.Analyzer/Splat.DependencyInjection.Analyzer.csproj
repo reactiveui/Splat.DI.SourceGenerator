@@ -26,6 +26,11 @@
     <Compile Include="..\Splat.DependencyInjection.SourceGenerator\Constants.cs" Link="Constants.cs" />
   </ItemGroup>
 
+  <!-- Compiler polyfills that let netstandard2.0 code use records. -->
+  <ItemGroup>
+    <Compile Include="..\Polyfills\*.cs" Link="Polyfills\%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Include analyzer release tracking files -->
   <ItemGroup>
     <None Include="AnalyzerReleases.Shipped.md" />

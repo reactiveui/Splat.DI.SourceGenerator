@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 namespace Splat.DependencyInjection.Analyzer.Tests;
@@ -10,9 +10,13 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class ConstructorAnalyzerTests
 {
-    /// <summary>
-    /// Tests that Initialize throws ArgumentNullException when passed a null context.
-    /// </summary>
+    /// <summary>The diagnostic ID reported for multiple constructors without an attribute.</summary>
+    private const string MultipleConstructorsDiagnosticId = "SPLATDI001";
+
+    /// <summary>The service type name expected in diagnostic messages.</summary>
+    private const string ServiceTypeName = "MyService";
+
+    /// <summary>Tests that Initialize throws ArgumentNullException when passed a null context.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task Initialize_NullContext_ThrowsArgumentNullException()
@@ -22,9 +26,7 @@ public class ConstructorAnalyzerTests
         await Assert.That(() => analyzer.Initialize(null!)).ThrowsExactly<ArgumentNullException>();
     }
 
-    /// <summary>
-    /// Tests that Register with zero type arguments doesn't trigger analysis.
-    /// </summary>
+    /// <summary>Tests that Register with zero type arguments doesn't trigger analysis.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task RegisterWithZeroTypeArguments_NoDiagnostic()
@@ -49,9 +51,7 @@ public class ConstructorAnalyzerTests
         await Assert.That(diagnostics.Length).IsEqualTo(0);
     }
 
-    /// <summary>
-    /// Tests that Register with three type arguments doesn't trigger analysis.
-    /// </summary>
+    /// <summary>Tests that Register with three type arguments doesn't trigger analysis.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task RegisterWithThreeTypeArguments_NoDiagnostic()
@@ -114,7 +114,7 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
         await Assert.That(diagnostics[0].GetMessage()).Contains("TestClass");
     }
 
@@ -202,7 +202,8 @@ public class ConstructorAnalyzerTests
 
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
-        await Assert.That(diagnostics.Length).IsEqualTo(2);
+        const int expectedDiagnosticCount = 2;
+        await Assert.That(diagnostics.Length).IsEqualTo(expectedDiagnosticCount);
         await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI003");
         await Assert.That(diagnostics[1].Id).IsEqualTo("SPLATDI003");
     }
@@ -346,7 +347,7 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
     }
 
     /// <summary>
@@ -471,8 +472,8 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
-        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
+        await Assert.That(diagnostics[0].GetMessage()).Contains(ServiceTypeName);
     }
 
     /// <summary>
@@ -515,8 +516,8 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
-        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
+        await Assert.That(diagnostics[0].GetMessage()).Contains(ServiceTypeName);
     }
 
     /// <summary>
@@ -814,8 +815,8 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
-        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
+        await Assert.That(diagnostics[0].GetMessage()).Contains(ServiceTypeName);
     }
 
     /// <summary>
@@ -862,7 +863,7 @@ public class ConstructorAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.ConstructorAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI001");
-        await Assert.That(diagnostics[0].GetMessage()).Contains("MyService");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(MultipleConstructorsDiagnosticId);
+        await Assert.That(diagnostics[0].GetMessage()).Contains(ServiceTypeName);
     }
 }

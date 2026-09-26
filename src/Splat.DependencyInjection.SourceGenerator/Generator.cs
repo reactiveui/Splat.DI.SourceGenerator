@@ -1,83 +1,80 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
-using System.Text;
 
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
 
 using Splat.DependencyInjection.SourceGenerator.CodeGeneration;
 using Splat.DependencyInjection.SourceGenerator.Models;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
-/// <summary>
-/// Incremental generator for Splat dependency injection registrations.
-/// </summary>
+/// <summary>Generates the Splat registrations the marker calls in a project describe.</summary>
+/// <remarks>
+/// <para>
+/// One syntax provider finds the calls to both marker methods, so each syntax node is tested once. The transform turns
+/// each call into a <see cref="RegistrationSite"/>, which holds values only and so compares by value.
+/// </para>
+/// <para>
+/// The pipeline then splits. The generated code is built from the registrations alone, without their locations, so an
+/// edit that only moves a registration leaves the file cached and nothing is regenerated. The graph diagnostics need
+/// the locations, and are reported from their own output.
+/// </para>
+/// </remarks>
 [Generator]
-public class Generator : IIncrementalGenerator
+public sealed class Generator : IIncrementalGenerator
 {
+    /// <summary>The tracking name of the step that extracts each call's registration and location.</summary>
+    internal const string SitesStep = "RegistrationSites";
+
+    /// <summary>The tracking name of the step that drops the locations, leaving what the generated code needs.</summary>
+    internal const string RegistrationsStep = "Registrations";
+
+    /// <summary>The tracking name of the step that gathers the registrations for the file.</summary>
+    internal const string CollectedRegistrationsStep = "CollectedRegistrations";
+
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Always emit attributes and marker methods (per Cookbook best practices)
-        context.RegisterPostInitializationOutput(ctx =>
+        context.RegisterPostInitializationOutput(static postInitializationContext =>
         {
-            // Emit EmbeddedAttribute first to avoid conflicts with InternalsVisibleTo
-            ctx.AddSource(
-                Constants.EmbeddedAttributeFileName,
-                SourceText.From(Constants.EmbeddedAttributeText, Encoding.UTF8));
-
-            // Emit marker attributes and extension methods
-            ctx.AddSource(
-                Constants.ExtensionMethodFileName,
-                SourceText.From(Constants.ExtensionMethodText, Encoding.UTF8));
+            postInitializationContext.AddEmbeddedAttributeDefinition();
+            postInitializationContext.AddSource(Constants.ExtensionMethodFileName, MarkerSource.Text);
         });
 
-        // Pipeline 1: Register<TInterface, TConcrete>() calls
-        var registerCalls = context.SyntaxProvider
+        var sites = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: RoslynHelpers.IsRegisterInvocation,
-                transform: MetadataExtractor.ExtractRegisterMetadata)
-            .Where(x => x is not null)
-            .Select((x, _) => x!);
+                predicate: static (node, _) => RoslynHelpers.IsRegistrationInvocation(node),
+                transform: MetadataExtractor.Extract)
+            .WithTrackingName(SitesStep)
+            .Where(static site => site is not null);
 
-        // Pipeline 2: RegisterLazySingleton<TInterface, TConcrete>() calls
-        var lazySingletonCalls = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: RoslynHelpers.IsRegisterLazySingletonInvocation,
-                transform: MetadataExtractor.ExtractLazySingletonMetadata)
-            .Where(x => x is not null)
-            .Select((x, _) => x!);
-
-        // Combine all registrations
-        var allRegistrations = registerCalls
+        var registrations = sites
+            .Select(static (site, _) => site!.Registration)
+            .WithTrackingName(RegistrationsStep)
             .Collect()
-            .Combine(lazySingletonCalls.Collect());
+            .WithTrackingName(CollectedRegistrationsStep);
 
-        // Generate output with validation
-        context.RegisterSourceOutput(allRegistrations, GenerateCode);
+        context.RegisterSourceOutput(sites.Collect(), RegistrationValidator.ReportDiagnostics);
+        context.RegisterSourceOutput(registrations, GenerateCode);
     }
 
-    /// <summary>
-    /// Generates the source output for all collected registrations.
-    /// </summary>
-    /// <param name="context">The source production context for emitting generated source.</param>
-    /// <param name="data">The combined transient and lazy singleton registration data.</param>
-    private static void GenerateCode(
-        SourceProductionContext context,
-        (ImmutableArray<TransientRegistrationInfo> Transients, ImmutableArray<LazySingletonRegistrationInfo> LazySingletons) data)
+    /// <summary>Writes the registrations file.</summary>
+    /// <param name="context">The context the file is added to.</param>
+    /// <param name="registrations">The registrations, in source order.</param>
+    /// <remarks>
+    /// With no registrations the file is left out: <c>SetupIOCInternal</c> is a partial method with no body, so the
+    /// compiler removes the calls to it.
+    /// </remarks>
+    internal static void GenerateCode(SourceProductionContext context, ImmutableArray<RegistrationInfo> registrations)
     {
-        var (transients, lazySingletons) = data;
+        if (registrations.IsEmpty)
+        {
+            return;
+        }
 
-        // Report graph-level diagnostics that the per-type analyzers cannot detect
-        // (SPLATDI005 circular dependencies, SPLATDI006 duplicate registrations, SPLATDI007 lazy).
-        RegistrationValidator.ReportDiagnostics(context, transients, lazySingletons);
-
-        // Generate code only for valid registrations (invalid ones were filtered out in transform)
-        var code = CodeGenerator.GenerateSetupIOCMethod(transients, lazySingletons);
-        context.AddSource(Constants.RegistrationFileName, SourceText.From(code, Encoding.UTF8));
+        context.AddSource(Constants.RegistrationFileName, CodeGenerator.Generate(registrations));
     }
 }

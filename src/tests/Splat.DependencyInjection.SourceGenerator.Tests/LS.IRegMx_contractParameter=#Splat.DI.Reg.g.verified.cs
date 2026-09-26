@@ -23,17 +23,13 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            {
-                global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete1());
-                resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy);
-                resolver.Register<global::Test.ITest>(() => lazy.Value);
-            }
+            var lazy0 = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete1());
+            resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy0);
+            resolver.Register<global::Test.ITest>(() => lazy0.Value);
 
-            {
-                global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete2());
-                resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy);
-                resolver.Register<global::Test.ITest>(() => lazy.Value);
-            }
+            var lazy1 = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete2());
+            resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy1);
+            resolver.Register<global::Test.ITest>(() => lazy1.Value);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
@@ -10,12 +10,24 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-    <PackageReference Include="Verify.SourceGenerators" />
-    <PackageReference Include="Verify.TUnit" />
     <PackageReference Include="Basic.Reference.Assemblies.Net100" />
     <PackageReference Include="Basic.Reference.Assemblies.Net90" />
     <PackageReference Include="Basic.Reference.Assemblies.Net80" />
     <PackageReference Include="Splat" />
+  </ItemGroup>
+
+  <!-- Recorded at build time for GeneratorSnapshot: a CI build maps caller file paths to /_/. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="GeneratorSnapshotDirectory" Value="$(MSBuildProjectDirectory)" />
+  </ItemGroup>
+
+  <!-- Snapshots are data, not part of the test assembly. -->
+  <ItemGroup>
+    <Compile Remove="**/*.verified.cs;**/*.received.cs" />
+    <None Include="**/*.verified.cs;**/*.received.cs;**/*.verified.txt;**/*.received.txt" />
+    <None Update="R.*.verified.*" DependentUpon="RegisterTests.cs" />
+    <None Update="LS.*.verified.*" DependentUpon="RegisterLazySingletonTests.cs" />
+    <None Update="SnapshotTests.*.verified.*" DependentUpon="SnapshotTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

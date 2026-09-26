@@ -5,6 +5,9 @@
     <LangVersion>latest</LangVersion>
     <Platform>AnyCPU</Platform>
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
+    <!-- Matched on the singular so BenchmarkDotNet's generated per-job projects are included: they are
+         written under a benchmark's output folder and so inherit this file. -->
+    <IsBenchmarkProject>$(MSBuildProjectName.Contains('Benchmark'))</IsBenchmarkProject>
     <DebugType>embedded</DebugType>
     <Authors>Glenn Watson</Authors>
     <Copyright>Copyright (c) $([System.DateTime]::Now.ToString(yyyy)) ReactiveUI Association Inc</Copyright>
@@ -45,7 +48,7 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+  <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(IsBenchmarkProject)' != 'true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
 
@@ -71,10 +74,8 @@
 
   <ItemGroup>
     <PackageReference Include="MinVer" PrivateAssets="all" />
-    <PackageReference Include="stylecop.analyzers" PrivateAssets="all" />
-    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All" />
-  </ItemGroup>
-  <ItemGroup>
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" Link="stylecop.json" />
+    <PackageReference Include="StyleSharp.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="PerformanceSharp.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="SecuritySharp.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 </Project>

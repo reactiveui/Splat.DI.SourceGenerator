@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
@@ -9,8 +9,11 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests;
 /// Validates transient registration scenarios including constructor injection, property injection, and contract parameters.
 /// </summary>
 [InheritsTests]
-public sealed class RegisterTests() : TestBase("Register")
+public sealed class RegisterTests : TestBase
 {
+    /// <inheritdoc/>
+    protected override string TestMethod => "Register";
+
     /// <summary>
     /// Validates that lazy parameter injection fails when the dependency is registered as a constant instead of lazy singleton.
     /// </summary>
@@ -61,9 +64,7 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestFail(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that lazy parameter injection fails when the dependency is not registered as a lazy singleton.
-    /// </summary>
+    /// <summary>Validates that lazy parameter injection fails when the dependency is not registered as a lazy singleton.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -123,9 +124,7 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestFail(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that IEnumerable{T} dependency injection generates GetServices{T}() calls.
-    /// </summary>
+    /// <summary>Validates that IEnumerable{T} dependency injection generates GetServices{T}() calls.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -172,9 +171,7 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that generic concrete types with single type parameter are handled correctly.
-    /// </summary>
+    /// <summary>Validates that generic concrete types with single type parameter are handled correctly.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -218,9 +215,7 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that generic concrete types with multiple type parameters are handled correctly.
-    /// </summary>
+    /// <summary>Validates that generic concrete types with multiple type parameters are handled correctly.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -260,9 +255,7 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that nested generic types are handled correctly.
-    /// </summary>
+    /// <summary>Validates that nested generic types are handled correctly.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -303,14 +296,12 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection with contracts generates correct GetService calls.
-    /// </summary>
+    /// <summary>Validates that property injection with contracts generates correct GetService calls.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public Task PropertyInjectionWithContract()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
 
@@ -356,7 +347,7 @@ public sealed class RegisterTests() : TestBase("Register")
     [Test]
     public Task ContractKeyFromDifferentNamespace()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
             using Test.Keys;
@@ -398,7 +389,7 @@ public sealed class RegisterTests() : TestBase("Register")
     [Test]
     public Task ContractKeyFromDifferentNamespaceWithSimpleName()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
             using ConsoleApp.NS1;
@@ -439,7 +430,7 @@ public sealed class RegisterTests() : TestBase("Register")
     [Test]
     public Task ContractKeyFromMethodInvocation()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
 
@@ -475,7 +466,7 @@ public sealed class RegisterTests() : TestBase("Register")
     [Test]
     public Task ContractKeyFromPropertyInDifferentNamespace()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
 
@@ -507,14 +498,12 @@ public sealed class RegisterTests() : TestBase("Register")
         return TestHelper.TestPass(source, "ContractName", GetType());
     }
 
-    /// <summary>
-    /// Validates that contract keys using const string fields are handled correctly.
-    /// </summary>
+    /// <summary>Validates that contract keys using const string fields are handled correctly.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public Task ContractKeyFromConstField()
     {
-        var source = """
+        const string source = """
             using System;
             using Splat;
 

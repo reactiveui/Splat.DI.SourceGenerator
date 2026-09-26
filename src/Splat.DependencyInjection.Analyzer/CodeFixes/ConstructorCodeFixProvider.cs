@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
@@ -8,23 +8,21 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CodeActions;
+using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace Splat.DependencyInjection.Analyzer.CodeFixes;
 
-/// <summary>
-/// Code fix provider that adds [DependencyInjectionConstructor] attribute to a constructor.
-/// </summary>
+/// <summary>Code fix provider that adds [DependencyInjectionConstructor] attribute to a constructor.</summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ConstructorCodeFixProvider))]
 [Shared]
 public class ConstructorCodeFixProvider : CodeFixProvider
 {
     /// <inheritdoc/>
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create(SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute.Id);
+        [SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute.Id];
 
     /// <inheritdoc/>
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
@@ -32,62 +30,25 @@ public class ConstructorCodeFixProvider : CodeFixProvider
     /// <inheritdoc/>
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-        if (root == null)
-        {
-            return;
-        }
+        // This provider is exported for C# only, and C# documents always support syntax trees, so the root is never null.
+        var root = (await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false))!;
 
         var diagnostic = context.Diagnostics[0];
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        // Manual ancestor walk to find TypeDeclarationSyntax
-        var node = root.FindToken(diagnosticSpan.Start).Parent;
-        TypeDeclarationSyntax? typeDeclaration = null;
-        while (node != null)
-        {
-            if (node is TypeDeclarationSyntax tds)
-            {
-                typeDeclaration = tds;
-                break;
-            }
-
-            node = node.Parent;
-        }
-
-        if (typeDeclaration == null)
+        // Every token found in a syntax tree has a parent node (at least the compilation unit).
+        var typeDeclaration = root.FindToken(diagnostic.Location.SourceSpan.Start).Parent!.FirstAncestorOrSelf<TypeDeclarationSyntax>();
+        if (typeDeclaration is null)
         {
             return;
         }
 
-        // Find all non-static constructors (manual loop to avoid LINQ allocations)
-        var constructors = new System.Collections.Generic.List<ConstructorDeclarationSyntax>(capacity: 4);
-        var members = typeDeclaration.Members;
-        for (var i = 0; i < members.Count; i++)
+        foreach (var member in typeDeclaration.Members)
         {
-            if (members[i] is ConstructorDeclarationSyntax ctor)
+            if (member is not ConstructorDeclarationSyntax constructor || constructor.Modifiers.Any(SyntaxKind.StaticKeyword))
             {
-                // Check if not static
-                var isStatic = false;
-                var modifiers = ctor.Modifiers;
-                for (var j = 0; j < modifiers.Count; j++)
-                {
-                    if (modifiers[j].IsKind(SyntaxKind.StaticKeyword))
-                    {
-                        isStatic = true;
-                        break;
-                    }
-                }
-
-                if (!isStatic)
-                {
-                    constructors.Add(ctor);
-                }
+                continue;
             }
-        }
 
-        foreach (var constructor in constructors)
-        {
             var parameterCount = constructor.ParameterList.Parameters.Count;
             var title = parameterCount == 0
                 ? $"Add [{SourceGenerator.Constants.ConstructorAttributeShortName}] to parameterless constructor"
@@ -102,9 +63,7 @@ public class ConstructorCodeFixProvider : CodeFixProvider
         }
     }
 
-    /// <summary>
-    /// Adds the [DependencyInjectionConstructor] attribute to the specified constructor.
-    /// </summary>
+    /// <summary>Adds the [DependencyInjectionConstructor] attribute to the specified constructor.</summary>
     /// <param name="document">The document containing the constructor.</param>
     /// <param name="constructor">The constructor syntax to add the attribute to.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -114,11 +73,8 @@ public class ConstructorCodeFixProvider : CodeFixProvider
         ConstructorDeclarationSyntax constructor,
         CancellationToken cancellationToken)
     {
-        var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-        if (root == null)
-        {
-            return document;
-        }
+        // Only C# documents reach this method, and C# documents always support syntax trees, so the root is never null.
+        var root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
 
         // Create attribute syntax
         var attribute = SyntaxFactory.Attribute(

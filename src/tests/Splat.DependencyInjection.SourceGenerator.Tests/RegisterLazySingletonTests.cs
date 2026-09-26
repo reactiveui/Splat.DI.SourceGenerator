@@ -1,5 +1,5 @@
-﻿// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
@@ -9,11 +9,12 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests;
 /// Validates lazy singleton registration scenarios with different thread safety modes and injection patterns.
 /// </summary>
 [InheritsTests]
-public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
+public class RegisterLazySingletonTests : TestBase
 {
-    /// <summary>
-    /// Validates that lazy singleton registration works with multiple property injection and different thread safety modes.
-    /// </summary>
+    /// <inheritdoc/>
+    protected override string TestMethod => "RegisterLazySingleton";
+
+    /// <summary>Validates that lazy singleton registration works with multiple property injection and different thread safety modes.</summary>
     /// <param name="mode">The lazy thread safety mode to test (PublicationOnly, ExecutionAndPublication, or None).</param>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -29,9 +30,9 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
     [Arguments(LazyThreadSafetyMode.None, "Test2")]
     public Task ConstructionAndMultiplePropertyInjectionWithLazyMode(LazyThreadSafetyMode mode, string contract)
     {
-        var arguments = string.IsNullOrWhiteSpace(contract) ?
-            $"LazyThreadSafetyMode.{mode}" :
-            $"\"{contract}\", LazyThreadSafetyMode.{mode}";
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? $"LazyThreadSafetyMode.{mode}"
+            : $"\"{contract}\", LazyThreadSafetyMode.{mode}";
 
         var source = $$"""
             using System;
@@ -76,9 +77,7 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
         return TestHelper.TestPass(source, contract, mode, GetType());
     }
 
-    /// <summary>
-    /// Validates that lazy parameter injection works when the dependency is properly registered as a lazy singleton.
-    /// </summary>
+    /// <summary>Validates that lazy parameter injection works when the dependency is properly registered as a lazy singleton.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -87,9 +86,9 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
     [Arguments("Test2")]
     public Task LazyParameterRegisteredLazy(string contract)
     {
-        var arguments = string.IsNullOrWhiteSpace(contract) ?
-            string.Empty :
-            $"\"{contract}\"";
+        var arguments = string.IsNullOrWhiteSpace(contract)
+            ? string.Empty
+            : $"\"{contract}\"";
 
         var source = $$"""
             using System;
@@ -138,9 +137,7 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that IEnumerable{T} dependency injection works in lazy singleton constructors.
-    /// </summary>
+    /// <summary>Validates that IEnumerable{T} dependency injection works in lazy singleton constructors.</summary>
     /// <param name="contract">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -188,14 +185,12 @@ public class RegisterLazySingletonTests() : TestBase("RegisterLazySingleton")
         return TestHelper.TestPass(source, contract, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection with contracts works in lazy singleton registrations.
-    /// </summary>
+    /// <summary>Validates that property injection with contracts works in lazy singleton registrations.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public Task PropertyInjectionWithContractInLazySingleton()
     {
-        var source = """
+        const string source = """
             using System;
             using System.Threading;
             using Splat;

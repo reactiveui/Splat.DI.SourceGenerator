@@ -27,11 +27,11 @@ namespace Splat
 
             resolver.Register<global::Test.IService>(() => new global::Test.ServiceB(), "Test2");
 
-            {
-                global::System.Lazy<global::Test.ITest> lazy = new global::System.Lazy<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetServices<global::Test.IService>("Test2")));
-                resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy, "Test2");
-                resolver.Register<global::Test.ITest>(() => lazy.Value, "Test2");
-            }
+            var lazy0 = new global::System.Lazy<global::Test.ITest>(
+                () => new global::Test.TestConcrete(
+                    resolver.GetServices<global::Test.IService>("Test2")));
+            resolver.Register<global::System.Lazy<global::Test.ITest>>(() => lazy0, "Test2");
+            resolver.Register<global::Test.ITest>(() => lazy0.Value, "Test2");
         }
     }
 }

@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -12,6 +12,9 @@ namespace Splat.DependencyInjection.Analyzer.Tests;
 /// </summary>
 public class PropertyAnalyzerTests
 {
+    /// <summary>The diagnostic ID reported for properties without an accessible setter.</summary>
+    private const string PropertySetterDiagnosticId = "SPLATDI002";
+
     /// <summary>
     /// Tests that a property with a private setter triggers diagnostic SPLATDI002.
     /// Properties marked for dependency injection must have accessible setters.
@@ -39,7 +42,7 @@ public class PropertyAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(PropertySetterDiagnosticId);
         await Assert.That(diagnostics[0].GetMessage()).Contains("TestClass.Service");
     }
 
@@ -70,7 +73,7 @@ public class PropertyAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(PropertySetterDiagnosticId);
     }
 
     /// <summary>
@@ -183,7 +186,7 @@ public class PropertyAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(PropertySetterDiagnosticId);
     }
 
     /// <summary>
@@ -242,12 +245,10 @@ public class PropertyAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
         await Assert.That(diagnostics.Length).IsEqualTo(1);
-        await Assert.That(diagnostics[0].Id).IsEqualTo("SPLATDI002");
+        await Assert.That(diagnostics[0].Id).IsEqualTo(PropertySetterDiagnosticId);
     }
 
-    /// <summary>
-    /// Tests that multiple properties with issues all report diagnostics.
-    /// </summary>
+    /// <summary>Tests that multiple properties with issues all report diagnostics.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task MultiplePropertiesWithIssues_ReportMultipleDiagnostics()
@@ -276,13 +277,15 @@ public class PropertyAnalyzerTests
 
         var diagnostics = await AnalyzerTestHelper.GetDiagnosticsAsync<Analyzers.PropertyAnalyzer>(code);
 
-        await Assert.That(diagnostics.Length).IsEqualTo(2);
-        await Assert.That(diagnostics.All(d => d.Id == "SPLATDI002")).IsTrue();
+        const int expectedDiagnosticCount = 2;
+        await Assert.That(diagnostics.Length).IsEqualTo(expectedDiagnosticCount);
+        foreach (var diagnostic in diagnostics)
+        {
+            await Assert.That(diagnostic.Id).IsEqualTo(PropertySetterDiagnosticId);
+        }
     }
 
-    /// <summary>
-    /// Tests that if the attribute is missing from compilation, no analysis happens.
-    /// </summary>
+    /// <summary>Tests that if the attribute is missing from compilation, no analysis happens.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task AttributeMissingFromCompilation_NoDiagnostic()
@@ -306,8 +309,7 @@ public class PropertyAnalyzerTests
             .AddReferences(Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
         var compilationWithAnalyzers = compilation.WithAnalyzers(
-            System.Collections.Immutable.ImmutableArray.Create<Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer>(
-                new Analyzers.PropertyAnalyzer()));
+            [new Analyzers.PropertyAnalyzer()]);
 
         var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
 
@@ -315,19 +317,15 @@ public class PropertyAnalyzerTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
-    /// <summary>
-    /// Tests that Initialize throws ArgumentNullException when context is null.
-    /// </summary>
+    /// <summary>Tests that Initialize throws ArgumentNullException when context is null.</summary>
     [Test]
     public void Initialize_NullContext_ThrowsArgumentNullException()
     {
         var analyzer = new Analyzers.PropertyAnalyzer();
-        Assert.Throws<ArgumentNullException>(() => analyzer.Initialize(null!));
+        _ = Assert.Throws<ArgumentNullException>(() => analyzer.Initialize(null!));
     }
 
-    /// <summary>
-    /// Tests that a property with a different attribute does not trigger diagnostics.
-    /// </summary>
+    /// <summary>Tests that a property with a different attribute does not trigger diagnostics.</summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
     public async Task PropertyWithOtherAttribute_NoDiagnostic()

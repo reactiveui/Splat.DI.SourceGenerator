@@ -29,7 +29,7 @@ dotnet restore Splat.DI.SourceGenerator.slnx
 # Build the solution
 dotnet build Splat.DI.SourceGenerator.slnx -c Release
 
-# Build with warnings as errors (includes StyleCop violations)
+# Build with warnings as errors (includes StyleSharp/PerformanceSharp/SecuritySharp violations)
 dotnet build Splat.DI.SourceGenerator.slnx -c Release -warnaserror
 
 # Clean the solution
@@ -149,14 +149,23 @@ See https://tunit.dev/docs/reference/command-line-flags for complete TUnit flag 
 Splat.DI.SourceGenerator is a high-performance C# source generator that produces compile-time dependency injection registrations for Splat. It eliminates runtime reflection, provides full native AOT support, and includes intelligent analyzers with automatic code fixes.
 
 **Generator Project (`Splat.DependencyInjection.SourceGenerator/`)**
-- `Generator.cs` - IIncrementalGenerator entry point with CreateSyntaxProvider pipeline
-- `Models/` - Value-equatable POCO records (no ISymbol/SyntaxNode references)
-  - `RegistrationInfo.cs` - Base record for all registration types
-  - `TransientRegistrationInfo.cs`, `LazySingletonRegistrationInfo.cs`, `ConstantRegistrationInfo.cs`
-  - `ConstructorParameter.cs`, `PropertyInjection.cs`
-  - `EquatableArray.cs` - Value-equatable array wrapper for pipeline caching
-- `CodeGeneration/CodeGenerator.cs` - String-based code generation (not SyntaxFactory)
-- `Constants.cs` - Attribute definitions with `[Embedded]` attribute
+- `Generator.cs` - IIncrementalGenerator entry point: one syntax provider for both marker methods, then a split
+  into a code output (registrations only) and a diagnostics output (registrations with locations)
+- `RoslynHelpers.cs` - The syntax predicate and small symbol helpers
+- `MetadataExtractor.cs` - The transform: turns a bound marker call into a `RegistrationSite`
+- `WellKnownSymbols.cs` - The symbols extraction compares against, cached per compilation in a `ConditionalWeakTable`
+- `RegistrationValidator.cs` - SPLATDI005/006/007, which need the whole registration graph
+- `Models/` - Value-equatable pipeline models (no ISymbol, SyntaxNode or Location)
+  - `RegistrationInfo.cs` - Everything the generated code needs for one registration (`RegistrationKind` says which)
+  - `RegistrationSite.cs` - A registration plus its `LocationInfo`, for the diagnostics
+  - `LocationInfo.cs` - A location held as values (path, span, line span)
+  - `ConstructorParameter.cs`, `PropertyInjection.cs` - `readonly record struct`s
+  - `EquatableArray.cs` - Value-equatable array wrapper with a cached hash, read by index
+- `CodeGeneration/` - Emission through `SourceWriter` (see Writing Generated Code)
+  - `CodeGenerator.cs` - The registrations file
+  - `MarkerSource.cs` - The fixed marker methods and attributes, added in post-initialization
+  - `SourceWriter.cs`, `SourceWriterExtensions.cs`, `PooledBuilder.cs` - The writer and its pooled builder
+- `Constants.cs` - Names matched against and file names (linked into the analyzer, so constants only)
 - `DiagnosticWarnings.cs` - Shared diagnostic descriptors
 
 **Analyzer Project (`Splat.DependencyInjection.Analyzer/`)**
@@ -166,31 +175,67 @@ Splat.DI.SourceGenerator is a high-performance C# source generator that produces
 - `CodeFixes/PropertyCodeFixProvider.cs` - Fixes property setter accessibility
 
 **Test Projects**
-- `Splat.DependencyInjection.SourceGenerator.Tests/` - 342 snapshot tests using Verify.SourceGenerators
-- `Splat.DependencyInjection.Analyzer.Tests/` - 45 analyzer and code fix tests
+- `Splat.DependencyInjection.SourceGenerator.Tests/` - Snapshot tests (`GeneratorSnapshot`) plus unit tests of
+  the pipeline, extraction, validation, emission and caching
+- `Splat.DependencyInjection.Analyzer.Tests/` - Analyzer and code fix tests
+
+**Benchmarks (`benchmarks/Splat.DI.SourceGenerator.Benchmarks/`)** - see `benchmarks/README.md`
 
 ### Key Architectural Patterns
 
 **Incremental Generator Pipeline (IIncrementalGenerator)**
-- **Predicate functions** - Fast syntax-only checks (e.g., `IsRegisterInvocation`)
-- **Transform functions** - Semantic analysis + POCO extraction (no ISymbol in output!)
-- **Generation functions** - String-based code output using StringBuilder
+- **Predicate** (`RoslynHelpers.IsRegistrationInvocation`) - syntax only, allocation free. Every marker is generic
+  and cannot infer its type arguments, and none takes a lambda, so calls without a type argument list or with a
+  lambda argument (Splat's own `resolver.Register<T>(() => ...)`) never reach the transform.
+- **Transform** (`MetadataExtractor.Extract`) - binds the call. A `CreateSyntaxProvider` transform re-runs for every
+  matching node on every compilation change, so it turns calls away as early and cheaply as it can.
+- **Outputs** - the generated file is built from `RegistrationInfo` alone, so an edit that only moves a registration
+  regenerates nothing. The graph diagnostics are reported from their own output, which also carries the locations.
+  With no registrations, no registrations file is added (the partial method is removed by the compiler).
+- Steps carry tracking names (`Generator.SitesStep` and so on); `GeneratorTests` asserts what an edit re-runs.
 
 **Value-Equatable Models (Critical for Caching)**
-- ALL pipeline models must implement `IEquatable<T>`
-- NEVER include ISymbol or SyntaxNode references in pipeline outputs
+- Pipeline models are `sealed record` or `readonly record struct` types with value equality
+- NEVER include ISymbol, SyntaxNode or `Location` in pipeline outputs; use `LocationInfo`
 - Use `EquatableArray<T>` for array equality in records
 - Extract strings from symbols using `ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)`
+- Records on netstandard2.0 need `IsExternalInit`, which is inlined in `src/Polyfills/` and linked into the
+  generator and analyzer projects, as elsewhere in rxui
 
 **Generic-First API (AOT Compatible)**
 - Generated code uses `resolver.Register<T>()` instead of `Register(factory, typeof(T))`
 - Eliminates boxing for value types
 - Full Native AOT and trimming support
 
-**Code Generation Strategy**
-- Uses StringBuilder with raw string literals (`"""`)
-- 3-5x faster than SyntaxFactory approach
-- No dependency on ReactiveMarbles.RoslynHelpers or ILRepack
+**What the generated code allocates**
+- Resolving a service allocates the objects it constructs and nothing else from the generated code; Splat's
+  `GetServices` collection is Splat's. A missing dependency throws through a `ThrowNotRegistered` helper written once
+  per file, so factories stay small.
+- A factory that needs nothing from the resolver captures nothing, so its delegate is cached once by the compiler.
+- `SetupIOC` allocates one closure (for `resolver` and every lazy), one delegate per capturing registration, and for
+  each lazy singleton its `Lazy<T>` and three delegates. Lazies are method-level locals (`lazy0`, `lazy1`, ...), not
+  locals of a block per registration: a block adds a closure object each.
+
+**Interceptors are not used.** The marker calls are empty methods that registration never runs through, and
+`SetupIOC` is a direct call to the generated method, so there is no call to redirect. Intercepting the marker calls
+would change when and on which resolver registration happens.
+
+### Writing Generated Code
+
+`SourceWriter` owns the layout of every generated file. An emitter says what it writes, and the writer decides the
+indentation.
+
+- **The writer tracks the level.** A line is indented when its first character is written. A blank line carries no
+  whitespace. Every line ends with `\n`. No string literal in an emitter starts with spaces.
+- **Blocks change the level.** `OpenBlock` and `CloseBlock` write the braces and move one level in and out.
+  `OpenContinuation`/`CloseContinuation` put the arguments of a multi-line call one level deeper.
+- **Each emitter method writes at the level it is given** and leaves it as it found it; its doc comment says where
+  it leaves the writer.
+- **C# constructs have names** in `SourceWriterExtensions` (namespaces, continuations, argument separators). Domain
+  shapes live in `CodeGenerator` (`AppendFactoryCall`, `AppendFactory`, `AppendService`).
+- **Fixed text is written with `Lines`** from a raw string literal whose indentation is relative to column zero.
+- `SourceWriter.Rent` takes its `StringBuilder` from `PooledBuilder`'s per-thread slot, and `ToStringAndReturn`
+  gives it back.
 
 **Analyzer Separation (Roslyn Best Practice)**
 - Generator focuses on code generation only
@@ -213,8 +258,11 @@ Splat.DI.SourceGenerator is a high-performance C# source generator that produces
 ### Style Enforcement
 
 - EditorConfig rules (`.editorconfig`) - comprehensive C# formatting and naming conventions
-- StyleCop Analyzers - builds fail on violations
-- Roslynator Analyzers - additional code quality rules
+- StyleSharp.Analyzers (SST), PerformanceSharp.Analyzers (PSH) and SecuritySharp.Analyzers (SES) - builds fail on
+  violations. Rule docs: https://github.com/glennawatson/RoslynCommonAnalyzers/tree/main/docs/rules
+- Fix the code. Do not suppress rules, do not disable them in `.editorconfig`, and do not use
+  `#pragma warning disable` (the `#pragma` for obsolete members inside the generated output is part of what the
+  generator emits, not our source)
 - Analysis level: latest with enhanced .NET analyzers
 - **All public APIs require XML documentation comments** (including protected methods of public classes)
 
@@ -239,7 +287,15 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 - Test projects: `Splat.DependencyInjection.Analyzer.Tests` and `Splat.DependencyInjection.SourceGenerator.Tests`
 - Coverage configured in `src/testconfig.json` (Cobertura format)
 - Parallel test execution disabled (`"parallel": false` in testconfig.json)
-- Snapshot testing uses Verify.SourceGenerators with `*.verified.cs` files
+- Snapshot tests compare every generated registrations file with a `*.verified.cs` snapshot beside the test class,
+  through `GeneratorSnapshot.cs`. A snapshot is named `{type}.{method}_{arguments}#{hint name}.verified.cs`; generator
+  diagnostics go to `...#Diagnostics.verified.txt`. The fixed marker source and embedded attribute are stored once, by
+  `SnapshotTests.WritesFixedSources`. An output that differs or has no snapshot is written beside it as `.received`
+  and fails the test, as does a snapshot the run no longer produces
+- To accept new or changed snapshots, run the tests with `ACCEPT_SNAPSHOTS=1`, then run them again without it
+- Snapshot paths must fit the Windows path limit on a CI runner (`D:\a\{repo}\{repo}\...`, under 256 characters);
+  `SnapshotTests.SnapshotPathsFitWindowsLimit` checks this, so keep test names and arguments short
+- Line endings are LF everywhere (`.gitattributes`); the analyzers fail the build on CRLF
 - Always write unit tests for new features or bug fixes
 - Follow existing test patterns in test projects
 - Use `TestUtilities.AreEquivalent()` for newline-agnostic source code comparison
@@ -259,9 +315,9 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 2. **Create value-equatable POCOs** - no ISymbol/SyntaxNode references
 3. Create failing tests first (snapshot tests in SourceGenerator.Tests)
 4. Implement minimal functionality in Generator.cs
-5. Update code generation in CodeGenerator.cs (use StringBuilder, not SyntaxFactory)
+5. Update code generation in CodeGenerator.cs through `SourceWriter` (not a raw StringBuilder, not SyntaxFactory)
 6. Ensure generic-first API usage: `resolver.Register<T>()` not `typeof(T)`
-7. Verify snapshots match expected output (C# 7.3 compatible)
+7. Verify snapshots match expected output; a passing snapshot test also requires the generated code to compile
 8. Add XML documentation to all public APIs
 9. Run formatting validation before committing
 
@@ -277,7 +333,7 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 
 ### Fixing Bugs
 
-1. Create reproduction test (use Verify snapshots)
+1. Create reproduction test (use snapshots)
 2. Fix with minimal changes
 3. Ensure pipeline still caches properly (POCOs value-equatable)
 4. Verify no regression in existing tests
@@ -285,19 +341,20 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 
 ### Updating Generated Code Format
 
-1. Modify code generation in `CodeGeneration/CodeGenerator.cs`
-2. Use raw string literals (`"""`) for multi-line code
+1. Modify code generation in `CodeGeneration/CodeGenerator.cs` through `SourceWriter`
+2. Write fixed multi-line text as raw string literals (`"""`) passed to `Lines`
 3. Ensure generic-first API: `resolver.Register<T>()` not `typeof(T)`
-4. Run all snapshot tests - expect 342 failing tests
-5. Review each `.verified.cs` diff carefully
-6. Accept snapshots only if changes are correct
-7. Ensure C# 7.3 compatibility (no file-scoped namespaces, no init properties)
+4. Run all snapshot tests - expect every `Splat.DI.Reg.g` snapshot to fail
+5. Review each received file carefully and accept (`ACCEPT_SNAPSHOTS=1`) only if the changes are correct
+6. Keep file-scoped namespaces, init properties and similar newer syntax out of the generated code
+7. Measure with the benchmarks (see `benchmarks/README.md`)
 
 ## What to Avoid
 
 - **ISymbol/SyntaxNode in pipeline outputs** - breaks incremental caching
 - **Runtime reflection** in generated code - breaks AOT compatibility
-- **SyntaxFactory for code generation** - 3-5x slower than StringBuilder
+- **SyntaxFactory or a raw StringBuilder for code generation** - write through `SourceWriter`
+- **LINQ in the generator** - use loops; the transform runs for every marker call on every compilation change
 - **Type-based API** - use `resolver.Register<T>()` not `Register(factory, typeof(T))`
 - **Diagnostics in generator** - use separate analyzer project instead
 - **Heavy dependencies** - keep generator lightweight (netstandard2.0 target)
@@ -308,9 +365,9 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 
 - **Value-Equatable POCOs:** CRITICAL for incremental generator caching - never include ISymbol/SyntaxNode
 - **Generic-First API:** All generated code must use `resolver.Register<T>()` for AOT compatibility
-- **String-Based Generation:** Use StringBuilder with raw string literals, not SyntaxFactory
+- **Generation:** Write through `SourceWriter`, not SyntaxFactory
 - **Separate Analyzer:** Diagnostics in separate project following Roslyn best practices
-- **No shallow clones:** Repository requires full clone for git version information used by Nerdbank.GitVersioning
+- **No shallow clones:** Repository requires full clone for git version information used by MinVer
 - **Required .NET SDKs:** .NET 8.0, 9.0, and 10.0 (all three required for full build)
 - **Snapshot Testing:** Review `.verified.cs` diffs carefully before accepting
 - **Comprehensive Instructions:** `.github/COPILOT_INSTRUCTIONS.md` contains detailed development guidelines

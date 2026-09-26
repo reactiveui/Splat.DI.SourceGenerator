@@ -23,9 +23,22 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.IAppUpdateService>(() => new global::Test.AppUpdateService<string>(resolver.GetService<global::Test.IConfig>("Test2") ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IConfig' with contract " + "Test2" + " not registered with Splat resolver.")), "Test2");
+            resolver.Register<global::Test.IAppUpdateService>(
+                () => new global::Test.AppUpdateService<string>(
+                    resolver.GetService<global::Test.IConfig>("Test2") ?? ThrowNotRegistered<global::Test.IConfig>("global::Test.IConfig", "Test2")),
+                "Test2");
 
             resolver.Register<global::Test.IConfig>(() => new global::Test.Config(), "Test2");
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for under a contract.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <param name="contract">The contract the dependency was asked for under.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName, string contract)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' with contract " + contract + " not registered with Splat resolver.");
         }
     }
 }

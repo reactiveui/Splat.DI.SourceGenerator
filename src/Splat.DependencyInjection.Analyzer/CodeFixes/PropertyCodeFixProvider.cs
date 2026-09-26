@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
@@ -8,23 +8,21 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CodeActions;
+using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace Splat.DependencyInjection.Analyzer.CodeFixes;
 
-/// <summary>
-/// Code fix provider that fixes property setter accessibility for dependency injection.
-/// </summary>
+/// <summary>Code fix provider that fixes property setter accessibility for dependency injection.</summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(PropertyCodeFixProvider))]
 [Shared]
 public class PropertyCodeFixProvider : CodeFixProvider
 {
     /// <inheritdoc/>
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create(SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable.Id);
+        [SourceGenerator.DiagnosticWarnings.PropertyMustPublicBeSettable.Id];
 
     /// <inheritdoc/>
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
@@ -32,19 +30,15 @@ public class PropertyCodeFixProvider : CodeFixProvider
     /// <inheritdoc/>
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-        if (root == null)
-        {
-            return;
-        }
+        // This provider is exported for C# only, and C# documents always support syntax trees, so the root is never null.
+        var root = (await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false))!;
 
         var diagnostic = context.Diagnostics[0];
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
 
         // Manual ancestor walk to find PropertyDeclarationSyntax
-        var node = root.FindToken(diagnosticSpan.Start).Parent;
+        var node = root.FindToken(diagnostic.Location.SourceSpan.Start).Parent;
         PropertyDeclarationSyntax? propertyDeclaration = null;
-        while (node != null)
+        while (node is not null)
         {
             if (node is PropertyDeclarationSyntax pds)
             {
@@ -55,7 +49,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
             node = node.Parent;
         }
 
-        if (propertyDeclaration == null)
+        if (propertyDeclaration is null)
         {
             return;
         }
@@ -92,17 +86,14 @@ public class PropertyCodeFixProvider : CodeFixProvider
         SyntaxKind accessorModifier,
         CancellationToken cancellationToken)
     {
-        var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-        if (root == null)
-        {
-            return document;
-        }
+        // Only C# documents reach this method, and C# documents always support syntax trees, so the root is never null.
+        var root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
 
         var setterModifiers = BuildSetterModifiers(property, accessorModifier);
 
         PropertyDeclarationSyntax newProperty;
 
-        if (property.AccessorList == null)
+        if (property.AccessorList is null)
         {
             newProperty = ConvertExpressionBodiedProperty(property, setterModifiers);
         }
@@ -113,14 +104,16 @@ public class PropertyCodeFixProvider : CodeFixProvider
             AccessorDeclarationSyntax? existingSetter = null;
             for (var i = 0; i < accessors.Count; i++)
             {
-                if (accessors[i].Kind() == SyntaxKind.SetAccessorDeclaration)
+                if (accessors[i].Kind() != SyntaxKind.SetAccessorDeclaration)
                 {
-                    existingSetter = accessors[i];
-                    break;
+                    continue;
                 }
+
+                existingSetter = accessors[i];
+                break;
             }
 
-            newProperty = existingSetter == null
+            newProperty = existingSetter is null
                 ? AddSetterToGetterOnlyProperty(property, setterModifiers)
                 : UpdateExistingSetterModifiers(property, existingSetter, setterModifiers);
         }
@@ -159,7 +152,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
     /// <returns>The transformed property with getter and setter accessors.</returns>
     internal static PropertyDeclarationSyntax ConvertExpressionBodiedProperty(
         PropertyDeclarationSyntax property,
-        SyntaxTokenList setterModifiers)
+        in SyntaxTokenList setterModifiers)
     {
         var getter = SyntaxFactory.AccessorDeclaration(
             SyntaxKind.GetAccessorDeclaration,
@@ -188,15 +181,13 @@ public class PropertyCodeFixProvider : CodeFixProvider
             .WithSemicolonToken(default);
     }
 
-    /// <summary>
-    /// Adds a setter accessor to a property that only has a getter.
-    /// </summary>
+    /// <summary>Adds a setter accessor to a property that only has a getter.</summary>
     /// <param name="property">The getter-only property.</param>
     /// <param name="setterModifiers">The modifier tokens for the setter.</param>
     /// <returns>The property with the setter added.</returns>
     internal static PropertyDeclarationSyntax AddSetterToGetterOnlyProperty(
         PropertyDeclarationSyntax property,
-        SyntaxTokenList setterModifiers)
+        in SyntaxTokenList setterModifiers)
     {
         var setter = SyntaxFactory.AccessorDeclaration(
                 SyntaxKind.SetAccessorDeclaration)
@@ -207,9 +198,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
         return property.WithAccessorList(newAccessorList);
     }
 
-    /// <summary>
-    /// Updates the accessibility modifiers on an existing setter accessor.
-    /// </summary>
+    /// <summary>Updates the accessibility modifiers on an existing setter accessor.</summary>
     /// <param name="property">The property containing the setter.</param>
     /// <param name="existingSetter">The existing setter accessor to update.</param>
     /// <param name="setterModifiers">The new modifier tokens for the setter.</param>
@@ -217,7 +206,7 @@ public class PropertyCodeFixProvider : CodeFixProvider
     internal static PropertyDeclarationSyntax UpdateExistingSetterModifiers(
         PropertyDeclarationSyntax property,
         AccessorDeclarationSyntax existingSetter,
-        SyntaxTokenList setterModifiers)
+        in SyntaxTokenList setterModifiers)
     {
         var newSetter = existingSetter.WithModifiers(setterModifiers);
         var newAccessorList = property.AccessorList!.ReplaceNode(existingSetter, newSetter);

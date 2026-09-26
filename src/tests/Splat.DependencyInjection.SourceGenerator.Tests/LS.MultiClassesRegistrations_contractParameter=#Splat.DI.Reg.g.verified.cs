@@ -23,23 +23,35 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            {
-                global::System.Lazy<global::Test.ITest1> lazy = new global::System.Lazy<global::Test.ITest1>(() => new global::Test.TestConcrete1(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
-                resolver.Register<global::System.Lazy<global::Test.ITest1>>(() => lazy);
-                resolver.Register<global::Test.ITest1>(() => lazy.Value);
-            }
+            var lazy0 = new global::System.Lazy<global::Test.ITest1>(
+                () => new global::Test.TestConcrete1(
+                    resolver.GetService<global::Test.IService1>() ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1"),
+                    resolver.GetService<global::Test.IService2>() ?? ThrowNotRegistered<global::Test.IService2>("global::Test.IService2")));
+            resolver.Register<global::System.Lazy<global::Test.ITest1>>(() => lazy0);
+            resolver.Register<global::Test.ITest1>(() => lazy0.Value);
 
-            {
-                global::System.Lazy<global::Test.ITest2> lazy = new global::System.Lazy<global::Test.ITest2>(() => new global::Test.TestConcrete2(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
-                resolver.Register<global::System.Lazy<global::Test.ITest2>>(() => lazy);
-                resolver.Register<global::Test.ITest2>(() => lazy.Value);
-            }
+            var lazy1 = new global::System.Lazy<global::Test.ITest2>(
+                () => new global::Test.TestConcrete2(
+                    resolver.GetService<global::Test.IService1>() ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1"),
+                    resolver.GetService<global::Test.IService2>() ?? ThrowNotRegistered<global::Test.IService2>("global::Test.IService2")));
+            resolver.Register<global::System.Lazy<global::Test.ITest2>>(() => lazy1);
+            resolver.Register<global::Test.ITest2>(() => lazy1.Value);
 
-            {
-                global::System.Lazy<global::Test.ITest3> lazy = new global::System.Lazy<global::Test.ITest3>(() => new global::Test.TestConcrete3(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")));
-                resolver.Register<global::System.Lazy<global::Test.ITest3>>(() => lazy);
-                resolver.Register<global::Test.ITest3>(() => lazy.Value);
-            }
+            var lazy2 = new global::System.Lazy<global::Test.ITest3>(
+                () => new global::Test.TestConcrete3(
+                    resolver.GetService<global::Test.IService1>() ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1"),
+                    resolver.GetService<global::Test.IService2>() ?? ThrowNotRegistered<global::Test.IService2>("global::Test.IService2")));
+            resolver.Register<global::System.Lazy<global::Test.ITest3>>(() => lazy2);
+            resolver.Register<global::Test.ITest3>(() => lazy2.Value);
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' not registered with Splat resolver.");
         }
     }
 }

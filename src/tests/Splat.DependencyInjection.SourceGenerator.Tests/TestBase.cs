@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
@@ -8,30 +8,13 @@ namespace Splat.DependencyInjection.SourceGenerator.Tests;
 /// Base class for source generator snapshot tests.
 /// Provides common test patterns for verifying generated code against snapshots.
 /// </summary>
-/// <param name="testMethod">The name of the registration method being tested (Register or RegisterLazySingleton).</param>
-public abstract class TestBase(string testMethod)
+[System.Diagnostics.DebuggerDisplay("{TestMethod}")]
+public abstract class TestBase
 {
-    /// <summary>
-    /// Initializes resources before each test.
-    /// </summary>
-    /// <returns>A task representing the asynchronous initialization operation.</returns>
-    [Before(Test)]
-    public Task SetupAsync() => TestHelper.InitializeAsync();
+    /// <summary>Gets the name of the registration method being tested (Register or RegisterLazySingleton).</summary>
+    protected abstract string TestMethod { get; }
 
-    /// <summary>
-    /// Cleans up resources after each test.
-    /// </summary>
-    /// <returns>A task representing the asynchronous cleanup operation.</returns>
-    [After(Test)]
-    public Task CleanupAsync()
-    {
-        // No cleanup needed with static TestHelper methods
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Validates that basic constructor injection works with different contract parameters.
-    /// </summary>
+    /// <summary>Validates that basic constructor injection works with different contract parameters.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -52,7 +35,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -72,9 +55,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that circular dependencies between registered types are detected and fail appropriately.
-    /// </summary>
+    /// <summary>Validates that circular dependencies between registered types are detected and fail appropriately.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -95,8 +76,8 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest1, TestConcrete1>({{arguments}});
-                        SplatRegistrations.{{testMethod}}<ITest2, TestConcrete2>();
+                        SplatRegistrations.{{TestMethod}}<ITest1, TestConcrete1>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest2, TestConcrete2>();
                     }
                 }
 
@@ -124,9 +105,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple classes can be registered simultaneously with constructor injection.
-    /// </summary>
+    /// <summary>Validates that multiple classes can be registered simultaneously with constructor injection.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -147,9 +126,9 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest1, TestConcrete1>({{arguments}});
-                        SplatRegistrations.{{testMethod}}<ITest2, TestConcrete2>({{arguments}});
-                        SplatRegistrations.{{testMethod}}<ITest3, TestConcrete3>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest1, TestConcrete1>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest2, TestConcrete2>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest3, TestConcrete3>({{arguments}});
                     }
                 }
 
@@ -185,9 +164,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that both constructor injection and public property injection work together.
-    /// </summary>
+    /// <summary>Validates that both constructor injection and public property injection work together.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -208,7 +185,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -232,9 +209,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection fails when the property is not public.
-    /// </summary>
+    /// <summary>Validates that property injection fails when the property is not public.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -255,7 +230,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -279,9 +254,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection fails when the property setter is not public.
-    /// </summary>
+    /// <summary>Validates that property injection fails when the property setter is not public.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -302,7 +275,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -326,9 +299,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection works with internal properties.
-    /// </summary>
+    /// <summary>Validates that property injection works with internal properties.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -349,7 +320,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -373,9 +344,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection works with internal properties when using single type argument registration.
-    /// </summary>
+    /// <summary>Validates that property injection works with internal properties when using single type argument registration.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -396,7 +365,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<TestConcrete>({{arguments}});
                     }
                 }
 
@@ -420,9 +389,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that property injection works with public properties having internal setters.
-    /// </summary>
+    /// <summary>Validates that property injection works with public properties having internal setters.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -443,7 +410,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -467,9 +434,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple properties can be injected simultaneously with different accessibility levels.
-    /// </summary>
+    /// <summary>Validates that multiple properties can be injected simultaneously with different accessibility levels.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -491,7 +456,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -523,9 +488,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple constructors without the DependencyInjectionConstructor attribute cause a failure.
-    /// </summary>
+    /// <summary>Validates that multiple constructors without the DependencyInjectionConstructor attribute cause a failure.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -546,7 +509,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -570,9 +533,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple constructors pass when not using DI registration (non-DI scenario).
-    /// </summary>
+    /// <summary>Validates that multiple constructors pass when not using DI registration (non-DI scenario).</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -594,13 +555,13 @@ public abstract class TestBase(string testMethod)
                     public static TestConcrete Instance = new(default!);
                     public TestConcrete(IService1 service1, IService2 service)
                     {
-                        Instance.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        Instance.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
 
                     public TestConcrete(IService1 service1)
                     {
                     }
-                    public void {{testMethod}}<T1, T2>(params object[] args)
+                    public void {{TestMethod}}<T1, T2>(params object[] args)
                     {
                     }
                 }
@@ -613,9 +574,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple constructors work when one is marked with the DependencyInjectionConstructor attribute.
-    /// </summary>
+    /// <summary>Validates that multiple constructors work when one is marked with the DependencyInjectionConstructor attribute.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -636,7 +595,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -661,9 +620,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that multiple constructors with multiple DependencyInjectionConstructor attributes cause a failure.
-    /// </summary>
+    /// <summary>Validates that multiple constructors with multiple DependencyInjectionConstructor attributes cause a failure.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -684,7 +641,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -710,9 +667,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestFail(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that classes with no constructor parameters can be registered successfully.
-    /// </summary>
+    /// <summary>Validates that classes with no constructor parameters can be registered successfully.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -733,7 +688,7 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete>({{arguments}});
                     }
                 }
 
@@ -745,9 +700,7 @@ public abstract class TestBase(string testMethod)
         return TestHelper.TestPass(source, contractParameter, GetType());
     }
 
-    /// <summary>
-    /// Validates that registering the same interface multiple times with different implementations causes a failure.
-    /// </summary>
+    /// <summary>Validates that registering the same interface multiple times with different implementations causes a failure.</summary>
     /// <param name="contractParameter">The contract name parameter to test (empty, "Test1", or "Test2").</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Test]
@@ -768,8 +721,8 @@ public abstract class TestBase(string testMethod)
                 {
                     static DIRegister()
                     {
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete1>({{arguments}});
-                        SplatRegistrations.{{testMethod}}<ITest, TestConcrete2>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete1>({{arguments}});
+                        SplatRegistrations.{{TestMethod}}<ITest, TestConcrete2>({{arguments}});
                     }
                 }
 

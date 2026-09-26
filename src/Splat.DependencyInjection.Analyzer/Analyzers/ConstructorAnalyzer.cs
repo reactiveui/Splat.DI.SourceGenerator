@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System;
@@ -21,10 +21,11 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
 {
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(
-            SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
-            SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
-            SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic);
+    [
+        SourceGenerator.DiagnosticWarnings.MultipleConstructorNeedAttribute,
+        SourceGenerator.DiagnosticWarnings.MultipleConstructorsMarked,
+        SourceGenerator.DiagnosticWarnings.ConstructorsMustBePublic,
+    ];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -47,20 +48,19 @@ public class ConstructorAnalyzer : DiagnosticAnalyzer
     /// <param name="context">The operation analysis context.</param>
     private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
-        var invocation = (IInvocationOperation)context.Operation;
-        var method = invocation.TargetMethod;
+        var method = ((IInvocationOperation)context.Operation).TargetMethod;
 
         // Check if it's SplatRegistrations.Register or RegisterLazySingleton
         // Note: RegisterConstant is NOT included because it takes a pre-instantiated object,
         // so constructor analysis is not needed (GitHub issue #292)
-        if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegister) &&
-            !AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegisterLazySingleton))
+        if (!AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegister)
+            && !AnalyzerHelpers.IsSplatRegistrationsMethod(method, SourceGenerator.Constants.MethodNameRegisterLazySingleton))
         {
             return;
         }
 
         // Extract concrete type from type arguments
-        if (method.TypeArguments.Length == 0 || method.TypeArguments.Length > 2)
+        if (method.TypeArguments.IsEmpty || method.TypeArguments.Length > 2)
         {
             return;
         }

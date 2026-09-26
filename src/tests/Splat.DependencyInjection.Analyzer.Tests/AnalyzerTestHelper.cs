@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Immutable;
@@ -10,37 +10,57 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Splat.DependencyInjection.Analyzer.Tests;
 
-/// <summary>
-/// Helper for testing Roslyn analyzers without heavy testing framework dependencies.
-/// </summary>
-public static class AnalyzerTestHelper
+/// <summary>Helper for testing Roslyn analyzers without heavy testing framework dependencies.</summary>
+internal static class AnalyzerTestHelper
 {
-    /// <summary>
-    /// Runs an analyzer on the provided source code and returns diagnostics.
-    /// </summary>
+    /// <summary>Runs an analyzer on the provided source code and returns diagnostics.</summary>
     /// <typeparam name="TAnalyzer">The type of analyzer to run.</typeparam>
     /// <param name="source">The source code to analyze.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the diagnostics.</returns>
-    public static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync<TAnalyzer>(string source)
+    internal static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync<TAnalyzer>(string source)
         where TAnalyzer : DiagnosticAnalyzer, new()
     {
         var compilation = CreateCompilation(source);
         var analyzer = new TAnalyzer();
 
         var compilationWithAnalyzers = compilation.WithAnalyzers(
-            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+            [analyzer]);
 
         var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
 
         // Filter to only analyzer diagnostics (exclude compiler errors)
-        return diagnostics
-            .Where(d => analyzer.SupportedDiagnostics.Any(sd => sd.Id == d.Id))
-            .ToImmutableArray();
+        var builder = ImmutableArray.CreateBuilder<Diagnostic>(diagnostics.Length);
+        foreach (var diagnostic in diagnostics)
+        {
+            if (IsSupported(analyzer, diagnostic))
+            {
+                builder.Add(diagnostic);
+            }
+        }
+
+        return builder.ToImmutable();
     }
 
-    /// <summary>
-    /// Creates a CSharpCompilation from source code with necessary references.
-    /// </summary>
+    /// <summary>Determines whether a diagnostic is one the analyzer declares as supported.</summary>
+    /// <param name="analyzer">The analyzer.</param>
+    /// <param name="diagnostic">The diagnostic to check.</param>
+    /// <returns><see langword="true"/> if the analyzer supports the diagnostic's ID.</returns>
+    internal static bool IsSupported(DiagnosticAnalyzer analyzer, Diagnostic diagnostic)
+    {
+        foreach (var descriptor in analyzer.SupportedDiagnostics)
+        {
+            if (descriptor.Id == diagnostic.Id)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Creates a CSharpCompilation from source code with necessary references.</summary>
+    /// <param name="source">The source code to compile.</param>
+    /// <returns>The compilation containing the source and the Splat stubs.</returns>
     private static CSharpCompilation CreateCompilation(string source)
     {
         // Add the attribute definitions and SplatRegistrations class so the analyzer can find them
@@ -83,30 +103,27 @@ public static class AnalyzerTestHelper
         var attributeTree = CSharpSyntaxTree.ParseText(attributeAndExtensionsSource);
 
         // Get references for the current runtime
-        var references = new List<MetadataReference>();
-
-        // Add core framework references
-        references.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-        references.Add(MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location));
-        references.Add(MetadataReference.CreateFromFile(typeof(System.Attribute).Assembly.Location));
-
-        // Add Splat reference for testing DI attributes
-        var splatAssembly = typeof(Splat.IReadonlyDependencyResolver).Assembly;
-        references.Add(MetadataReference.CreateFromFile(splatAssembly.Location));
+        // Add core framework references, plus Splat for testing DI attributes
+        var references = new List<MetadataReference>
+        {
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(IReadonlyDependencyResolver).Assembly.Location),
+        };
 
         // Add System.Runtime reference (needed for netstandard2.0 compatibility)
-        var systemRuntime = AppDomain.CurrentDomain.GetAssemblies()
-            .FirstOrDefault(a => a.GetName().Name == "System.Runtime");
-        if (systemRuntime != null)
+        var systemRuntime = TestUtilities.FindSystemRuntimeAssembly();
+        if (systemRuntime is not null)
         {
             references.Add(MetadataReference.CreateFromFile(systemRuntime.Location));
         }
 
         return CSharpCompilation.Create(
             "TestAssembly",
-            new[] { syntaxTree, attributeTree },
+            [syntaxTree, attributeTree],
             references,
-            new CSharpCompilationOptions(
+            new(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));
     }

@@ -1,31 +1,22 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
+
+using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace TestApp;
 
-/// <summary>
-/// A service that demonstrates constructor dependency injection.
-/// </summary>
-public class ServiceWithDependency
+/// <summary>A service that demonstrates constructor dependency injection.</summary>
+/// <param name="logger">The logger instance to use for logging operations.</param>
+[DebuggerDisplay("ServiceWithDependency: {_logger}")]
+public class ServiceWithDependency(ILogger logger)
 {
-    private readonly ILogger _logger;
+    /// <summary>The logger the work is reported to.</summary>
+    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ServiceWithDependency"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance to use for logging operations.</param>
-    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="logger"/> is null.</exception>
-    public ServiceWithDependency(ILogger logger)
-    {
-        _logger = logger ?? throw new System.ArgumentNullException(nameof(logger));
-    }
-
-    /// <summary>
-    /// Performs work and logs the operation using the injected logger.
-    /// </summary>
-    public void DoWork()
-    {
-        _logger.Log("Working...");
-    }
+    /// <summary>Performs work and logs the operation using the injected logger.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoWork() => _logger.Log("Working...");
 }

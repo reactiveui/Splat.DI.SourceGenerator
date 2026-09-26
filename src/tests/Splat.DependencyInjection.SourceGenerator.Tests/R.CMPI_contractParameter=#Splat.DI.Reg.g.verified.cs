@@ -23,7 +23,24 @@ namespace Splat
         /// <param name="resolver">The <see cref="Splat.IDependencyResolver"/> instance to register dependencies with.</param>
         static partial void SetupIOCInternal(Splat.IDependencyResolver resolver)
         {
-            resolver.Register<global::Test.ITest>(() => new global::Test.TestConcrete(resolver.GetService<global::Test.IService1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService1' not registered with Splat resolver."), resolver.GetService<global::Test.IService2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IService2' not registered with Splat resolver.")) { ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty1' not registered with Splat resolver."), ServiceProperty2 = resolver.GetService<global::Test.IServiceProperty2>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty2' not registered with Splat resolver."), ServiceProperty3 = resolver.GetService<global::Test.IServiceProperty3>() ?? throw new global::System.InvalidOperationException("Dependency 'global::Test.IServiceProperty3' not registered with Splat resolver.") });
+            resolver.Register<global::Test.ITest>(
+                () => new global::Test.TestConcrete(
+                    resolver.GetService<global::Test.IService1>() ?? ThrowNotRegistered<global::Test.IService1>("global::Test.IService1"),
+                    resolver.GetService<global::Test.IService2>() ?? ThrowNotRegistered<global::Test.IService2>("global::Test.IService2"))
+                {
+                    ServiceProperty1 = resolver.GetService<global::Test.IServiceProperty1>() ?? ThrowNotRegistered<global::Test.IServiceProperty1>("global::Test.IServiceProperty1"),
+                    ServiceProperty2 = resolver.GetService<global::Test.IServiceProperty2>() ?? ThrowNotRegistered<global::Test.IServiceProperty2>("global::Test.IServiceProperty2"),
+                    ServiceProperty3 = resolver.GetService<global::Test.IServiceProperty3>() ?? ThrowNotRegistered<global::Test.IServiceProperty3>("global::Test.IServiceProperty3"),
+                });
+        }
+
+        /// <summary>Throws for a dependency the resolver has no registration for.</summary>
+        /// <typeparam name="T">The type of the dependency.</typeparam>
+        /// <param name="typeName">The name of the dependency's type.</param>
+        /// <returns>Never returns.</returns>
+        private static T ThrowNotRegistered<T>(string typeName)
+        {
+            throw new global::System.InvalidOperationException("Dependency '" + typeName + "' not registered with Splat resolver.");
         }
     }
 }

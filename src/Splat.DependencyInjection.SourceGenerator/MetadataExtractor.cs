@@ -1,5 +1,5 @@
-// Copyright (c) 2019-2026 ReactiveUI Association Incorporated. All rights reserved.
-// ReactiveUI Association Incorporated licenses this file to you under the MIT license.
+// Copyright (c) 2019-2026 ReactiveUI and Contributors. All rights reserved.
+// ReactiveUI and Contributors licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
@@ -14,411 +14,364 @@ using Splat.DependencyInjection.SourceGenerator.Models;
 
 namespace Splat.DependencyInjection.SourceGenerator;
 
-/// <summary>
-/// Extracts metadata from Roslyn symbols for DI registration.
-/// </summary>
+/// <summary>Turns a bound marker call into the value-only model the rest of the pipeline works from.</summary>
+/// <remarks>
+/// Binding a call is the costliest thing a transform does, so each check that can turn a call away without binding it
+/// runs first, and each name is read from a symbol at most once.
+/// </remarks>
 internal static class MetadataExtractor
 {
-    /// <summary>
-    /// The fully qualified symbol display format used for type name extraction.
-    /// </summary>
-    private static readonly SymbolDisplayFormat _fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat;
+    /// <summary>The fully qualified name of a lazy before its type argument.</summary>
+    private const string LazyPrefix = "global::System.Lazy<";
 
-    /// <summary>
-    /// Cache for well-known symbols keyed by compilation instance.
-    /// Uses weak references to compilation keys to prevent memory leaks.
-    /// </summary>
-    private static readonly ConditionalWeakTable<Compilation, WellKnownSymbolsBox> _symbolsCache = new();
+    /// <summary>The fully qualified name of a collection before its type argument.</summary>
+    private const string EnumerablePrefix = "global::System.Collections.Generic.IEnumerable<";
 
-    /// <summary>
-    /// Extracts metadata for a Register call. Resolves the method symbol from the generator
-    /// syntax context and delegates to <see cref="ExtractRegisterMetadataFromSymbol"/>.
-    /// </summary>
-    /// <param name="context">The generator syntax context.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>Transient registration info or null.</returns>
-    internal static TransientRegistrationInfo? ExtractRegisterMetadata(
-        GeneratorSyntaxContext context,
-        CancellationToken ct)
+    /// <summary>The fully qualified <see cref="System.Threading.LazyThreadSafetyMode"/> members, indexed by value.</summary>
+    private static readonly string[] LazyThreadSafetyModeNames =
+    [
+        "global::System.Threading.LazyThreadSafetyMode.None",
+        "global::System.Threading.LazyThreadSafetyMode.PublicationOnly",
+        "global::System.Threading.LazyThreadSafetyMode.ExecutionAndPublication",
+    ];
+
+    /// <summary>Extracts the registration a marker call makes; the pipeline's transform.</summary>
+    /// <param name="context">The call and its semantic model.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The registration and where it is made, or <see langword="null"/> when the call is not a valid registration.</returns>
+    internal static RegistrationSite? Extract(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         var semanticModel = context.SemanticModel;
 
-        if (semanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol methodSymbol)
+        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess
+            && !IsRegistrationsReceiver(memberAccess.Expression, semanticModel, cancellationToken))
         {
             return null;
         }
 
-        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
-        return ExtractRegisterMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
+        if (semanticModel.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method
+            || !RoslynHelpers.IsSplatRegistrationsMethod(method))
+        {
+            return null;
+        }
+
+        var registration = ExtractRegistration(method, invocation, semanticModel, WellKnownSymbols.For(semanticModel.Compilation), cancellationToken);
+        return registration is null ? null : new(registration, LocationInfo.From(invocation));
     }
 
-    /// <summary>
-    /// Extracts metadata for a Register call from a resolved method symbol.
-    /// </summary>
-    /// <param name="methodSymbol">The resolved method symbol.</param>
-    /// <param name="invocation">The invocation expression syntax.</param>
+    /// <summary>Tests whether the receiver of a call names the <c>SplatRegistrations</c> class.</summary>
+    /// <param name="receiver">The expression before the call's name.</param>
     /// <param name="semanticModel">The semantic model.</param>
-    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>Transient registration info or null.</returns>
-    internal static TransientRegistrationInfo? ExtractRegisterMetadataFromSymbol(
-        IMethodSymbol methodSymbol,
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when the receiver could be the class.</returns>
+    /// <remarks>
+    /// A receiver spelled <c>SplatRegistrations</c> is accepted from syntax. Anything else - a using alias, or a
+    /// resolver variable in a call to Splat's own <c>Register</c> - binds on its own, which is far cheaper than binding
+    /// the whole call with its overloads and type inference.
+    /// </remarks>
+    internal static bool IsRegistrationsReceiver(ExpressionSyntax receiver, SemanticModel semanticModel, CancellationToken cancellationToken) =>
+        receiver is IdentifierNameSyntax { Identifier.ValueText: Constants.ClassName }
+            or MemberAccessExpressionSyntax { Name.Identifier.ValueText: Constants.ClassName }
+        || semanticModel.GetSymbolInfo(receiver, cancellationToken).Symbol is INamedTypeSymbol { Name: Constants.ClassName };
+
+    /// <summary>Extracts the registration a bound marker call makes.</summary>
+    /// <param name="method">The bound marker method.</param>
+    /// <param name="invocation">The call.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The registration, or <see langword="null"/> when the type cannot be constructed or injected.</returns>
+    internal static RegistrationInfo? ExtractRegistration(
+        IMethodSymbol method,
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
         WellKnownSymbols symbols,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegister))
+        var typeArguments = method.TypeArguments;
+        var concreteType = typeArguments[typeArguments.Length - 1];
+
+        if (!TryExtractConstructorParameters(concreteType, symbols, out var constructorParameters)
+            || !TryExtractPropertyInjections(concreteType, symbols, out var propertyInjections))
         {
             return null;
         }
 
-        var numberTypeParameters = methodSymbol.TypeArguments.Length;
-        if (numberTypeParameters is 0 or > 2)
-        {
-            return null;
-        }
+        ExtractArguments(method, invocation.ArgumentList.Arguments, semanticModel, symbols, cancellationToken, out var contract, out var mode);
 
-        var interfaceType = methodSymbol.TypeArguments[0];
-        var concreteType = numberTypeParameters == 2
-            ? methodSymbol.TypeArguments[1]
-            : interfaceType;
-
-        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
-        if (constructorParams == null)
-        {
-            return null;
-        }
-
-        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
-        if (propertyInjections == null)
-        {
-            return null;
-        }
-
-        var contractValue = RoslynHelpers.ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
-
-        return new TransientRegistrationInfo(
-            InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
-            ConcreteTypeFullName: concreteType.ToDisplayString(_fullyQualifiedFormat),
-            ConstructorParameters: new EquatableArray<ConstructorParameter>(constructorParams),
-            PropertyInjections: new EquatableArray<PropertyInjection>(propertyInjections),
-            ContractValue: contractValue,
-            InvocationLocation: invocation.GetLocation());
+        var serviceTypeName = DisplayName(typeArguments[0]);
+        return new(
+            method.Name == Constants.MethodNameRegister ? RegistrationKind.Transient : RegistrationKind.LazySingleton,
+            serviceTypeName,
+            typeArguments.Length == 1 ? serviceTypeName : DisplayName(concreteType),
+            constructorParameters,
+            propertyInjections,
+            contract,
+            mode);
     }
 
-    /// <summary>
-    /// Extracts metadata for a RegisterLazySingleton call. Resolves the method symbol from the generator
-    /// syntax context and delegates to <see cref="ExtractLazySingletonMetadataFromSymbol"/>.
-    /// </summary>
-    /// <param name="context">The generator syntax context.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>Lazy singleton registration info or null.</returns>
-    internal static LazySingletonRegistrationInfo? ExtractLazySingletonMetadata(
-        GeneratorSyntaxContext context,
-        CancellationToken ct)
+    /// <summary>Extracts the parameters of the constructor a registration calls.</summary>
+    /// <param name="concreteType">The type constructed.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <param name="parameters">The parameters, when a constructor can be called.</param>
+    /// <returns><see langword="false"/> when no single accessible constructor can be chosen.</returns>
+    /// <remarks>
+    /// Constructors are looked up by name, which a type answers from its member table without building a list of
+    /// every member. A type with one constructor uses it; a type with several uses the one marked
+    /// <c>[DependencyInjectionConstructor]</c>. The analyzers report the types this turns away.
+    /// </remarks>
+    internal static bool TryExtractConstructorParameters(ITypeSymbol concreteType, WellKnownSymbols symbols, out EquatableArray<ConstructorParameter> parameters)
     {
-        var invocation = (InvocationExpressionSyntax)context.Node;
-        var semanticModel = context.SemanticModel;
+        parameters = EquatableArray<ConstructorParameter>.Empty;
+        var constructors = concreteType.GetMembers(WellKnownMemberNames.InstanceConstructorName);
 
-        if (semanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol methodSymbol)
+        if (constructors.IsEmpty)
         {
-            return null;
+            return true;
         }
 
-        var symbols = ResolveWellKnownSymbols(semanticModel.Compilation);
-        return ExtractLazySingletonMetadataFromSymbol(methodSymbol, invocation, semanticModel, symbols, ct);
+        var constructor = constructors.Length == 1
+            ? (IMethodSymbol)constructors[0]
+            : FindMarkedConstructor(concreteType, constructors, symbols);
+
+        if (constructor is null || constructor.DeclaredAccessibility < Accessibility.Internal)
+        {
+            return false;
+        }
+
+        var constructorParameters = constructor.Parameters;
+        if (constructorParameters.IsEmpty)
+        {
+            return true;
+        }
+
+        var extracted = new ConstructorParameter[constructorParameters.Length];
+        for (var i = 0; i < extracted.Length; i++)
+        {
+            extracted[i] = CreateParameter(constructorParameters[i].Type, symbols);
+        }
+
+        parameters = new(extracted);
+        return true;
     }
 
-    /// <summary>
-    /// Extracts metadata for a RegisterLazySingleton call from a resolved method symbol.
-    /// </summary>
-    /// <param name="methodSymbol">The resolved method symbol.</param>
-    /// <param name="invocation">The invocation expression syntax.</param>
-    /// <param name="semanticModel">The semantic model.</param>
-    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>Lazy singleton registration info or null.</returns>
-    internal static LazySingletonRegistrationInfo? ExtractLazySingletonMetadataFromSymbol(
-        IMethodSymbol methodSymbol,
-        InvocationExpressionSyntax invocation,
-        SemanticModel semanticModel,
-        WellKnownSymbols symbols,
-        CancellationToken ct)
+    /// <summary>Finds the one constructor marked <c>[DependencyInjectionConstructor]</c>.</summary>
+    /// <param name="concreteType">The type the constructors belong to.</param>
+    /// <param name="constructors">The type's instance constructors.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <returns>The marked constructor, or <see langword="null"/> when none or several are marked.</returns>
+    /// <remarks>
+    /// The attribute is internal and embedded, so only a type compiled here can carry it. A type from a reference is
+    /// turned away without decoding the attributes of its constructors.
+    /// </remarks>
+    internal static IMethodSymbol? FindMarkedConstructor(ITypeSymbol concreteType, ImmutableArray<ISymbol> constructors, WellKnownSymbols symbols)
     {
-        if (!RoslynHelpers.IsSplatRegistrationsMethod(methodSymbol, Constants.MethodNameRegisterLazySingleton))
+        var attribute = symbols.ConstructorAttribute;
+        if (attribute is null || !SymbolEqualityComparer.Default.Equals(concreteType.ContainingAssembly, symbols.SourceAssembly))
         {
             return null;
         }
 
-        var numberTypeParameters = methodSymbol.TypeArguments.Length;
-        if (numberTypeParameters is 0 or > 2)
+        IMethodSymbol? marked = null;
+        foreach (var constructor in constructors)
         {
-            return null;
-        }
-
-        var interfaceType = methodSymbol.TypeArguments[0];
-        var concreteType = numberTypeParameters == 2
-            ? methodSymbol.TypeArguments[1]
-            : interfaceType;
-
-        var constructorParams = ExtractConstructorParameters(concreteType, symbols);
-        if (constructorParams == null)
-        {
-            return null;
-        }
-
-        var propertyInjections = ExtractPropertyInjections(concreteType, symbols.PropertyAttribute);
-        if (propertyInjections == null)
-        {
-            return null;
-        }
-
-        var contractValue = RoslynHelpers.ExtractContractParameter(methodSymbol, invocation, semanticModel, ct);
-        var lazyMode = RoslynHelpers.ExtractLazyThreadSafetyMode(methodSymbol, invocation, semanticModel, ct);
-
-        return new LazySingletonRegistrationInfo(
-            InterfaceTypeFullName: interfaceType.ToDisplayString(_fullyQualifiedFormat),
-            ConcreteTypeFullName: concreteType.ToDisplayString(_fullyQualifiedFormat),
-            ConstructorParameters: new EquatableArray<ConstructorParameter>(constructorParams),
-            PropertyInjections: new EquatableArray<PropertyInjection>(propertyInjections),
-            ContractValue: contractValue,
-            LazyThreadSafetyMode: lazyMode,
-            InvocationLocation: invocation.GetLocation());
-    }
-
-    /// <summary>
-    /// Extracts constructor parameters for a type.
-    /// </summary>
-    /// <param name="concreteType">The type to extract from.</param>
-    /// <param name="symbols">Pre-resolved well-known symbols for efficient comparison.</param>
-    /// <returns>Array of constructor parameters or null.</returns>
-    internal static ConstructorParameter[]? ExtractConstructorParameters(ITypeSymbol concreteType, WellKnownSymbols symbols)
-    {
-        var members = concreteType.GetMembers();
-        var constructors = new List<IMethodSymbol>(capacity: 4);
-
-        for (var i = 0; i < members.Length; i++)
-        {
-            if (members[i] is IMethodSymbol { MethodKind: MethodKind.Constructor, IsStatic: false } ctor)
+            if (!HasAttribute(constructor, attribute))
             {
-                constructors.Add(ctor);
-            }
-        }
-
-        var constructorCount = constructors.Count;
-        IMethodSymbol? selectedConstructor = null;
-
-        if (constructorCount == 1)
-        {
-            selectedConstructor = constructors[0];
-        }
-        else if (constructorCount > 1)
-        {
-            for (var i = 0; i < constructorCount; i++)
-            {
-                var constructor = constructors[i];
-                if (HasAttribute(constructor, symbols.ConstructorAttribute, Constants.ConstructorAttribute))
-                {
-                    if (selectedConstructor != null)
-                    {
-                        return null;
-                    }
-
-                    selectedConstructor = constructor;
-                }
+                continue;
             }
 
-            if (selectedConstructor == null)
+            if (marked is not null)
             {
                 return null;
             }
+
+            marked = (IMethodSymbol)constructor;
         }
 
-        if (selectedConstructor == null)
-        {
-            return [];
-        }
-
-        if (selectedConstructor.DeclaredAccessibility < Accessibility.Internal)
-        {
-            return null;
-        }
-
-        var parameters = new List<ConstructorParameter>(selectedConstructor.Parameters.Length);
-        foreach (var param in selectedConstructor.Parameters)
-        {
-            var paramType = param.Type;
-            var paramTypeName = paramType.ToDisplayString(_fullyQualifiedFormat);
-
-            bool isLazy = false;
-            string? lazyInnerType = null;
-
-            if (paramType is INamedTypeSymbol namedType &&
-                IsOriginalDefinition(namedType, symbols.LazyType, Constants.LazyOpenGenericTypeName))
-            {
-                isLazy = true;
-                if (namedType.TypeArguments.Length > 0)
-                {
-                    lazyInnerType = namedType.TypeArguments[0].ToDisplayString(_fullyQualifiedFormat);
-                }
-            }
-
-            bool isCollection = false;
-            string? collectionItemType = null;
-
-            if (paramType is INamedTypeSymbol namedCollType &&
-                IsOriginalDefinition(namedCollType, symbols.EnumerableType, Constants.EnumerableOpenGenericTypeName))
-            {
-                isCollection = true;
-                if (namedCollType.TypeArguments.Length > 0)
-                {
-                    collectionItemType = namedCollType.TypeArguments[0].ToDisplayString(_fullyQualifiedFormat);
-                }
-            }
-
-            parameters.Add(new ConstructorParameter(
-                ParameterName: param.Name,
-                TypeFullName: paramTypeName,
-                IsLazy: isLazy,
-                LazyInnerType: lazyInnerType,
-                IsCollection: isCollection,
-                CollectionItemType: collectionItemType));
-        }
-
-        return parameters.ToArray();
+        return marked;
     }
 
-    /// <summary>
-    /// Extracts property injections for a type.
-    /// </summary>
-    /// <param name="concreteType">The type to extract from.</param>
-    /// <param name="propertyAttributeSymbol">Pre-resolved property attribute symbol for efficient comparison.</param>
-    /// <returns>Array of property injections or null.</returns>
-    internal static PropertyInjection[]? ExtractPropertyInjections(ITypeSymbol concreteType, INamedTypeSymbol? propertyAttributeSymbol)
+    /// <summary>Extracts the properties marked <c>[DependencyInjectionProperty]</c> on a type and its base types.</summary>
+    /// <param name="concreteType">The type constructed.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <param name="properties">The properties, when every marked one can be set.</param>
+    /// <returns><see langword="false"/> when a marked property has no setter the generated code can call.</returns>
+    /// <remarks>
+    /// The walk stops at the first base type from a reference: the attribute is internal and embedded, so no type
+    /// compiled elsewhere carries this compilation's copy, and its members need never be loaded. The list is only
+    /// allocated once a property is found; most types have none.
+    /// </remarks>
+    internal static bool TryExtractPropertyInjections(ITypeSymbol concreteType, WellKnownSymbols symbols, out EquatableArray<PropertyInjection> properties)
     {
-        var properties = new List<PropertyInjection>(capacity: 4);
-        var allTypes = RoslynHelpers.GetBaseTypesAndThis(concreteType);
+        properties = EquatableArray<PropertyInjection>.Empty;
+        var attribute = symbols.PropertyAttribute;
+        if (attribute is null)
+        {
+            return true;
+        }
 
-        foreach (var type in allTypes)
+        List<PropertyInjection>? found = null;
+        for (var type = concreteType; type is not null && SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, symbols.SourceAssembly); type = type.BaseType)
         {
             foreach (var member in type.GetMembers())
             {
-                if (member is not IPropertySymbol property)
+                if (member is not IPropertySymbol property || !HasAttribute(property, attribute))
                 {
                     continue;
                 }
 
-                if (!HasAttribute(property, propertyAttributeSymbol, Constants.PropertyAttribute))
+                if (property.SetMethod is not { DeclaredAccessibility: >= Accessibility.Internal })
                 {
-                    continue;
+                    return false;
                 }
 
-                if (property.SetMethod == null || property.SetMethod.DeclaredAccessibility < Accessibility.Internal)
-                {
-                    return null;
-                }
-
-                properties.Add(new PropertyInjection(
-                    PropertyName: property.Name,
-                    TypeFullName: property.Type.ToDisplayString(_fullyQualifiedFormat),
-                    PropertyLocation: GetFirstLocation(property.Locations)));
+                (found ??= []).Add(new(property.Name, DisplayName(property.Type)));
             }
         }
 
-        return properties.ToArray();
+        if (found is not null)
+        {
+            properties = new(found.ToArray());
+        }
+
+        return true;
     }
 
-    /// <summary>
-    /// Resolves well-known type symbols from the compilation for efficient symbol comparison.
-    /// Results are cached per <see cref="Compilation"/> instance using a <see cref="ConditionalWeakTable{TKey, TValue}"/>
-    /// so that repeated calls within the same compilation (e.g., across multiple syntax transforms) avoid redundant lookups.
-    /// </summary>
-    /// <param name="compilation">The compilation to resolve symbols from.</param>
-    /// <returns>A struct containing the resolved symbols (any may be null if not found).</returns>
-    internal static WellKnownSymbols ResolveWellKnownSymbols(Compilation compilation)
-        => _symbolsCache.GetValue(compilation, static c => new WellKnownSymbolsBox(new(
-            ConstructorAttribute: c.GetTypeByMetadataName(Constants.ConstructorAttributeMetadataName),
-            PropertyAttribute: c.GetTypeByMetadataName(Constants.PropertyAttributeMetadataName),
-            LazyType: c.GetTypeByMetadataName(Constants.LazyMetadataName)?.OriginalDefinition as INamedTypeSymbol,
-            EnumerableType: c.GetTypeByMetadataName(Constants.EnumerableMetadataName)?.OriginalDefinition as INamedTypeSymbol))).Value;
-
-    /// <summary>
-    /// Checks if a symbol has a specific attribute using symbol comparison (fast path)
-    /// with string comparison fallback when the attribute symbol is not available.
-    /// </summary>
-    /// <param name="symbol">The symbol to check for attributes.</param>
-    /// <param name="attributeSymbol">The pre-resolved attribute symbol (may be null).</param>
-    /// <param name="attributeDisplayString">The fully qualified display string fallback.</param>
-    /// <returns>True if the symbol has the specified attribute.</returns>
-    internal static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol, string attributeDisplayString)
+    /// <summary>Reads the contract and thread safety mode a marker call passes.</summary>
+    /// <param name="method">The bound marker method.</param>
+    /// <param name="arguments">The call's arguments.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="contract">The contract, as C# source; <see langword="null"/> for none.</param>
+    /// <param name="mode">The thread safety mode, as C# source; <see langword="null"/> for none.</param>
+    internal static void ExtractArguments(
+        IMethodSymbol method,
+        SeparatedSyntaxList<ArgumentSyntax> arguments,
+        SemanticModel semanticModel,
+        WellKnownSymbols symbols,
+        CancellationToken cancellationToken,
+        out string? contract,
+        out string? mode)
     {
-        var attrs = symbol.GetAttributes();
-        if (attributeSymbol != null)
+        contract = null;
+        mode = null;
+        for (var i = 0; i < arguments.Count; i++)
         {
-            for (var i = 0; i < attrs.Length; i++)
+            var argument = arguments[i];
+            var parameterName = RoslynHelpers.GetParameterName(argument, method, i);
+            if (parameterName == Constants.ParameterNameContract)
             {
-                if (SymbolEqualityComparer.Default.Equals(attrs[i].AttributeClass, attributeSymbol))
-                {
-                    return true;
-                }
+                contract = ExtractContract(argument.Expression, semanticModel, cancellationToken);
+            }
+            else if (parameterName == Constants.ParameterNameMode)
+            {
+                mode = ExtractMode(argument.Expression, semanticModel, symbols, cancellationToken);
             }
         }
-        else
+    }
+
+    /// <summary>Reads a contract argument as C# source that compiles in the generated file.</summary>
+    /// <param name="expression">The argument.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The contract, or <see langword="null"/> when it does not bind.</returns>
+    /// <remarks>
+    /// A literal is copied from its token, whose text the syntax tree already holds, so it costs no allocation and no
+    /// binding. Members are qualified with their type, so they compile from the generated file's namespace.
+    /// </remarks>
+    internal static string? ExtractContract(ExpressionSyntax expression, SemanticModel semanticModel, CancellationToken cancellationToken) =>
+        expression is LiteralExpressionSyntax literal
+            ? literal.Token.Text
+            : ExtractValue(expression, semanticModel.GetSymbolInfo(expression, cancellationToken).Symbol);
+
+    /// <summary>Reads a thread safety mode argument as C# source that compiles in the generated file.</summary>
+    /// <param name="expression">The argument.</param>
+    /// <param name="semanticModel">The semantic model.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The mode, or <see langword="null"/> when it does not bind.</returns>
+    /// <remarks>A member of the enum, the usual argument, is looked up in a table rather than formatted.</remarks>
+    internal static string? ExtractMode(ExpressionSyntax expression, SemanticModel semanticModel, WellKnownSymbols symbols, CancellationToken cancellationToken)
+    {
+        var symbol = semanticModel.GetSymbolInfo(expression, cancellationToken).Symbol;
+        return symbol is IFieldSymbol { ConstantValue: int value } field
+            && SymbolEqualityComparer.Default.Equals(field.ContainingType, symbols.LazyThreadSafetyModeType)
+            ? LazyThreadSafetyModeNames[value]
+            : ExtractValue(expression, symbol);
+    }
+
+    /// <summary>Renders a bound argument as C# source that compiles in the generated file.</summary>
+    /// <param name="expression">The argument.</param>
+    /// <param name="symbol">The symbol the argument binds to.</param>
+    /// <returns>The source, or <see langword="null"/> when the argument does not bind.</returns>
+    internal static string? ExtractValue(ExpressionSyntax expression, ISymbol? symbol) =>
+        symbol switch
         {
-            for (var i = 0; i < attrs.Length; i++)
+            null => null,
+            IFieldSymbol or IPropertySymbol => RoslynHelpers.GetFullyQualifiedMemberReference(symbol),
+            IMethodSymbol invokedMethod when expression is InvocationExpressionSyntax invocation =>
+                RoslynHelpers.GetFullyQualifiedMethodInvocation(invokedMethod, invocation),
+            _ => expression.ToString(),
+        };
+
+    /// <summary>Describes how a constructor parameter is resolved.</summary>
+    /// <param name="type">The parameter's type.</param>
+    /// <param name="symbols">The compilation's well-known symbols.</param>
+    /// <returns>The parameter.</returns>
+    /// <remarks>
+    /// The type argument of a lazy or a collection is cut from the name already formatted for the whole type, which
+    /// is the type argument's own name between the generic type's prefix and the closing bracket.
+    /// </remarks>
+    internal static ConstructorParameter CreateParameter(ITypeSymbol type, WellKnownSymbols symbols)
+    {
+        var typeName = DisplayName(type);
+        if (type is INamedTypeSymbol { TypeArguments.Length: 1 } namedType)
+        {
+            var definition = namedType.OriginalDefinition;
+            if (SymbolEqualityComparer.Default.Equals(definition, symbols.LazyType))
             {
-                if (attrs[i].AttributeClass?.ToDisplayString(_fullyQualifiedFormat) == attributeDisplayString)
-                {
-                    return true;
-                }
+                return new(typeName, DependencyKind.Lazy, TypeArgumentName(typeName, LazyPrefix.Length));
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(definition, symbols.EnumerableType))
+            {
+                return new(typeName, DependencyKind.Collection, TypeArgumentName(typeName, EnumerablePrefix.Length));
+            }
+        }
+
+        return new(typeName, DependencyKind.Service, null);
+    }
+
+    /// <summary>Tests whether a symbol carries an attribute.</summary>
+    /// <param name="symbol">The symbol.</param>
+    /// <param name="attribute">The attribute type.</param>
+    /// <returns><see langword="true"/> when the symbol carries the attribute.</returns>
+    internal static bool HasAttribute(ISymbol symbol, INamedTypeSymbol attribute)
+    {
+        foreach (var data in symbol.GetAttributes())
+        {
+            if (attribute.Equals(data.AttributeClass, SymbolEqualityComparer.Default))
+            {
+                return true;
             }
         }
 
         return false;
     }
 
-    /// <summary>
-    /// Checks if a named type's original definition matches an expected type using symbol comparison (fast path)
-    /// with string comparison fallback when the expected symbol is not available.
-    /// </summary>
-    /// <param name="namedType">The named type to check.</param>
-    /// <param name="expectedSymbol">The pre-resolved expected type symbol (may be null).</param>
-    /// <param name="expectedDisplayString">The fully qualified display string fallback.</param>
-    /// <returns>True if the named type's original definition matches.</returns>
-    internal static bool IsOriginalDefinition(INamedTypeSymbol namedType, INamedTypeSymbol? expectedSymbol, string expectedDisplayString)
-    {
-        return expectedSymbol != null
-            ? SymbolEqualityComparer.Default.Equals(namedType.OriginalDefinition, expectedSymbol)
-            : namedType.OriginalDefinition.ToDisplayString(_fullyQualifiedFormat) == expectedDisplayString;
-    }
+    /// <summary>Formats a type's fully qualified name, as the generated code writes it.</summary>
+    /// <param name="type">The type.</param>
+    /// <returns>The name, starting <c>global::</c> for a named type.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static string DisplayName(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-    /// <summary>
-    /// Gets the first location from a locations array, or <see cref="Location.None"/> if empty.
-    /// </summary>
-    /// <param name="locations">The locations array.</param>
-    /// <returns>The first location or <see cref="Location.None"/>.</returns>
-    internal static Location GetFirstLocation(ImmutableArray<Location> locations)
-        => locations.Length > 0 ? locations[0] : Location.None;
-
-    /// <summary>
-    /// Pre-resolved well-known symbols for efficient comparison without string allocations.
-    /// </summary>
-    /// <param name="ConstructorAttribute">The DependencyInjectionConstructorAttribute symbol.</param>
-    /// <param name="PropertyAttribute">The DependencyInjectionPropertyAttribute symbol.</param>
-    /// <param name="LazyType">The System.Lazy open generic type symbol.</param>
-    /// <param name="EnumerableType">The IEnumerable open generic type symbol.</param>
-    internal readonly record struct WellKnownSymbols(
-        INamedTypeSymbol? ConstructorAttribute,
-        INamedTypeSymbol? PropertyAttribute,
-        INamedTypeSymbol? LazyType,
-        INamedTypeSymbol? EnumerableType);
-
-    /// <summary>
-    /// Reference-type wrapper for <see cref="WellKnownSymbols"/> to satisfy
-    /// <see cref="ConditionalWeakTable{TKey, TValue}"/> value type constraint.
-    /// </summary>
-    /// <param name="Value">The well-known symbols to wrap.</param>
-    private sealed record WellKnownSymbolsBox(WellKnownSymbols Value);
+    /// <summary>Cuts the single type argument out of a generic type's formatted name.</summary>
+    /// <param name="typeName">The generic type's name.</param>
+    /// <param name="prefixLength">The length of the name before the type argument.</param>
+    /// <returns>The type argument's name.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static string TypeArgumentName(string typeName, int prefixLength) =>
+        typeName.Substring(prefixLength, typeName.Length - prefixLength - 1);
 }
