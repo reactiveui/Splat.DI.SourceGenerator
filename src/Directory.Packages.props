@@ -41,7 +41,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
 
     <!-- Test App Dependencies-->
-    <PackageVersion Include="ReactiveUI" Version="24.3.0" />
-    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="3.2.0" />
+    <PackageVersion Include="ReactiveUI" Version="25.1.1" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="4.2.0" />
   </ItemGroup>
 </Project>
