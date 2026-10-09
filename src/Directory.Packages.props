@@ -11,7 +11,7 @@
   <ItemGroup>
     <!-- Testing Framework -->
     <PackageVersion Include="TUnit" Version="1.69.16" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
 
     <!-- Roslyn / Code Analysis. Microsoft.CodeAnalysis.CSharp is pinned to 4.14.0 on purpose: a compiler will not
          load a generator built against a newer Roslyn than itself, so this is the oldest SDK the package supports. -->
