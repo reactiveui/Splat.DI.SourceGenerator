@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <!-- Testing Framework -->
-    <PackageVersion Include="TUnit" Version="1.69.16" />
+    <PackageVersion Include="TUnit" Version="1.73.5" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
 
     <!-- Roslyn / Code Analysis. Microsoft.CodeAnalysis.CSharp is pinned to 4.14.0 on purpose: a compiler will not
