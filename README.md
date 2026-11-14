@@ -40,7 +40,7 @@ Key features:
 
 - Compiler: .NET SDK 9.0.300 or later, or Visual Studio 2022 17.14 or later (the generator is built against Roslyn 4.14)
 - Language: C# 8.0 or later (the generated code uses `#nullable` directives)
-- Target Frameworks: .NET Framework 4.6.2+, .NET 8+, .NET 9+, .NET 10+
+- Target Frameworks: .NET Framework 4.7+, .NET 8+, .NET 9+, .NET 10+
 - Splat: Version 19.1.1 or later (supports modern generic-first resolvers)
 
 ### Installation
@@ -377,7 +377,7 @@ Version 2.1.1 includes breaking changes:
 - Migrated from legacy `ISourceGenerator` to modern `IIncrementalGenerator`
 - Updated to Roslyn 4.14.0
 - Removed support for .NET Standard 2.0 and .NET 6
-- Minimum supported frameworks: .NET Framework 4.6.2+, .NET 8+, .NET 9+, .NET 10+
+- Minimum supported frameworks: .NET Framework 4.7+, .NET 8+, .NET 9+, .NET 10+
 
 New features in 2.1.1:
 - 10-100x faster incremental builds (only processes changed files)
