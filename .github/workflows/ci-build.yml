@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  productNamespacePrefix: "Splat.DependencyInjection"
-
 # Needed so the reusable workflow can optionally delete the temp per-OS artifacts it creates.
 permissions:
   contents: read
@@ -16,8 +13,10 @@ permissions:
 
 jobs:
   build:
-    uses: reactiveui/actions-common/.github/workflows/workflow-common-setup-and-build.yml@b285525c4af878b0fe3fbb00d9f2ae862e402395 # main
+    uses: reactiveui/actions-common/.github/workflows/workflow-common-setup-and-build.yml@main
     with:
+      configuration: Release
       productNamespacePrefix: Splat.DependencyInjection
+      installWorkloads: true
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
