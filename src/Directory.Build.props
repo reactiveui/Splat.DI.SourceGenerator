@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <Platform>AnyCPU</Platform>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
     <!-- Matched on the singular so BenchmarkDotNet's generated per-job projects are included: they are
          written under a benchmark's output folder and so inherit this file. -->

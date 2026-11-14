@@ -99,7 +99,12 @@ internal static class CorpusBuilder
 
         trees.Add(Parse(BuildUnrelated(0), UnrelatedFile));
 
-        List<MetadataReference> references = [.. Basic.Reference.Assemblies.Net100.References.All, MetadataReference.CreateFromFile(typeof(IReadonlyDependencyResolver).Assembly.Location)];
+#if NET11_0_OR_GREATER
+        var framework = Basic.Reference.Assemblies.Net110.References.All;
+#else
+        var framework = Basic.Reference.Assemblies.Net100.References.All;
+#endif
+        List<MetadataReference> references = [.. framework, MetadataReference.CreateFromFile(typeof(IReadonlyDependencyResolver).Assembly.Location)];
 
         return CSharpCompilation.Create("BenchmarkConsumer", trees, references, new(OutputKind.DynamicallyLinkedLibrary));
     }

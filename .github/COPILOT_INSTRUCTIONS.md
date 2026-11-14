@@ -388,14 +388,14 @@ public partial class ObservableLinkedList<T> : INotifyCollectionChanged, INotify
    - Uses TUnit testing framework
    - Uses Verify.SourceGenerators for snapshot comparison
    - 342 tests validating generated code
-   - Target framework: net8.0
+   - Target framework: net10.0
 
 4. **Splat.DependencyInjection.Analyzer.Tests** - Analyzer and code fix tests
    - Uses TUnit testing framework
    - Tests all diagnostic analyzers (SPLATDI001-007)
    - Tests all code fix providers
    - 45 tests validating analyzer behavior
-   - Target framework: net8.0
+   - Target framework: net10.0
 
 ### Project Structure
 ```
@@ -510,7 +510,7 @@ src/
 - **Generated Code**: Must be compatible with C# 7.3 (no file-scoped namespaces, no init properties)
 
 ### Test Projects
-- **net8.0**: Modern .NET with TUnit and Verify.SourceGenerators support
+- **net10.0**: Modern .NET with TUnit and Verify.SourceGenerators support
 - **Language Version**: Latest C# features available
 
 ### AOT Compatibility

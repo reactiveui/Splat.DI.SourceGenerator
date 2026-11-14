@@ -11,7 +11,7 @@ See: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test?tabs=dotnet
 ### Prerequisites
 
 ```powershell
-# Check .NET installation (.NET 8.0, 9.0, and 10.0 required)
+# Check .NET installation (.NET 10.0 and 11.0 required)
 dotnet --info
 
 # Restore NuGet packages
@@ -368,7 +368,7 @@ See `.github/COPILOT_INSTRUCTIONS.md` for complete style guide.
 - **Generation:** Write through `SourceWriter`, not SyntaxFactory
 - **Separate Analyzer:** Diagnostics in separate project following Roslyn best practices
 - **No shallow clones:** Repository requires full clone for git version information used by MinVer
-- **Required .NET SDKs:** .NET 8.0, 9.0, and 10.0 (all three required for full build)
+- **Required .NET SDKs:** .NET 10.0 and 11.0
 - **Snapshot Testing:** Review `.verified.cs` diffs carefully before accepting
 - **Comprehensive Instructions:** `.github/COPILOT_INSTRUCTIONS.md` contains detailed development guidelines
 - **Code Formatting:** Always run `dotnet format whitespace` and `dotnet format style` before committing

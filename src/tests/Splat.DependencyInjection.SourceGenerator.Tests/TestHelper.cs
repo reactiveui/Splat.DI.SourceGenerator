@@ -270,12 +270,10 @@ public static class TestHelper
     /// <returns>The references.</returns>
     private static MetadataReference[] CreateDefaultReferences()
     {
-#if NET10_0_OR_GREATER
-        var framework = Basic.Reference.Assemblies.Net100.References.All;
-#elif NET9_0_OR_GREATER
-        var framework = Basic.Reference.Assemblies.Net90.References.All;
+#if NET11_0_OR_GREATER
+        var framework = Basic.Reference.Assemblies.Net110.References.All;
 #else
-        var framework = Basic.Reference.Assemblies.Net80.References.All;
+        var framework = Basic.Reference.Assemblies.Net100.References.All;
 #endif
         List<MetadataReference> references = [.. framework, MetadataReference.CreateFromFile(typeof(IReadonlyDependencyResolver).Assembly.Location)];
         return [.. references];
