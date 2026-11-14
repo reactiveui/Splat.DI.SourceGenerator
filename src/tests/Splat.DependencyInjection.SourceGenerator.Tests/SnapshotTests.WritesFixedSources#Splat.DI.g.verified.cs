@@ -14,7 +14,7 @@ namespace Splat
     /// This class contains marker methods that are analyzed at compile-time to generate
     /// dependency injection registrations.
     /// </summary>
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Splat.DependencyInjection.SourceGenerator", "2.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Splat.DependencyInjection.SourceGenerator", "3.0.0.0")]
     internal static partial class SplatRegistrations
     {
         /// <summary>
