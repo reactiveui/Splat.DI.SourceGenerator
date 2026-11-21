@@ -41,6 +41,6 @@
 
     <!-- Test App Dependencies-->
     <PackageVersion Include="ReactiveUI" Version="26.0.1" />
-    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="5.0.0" />
+    <PackageVersion Include="ReactiveUI.SourceGenerators" Version="5.1.0" />
   </ItemGroup>
 </Project>
