@@ -9,6 +9,8 @@ using System.Text;
 
 using Microsoft.CodeAnalysis;
 
+using Splat.DependencyInjection.SourceGenerator.CodeGeneration;
+
 namespace Splat.DependencyInjection.SourceGenerator.Tests;
 
 /// <summary>Compares a generator run's output with the snapshots stored in the test project.</summary>
@@ -47,6 +49,15 @@ internal static class GeneratorSnapshot
     /// <summary>The suffix of the diagnostics written beside a snapshot they do not match.</summary>
     private const string ReceivedDiagnosticsSuffix = ".received.txt";
 
+    /// <summary>What a snapshot stores in place of the generator's version in <c>GeneratedCodeAttribute</c>.</summary>
+    private const string GeneratorVersionPlaceholder = "\", \"{generator version}\")]";
+
+    /// <summary>
+    /// The end of the generator's <c>GeneratedCodeAttribute</c>, holding its version. The version comes from the git tags,
+    /// so a snapshot that kept it would fail after every release.
+    /// </summary>
+    private static readonly string GeneratorVersionText = $"\", \"{typeof(MarkerSource).Assembly.GetName().Version}\")]";
+
     /// <summary>Gets the directory holding the snapshots.</summary>
     internal static string SnapshotDirectory { get; } = ReadSnapshotDirectory();
 
@@ -78,7 +89,8 @@ internal static class GeneratorSnapshot
 
                 var fileName = prefix + Path.GetFileNameWithoutExtension(source.HintName) + VerifiedSourceSuffix;
                 _ = produced.Add(fileName);
-                var output = $"//HintName: {source.HintName}\n{Normalize(source.SourceText.ToString())}";
+                var text = Normalize(source.SourceText.ToString()).Replace(GeneratorVersionText, GeneratorVersionPlaceholder, StringComparison.Ordinal);
+                var output = $"//HintName: {source.HintName}\n{text}";
                 await CompareAsync(fileName, ReceivedSourceSuffix, output, accept, failures).ConfigureAwait(false);
             }
 
