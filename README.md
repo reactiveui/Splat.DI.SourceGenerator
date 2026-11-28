@@ -1,13 +1,17 @@
-[![Build](https://github.com/reactiveui/Splat.DI.SourceGenerator/actions/workflows/ci-build.yml/badge.svg)](https://github.com/reactiveui/Splat.DI.SourceGenerator/actions/workflows/ci-build.yml)
-[![Code Coverage](https://codecov.io/gh/reactiveui/Splat.DI.SourceGenerator/branch/main/graph/badge.svg?token=dmQeHH4Us8)](https://codecov.io/gh/reactiveui/Splat.DI.SourceGenerator)
-[![NuGet](https://img.shields.io/nuget/v/Splat.DependencyInjection.SourceGenerator.svg)](https://www.nuget.org/packages/Splat.DependencyInjection.SourceGenerator/)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Splat.DependencyInjection.SourceGenerator.svg)](https://www.nuget.org/packages/Splat.DependencyInjection.SourceGenerator/)
-<br>
-<a href="https://reactiveui.net/slack">
-        <img src="https://img.shields.io/badge/chat-slack-blue.svg">
-</a>
+<div align="center">
+
+<a href="https://github.com/reactiveui/Splat.DI.SourceGenerator"><img src="https://raw.githubusercontent.com/reactiveui/styleguide/master/logo_splat/logo.svg" alt="Splat.DependencyInjection.SourceGenerator" width="128"></a>
 
 # Splat Dependency Injection Source Generator
+
+[![Build](https://img.shields.io/github/actions/workflow/status/reactiveui/Splat.DI.SourceGenerator/ci-build.yml?branch=main&label=build&logo=githubactions&logoColor=white)](https://github.com/reactiveui/Splat.DI.SourceGenerator/actions/workflows/ci-build.yml)
+[![NuGet](https://img.shields.io/nuget/v/Splat.DependencyInjection.SourceGenerator?label=nuget&logo=nuget&logoColor=white&color=004880)](https://www.nuget.org/packages/Splat.DependencyInjection.SourceGenerator)
+[![Downloads](https://img.shields.io/nuget/dt/Splat.DependencyInjection.SourceGenerator?label=downloads&logo=nuget&logoColor=white&color=004880)](https://www.nuget.org/packages/Splat.DependencyInjection.SourceGenerator)
+[![Coverage](https://img.shields.io/codecov/c/github/reactiveui/Splat.DI.SourceGenerator?label=coverage&logo=codecov&logoColor=white)](https://codecov.io/gh/reactiveui/Splat.DI.SourceGenerator)
+[![License](https://img.shields.io/github/license/reactiveui/Splat.DI.SourceGenerator?color=blue)](https://github.com/reactiveui/Splat.DI.SourceGenerator/blob/main/LICENSE)
+[![Discussions](https://img.shields.io/badge/discussions-ask%20a%20question-8A2BE2?logo=github&logoColor=white)](https://github.com/reactiveui/ReactiveUI/discussions)
+
+</div>
 
 A high-performance C# source generator that produces compile-time dependency injection registrations for [Splat](https://github.com/reactiveui/splat). Eliminates runtime reflection, provides full native AOT support, and includes intelligent analyzers with automatic code fixes.
 
@@ -385,26 +389,30 @@ New features in 2.1.1:
 - Built-in analyzers with real-time diagnostics and automatic code fixes
 - Full Native AOT and trimming support with generic-first API
 
-## Support
-
-If you have questions or need help:
-
-- Check existing [GitHub Issues](https://github.com/reactiveui/Splat.DI.SourceGenerator/issues)
-- Ask on [Stack Overflow](https://stackoverflow.com/questions/tagged/splat) with the `splat` tag
-- Join our [Slack community](https://reactiveui.net/slack)
-
-Please do not open GitHub issues for general support questions.
-
 ## Contribute
 
-We welcome contributions! Here's how you can help:
+Splat.DependencyInjection.SourceGenerator is part of [ReactiveUI](https://github.com/reactiveui) and is released under the [MIT license](https://github.com/reactiveui/Splat.DI.SourceGenerator/blob/main/LICENSE). We welcome contributions of every size, from bug reports and documentation to features and tests.
 
-1. Report Issues: Found a bug? [Open an issue](https://github.com/reactiveui/Splat.DI.SourceGenerator/issues/new)
-2. Submit PRs: Improvements are always welcome
-3. Documentation: Help improve our examples and docs
-4. Testing: Add test cases for edge scenarios
+- **Questions:** ask in [GitHub Discussions](https://github.com/reactiveui/ReactiveUI/discussions).
+- **Bugs and feature requests:** open a [GitHub issue](https://github.com/reactiveui/Splat.DI.SourceGenerator/issues/new/choose).
+- **Larger changes:** open an issue or discussion first, so we can agree on the approach before you start.
+- **Contributor guide:** read [reactiveui.net/contribute](https://www.reactiveui.net/contribute/) for [building and testing](https://www.reactiveui.net/contribute/building-and-testing/) and [pull requests](https://www.reactiveui.net/contribute/pull-requests/).
 
-See the [ReactiveUI contribution guide](https://www.reactiveui.net/contribute/index.html) for details.
+### Coding standards
+
+Every pull request must meet these standards. The build checks most of them.
+
+- Follow the [ReactiveUI C# style guide](https://www.reactiveui.net/contribute/software-style-guide/code-style/).
+- The repository's `.editorconfig` and the StyleSharp, PerformanceSharp and SecuritySharp analyzers run on every build. Fix each finding in the code. Do not suppress it or relax the `.editorconfig`.
+- Add tests for every bug fix and new feature.
+- Document public APIs with XML documentation comments.
+- Write commit messages in the [Conventional Commits](https://www.reactiveui.net/contribute/software-style-guide/commit-message-convention/) format.
+- Follow the [Code of Conduct](https://github.com/reactiveui/.github/blob/main/CODE_OF_CONDUCT.md).
+
+### Support the project
+
+- Sponsor the maintainers on GitHub Sponsors: [reactivemarbles](https://github.com/sponsors/reactivemarbles), [glennawatson](https://github.com/sponsors/glennawatson) and [chrispulman](https://github.com/sponsors/chrispulman).
+- Ask your employer to support open source, for example with the [balanced employee IP agreement](https://github.com/github/balanced-employee-ip-agreement).
 
 ## Sponsors
 
@@ -425,12 +433,6 @@ See the [ReactiveUI contribution guide](https://www.reactiveui.net/contribute/in
 See [our sponsors](https://www.reactiveui.net/sponsors/) for more information.
 JetBrains, Claude, Anthropic, OpenAI and Codex names and logos are trademarks of their respective owners.
 Snyk and the Snyk logo are trademarks of Snyk Ltd.
-
-## Sponsorship
-
-The core team members and contributors work on this project in their free time. If Splat.DI.SourceGenerator increases your productivity, please consider supporting the project:
-
-[Become a sponsor](https://github.com/sponsors/reactivemarbles)
 
 ## License
 
