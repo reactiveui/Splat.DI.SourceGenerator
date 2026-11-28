@@ -7,6 +7,9 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/Splat.DI.SourceGenerator.Benchmarks/Splat.DI.SourceGenerator.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/examples/">
+    <Project Path="examples/ReceiptServices/ReceiptServices.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../.editorconfig" />
     <File Path="../.gitignore" />
